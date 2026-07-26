@@ -196,7 +196,7 @@ export function PersianDatePickerModal({
             <View style={styles.pickerColumn}>
               <View style={styles.labelContainer}>
                 <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>
-                  سال
+                  روز
                 </ThemedText>
               </View>
               <ScrollView
@@ -204,12 +204,12 @@ export function PersianDatePickerModal({
                 contentContainerStyle={styles.pickerContent}
                 showsVerticalScrollIndicator={false}
               >
-                {years.map((y) => {
-                  const isSelected = y === year;
+                {days.map((d) => {
+                  const isSelected = d === day;
                   return (
                     <Pressable
-                      key={y}
-                      onPress={() => handleYearSelect(y)}
+                      key={d}
+                      onPress={() => handleDaySelect(d)}
                       style={[
                         styles.option,
                         {
@@ -222,7 +222,7 @@ export function PersianDatePickerModal({
                         type="smallBold"
                         style={{ color: isSelected ? theme.surface : theme.text }}
                       >
-                        {formatPersianNumber(y)}
+                        {formatPersianNumber(d)}
                       </ThemedText>
                     </Pressable>
                   );
@@ -270,7 +270,7 @@ export function PersianDatePickerModal({
             <View style={styles.pickerColumn}>
               <View style={styles.labelContainer}>
                 <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>
-                  روز
+                  سال
                 </ThemedText>
               </View>
               <ScrollView
@@ -278,12 +278,12 @@ export function PersianDatePickerModal({
                 contentContainerStyle={styles.pickerContent}
                 showsVerticalScrollIndicator={false}
               >
-                {days.map((d) => {
-                  const isSelected = d === day;
+                {years.map((y) => {
+                  const isSelected = y === year;
                   return (
                     <Pressable
-                      key={d}
-                      onPress={() => handleDaySelect(d)}
+                      key={y}
+                      onPress={() => handleYearSelect(y)}
                       style={[
                         styles.option,
                         {
@@ -296,7 +296,7 @@ export function PersianDatePickerModal({
                         type="smallBold"
                         style={{ color: isSelected ? theme.surface : theme.text }}
                       >
-                        {formatPersianNumber(d)}
+                        {formatPersianNumber(y)}
                       </ThemedText>
                     </Pressable>
                   );
