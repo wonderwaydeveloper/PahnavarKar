@@ -124,6 +124,15 @@ export function PersianDatePickerModal({
   const [month, setMonth] = useState(initialDate.month);
   const [day, setDay] = useState(initialDate.day);
 
+  const [prevValue, setPrevValue] = useState(value);
+
+  if (prevValue !== value) {
+    setYear(initialDate.year);
+    setMonth(initialDate.month);
+    setDay(initialDate.day);
+    setPrevValue(value);
+  }
+
   const resolvedDay = Math.min(day, getPersianDaysInMonth(year, month));
 
   const years = useMemo(() => {
