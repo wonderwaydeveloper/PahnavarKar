@@ -8,6 +8,7 @@
     "scheme": "pahnavarkar",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.cleverlife.pahnavarkar",
       "icon": "./assets/images/icon.png"
     },
     "android": {
