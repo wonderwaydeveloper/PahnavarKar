@@ -1,10 +1,10 @@
-import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
+import { StyleSheet, Text, type TextProps } from 'react-native';
 
-import { Fonts, ThemeColor } from '@/constants/theme';
+import { ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code' | 'largeTitle' | 'description' | 'body' | 'bodyBold' | 'labelBold';
   themeColor?: ThemeColor;
 };
 
@@ -14,7 +14,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
   return (
     <Text
       style={[
-        { color: theme[themeColor ?? 'text'] },
+        { color: type === 'linkPrimary' ? theme.primary : theme[themeColor ?? 'text'] },
         type === 'default' && styles.default,
         type === 'title' && styles.title,
         type === 'small' && styles.small,
@@ -23,6 +23,11 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
         type === 'link' && styles.link,
         type === 'linkPrimary' && styles.linkPrimary,
         type === 'code' && styles.code,
+        type === 'largeTitle' && styles.largeTitle,
+        type === 'description' && styles.description,
+        type === 'body' && styles.body,
+        type === 'bodyBold' && styles.bodyBold,
+        type === 'labelBold' && styles.labelBold,
         style,
       ]}
       {...rest}
@@ -34,40 +39,66 @@ const styles = StyleSheet.create({
   small: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: 500,
+    fontFamily: 'Vazirmatn-Regular',
   },
   smallBold: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: 700,
+    fontFamily: 'Vazirmatn-Bold',
   },
   default: {
     fontSize: 16,
     lineHeight: 24,
-    fontWeight: 500,
+    fontFamily: 'Vazirmatn-Regular',
   },
   title: {
     fontSize: 48,
-    fontWeight: 600,
     lineHeight: 52,
+    fontFamily: 'Vazirmatn-Bold',
   },
   subtitle: {
     fontSize: 32,
     lineHeight: 44,
-    fontWeight: 600,
+    fontFamily: 'Vazirmatn-SemiBold',
   },
   link: {
     lineHeight: 30,
     fontSize: 14,
+    fontFamily: 'Vazirmatn-Regular',
   },
   linkPrimary: {
     lineHeight: 30,
     fontSize: 14,
-    color: '#3c87f7',
+    fontFamily: 'Vazirmatn-SemiBold',
   },
   code: {
-    fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
+    fontFamily: 'Vazirmatn-SemiBold',
     fontSize: 12,
+  },
+  largeTitle: {
+    fontSize: 24,
+    lineHeight: 32,
+    fontFamily: 'Vazirmatn-Bold',
+  },
+  description: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: 'Vazirmatn-Regular',
+    opacity: 0.7,
+  },
+  body: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontFamily: 'Vazirmatn-Regular',
+  },
+  bodyBold: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontFamily: 'Vazirmatn-Bold',
+  },
+  labelBold: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontFamily: 'Vazirmatn-Bold',
   },
 });

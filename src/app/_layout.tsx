@@ -1,18 +1,28 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { I18nManager } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { RootTabs } from '@/components/root-tabs';
+import { AppProvider } from '@/context';
+import { useFontLoading } from '@/hooks/use-font-loading';
 
-SplashScreen.preventAutoHideAsync();
+// ✅ فعال کردن RTL برای فارسی
+I18nManager.allowRTL(true);
+I18nManager.forceRTL(true);
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
+  const fontsReady = useFontLoading();
+
+  if (!fontsReady) {
+    return null;
+  }
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AppProvider>
+        <AnimatedSplashOverlay />
+        <RootTabs />
+      </AppProvider>
+    </GestureHandlerRootView>
   );
 }
