@@ -1,3 +1,4 @@
+import { useTheme } from '@/hooks/use-theme';
 import { useState } from 'react';
 import { Dimensions, StyleSheet } from 'react-native';
 import Animated, { Easing, Keyframe } from 'react-native-reanimated';
@@ -8,6 +9,7 @@ const DURATION = 600;
 
 export function AnimatedSplashOverlay() {
   const [visible, setVisible] = useState(true);
+  const theme = useTheme();
 
   if (!visible) return null;
 
@@ -38,7 +40,7 @@ export function AnimatedSplashOverlay() {
           scheduleOnRN(setVisible, false);
         }
       })}
-      style={styles.backgroundSolidColor}
+      style={[styles.backgroundSolidColor, { backgroundColor: theme.background }]}
     />
   );
 }

@@ -63,20 +63,27 @@ export default function HomeScreen() {
           </View>
 
           <View style={[styles.actionGroup, isWide && styles.actionGroupWide]}>
-            {actions.map((action) => (
-              <Button
-                key={action.key}
-                icon={action.icon}
-                mode={action.mode}
-                style={styles.actionButton}
-                labelStyle={styles.actionLabel}
-                buttonColor={action.mode === 'contained' ? theme.primary : theme.surface}
-                textColor={action.mode === 'contained' ? theme.surface : theme.primary}
-                onPress={action.onPress}
-              >
-                {action.label}
-              </Button>
-            ))}
+            {actions.map((action) => {
+              const isOutlined = action.key === 'calculations';
+
+              return (
+                <Button
+                  key={action.key}
+                  icon={action.icon}
+                  mode={isOutlined ? 'outlined' : 'contained'}
+                  style={[
+                    styles.actionButton,
+                    isOutlined && styles.outlinedActionButton,
+                  ]}
+                  labelStyle={styles.actionLabel}
+                  buttonColor={isOutlined ? theme.surface : theme.primary}
+                  textColor={isOutlined ? theme.primary : theme.surface}
+                  onPress={action.onPress}
+                >
+                  {action.label}
+                </Button>
+              );
+            })}
           </View>
 
 
@@ -141,6 +148,9 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     borderRadius: Spacing.three,
+  },
+  outlinedActionButton: {
+    borderWidth: StyleSheet.hairlineWidth,
   },
   actionLabel: {
     fontFamily: 'Vazirmatn-Medium',

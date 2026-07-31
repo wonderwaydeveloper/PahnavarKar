@@ -75,6 +75,11 @@ export function PeriodCard({
 
   const getPeriodDetailRows = (periodItem: PeriodRecord): PeriodDetailRow[] => [
     { kind: 'row', label: periodUiLabels.month_count, value: periodItem.month_count },
+    { kind: 'row', label: periodUiLabels.days_in_year, value: periodItem.days_in_year },
+    { kind: 'row', label: periodUiLabels.fridays_in_year, value: periodItem.fridays_in_year },
+    { kind: 'row', label: periodUiLabels.official_holidays_in_year, value: periodItem.official_holidays_in_year },
+    { kind: 'row', label: periodUiLabels.total_official_holidays, value: periodItem.total_official_holidays },
+    { kind: 'row', label: periodUiLabels.total_work_hours_year, value: periodItem.total_work_hours_year },
     { kind: 'row', label: periodUiLabels.daily_minimum_wage, value: periodItem.daily_minimum_wage ?? null, currency: true },
     { kind: 'row', label: periodUiLabels.friday_work_per_day, value: periodItem.friday_work_per_day ?? null, currency: true },
     {
@@ -86,7 +91,6 @@ export function PeriodCard({
         { label: periodUiLabels.monthly_shift_work_morning_night_or_evening_night_225, value: periodItem.monthly_shift_work_morning_night_or_evening_night_225, currency: true },
       ],
     },
-    { kind: 'row', label: periodUiLabels.total_official_holidays, value: periodItem.total_official_holidays },
     { kind: 'row', label: periodUiLabels.seniority_base, value: periodItem.seniority_base, currency: true },
     { kind: 'row', label: periodUiLabels.overtime_per_hour, value: periodItem.overtime_per_hour, currency: true },
     { kind: 'row', label: periodUiLabels.night_work_per_hour, value: periodItem.night_work_per_hour, currency: true },
@@ -313,7 +317,7 @@ export function PeriodCard({
             size={18} 
             color={theme.surface} 
           />
-          <ThemedText type="labelBold" style={{ color: theme.surface }}>
+          <ThemedText style={[styles.buttonLabel, { color: theme.surface }]}>
             {isExpanded ? 'عدم نمایش' : 'نمایش جزئیات'}
           </ThemedText>
         </Pressable>
@@ -387,6 +391,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
+  },
+  buttonLabel: {
+    fontFamily: 'Vazirmatn-Medium',
+    fontSize: 14,
+    lineHeight: 20,
   },
   expandedSection: {
     marginTop: Spacing.one,

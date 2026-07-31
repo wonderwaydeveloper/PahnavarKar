@@ -29,7 +29,7 @@ export const periodUiLabels = {
     formula_increase: 'فرمول افزایش مزدی',
     min_wage_decree_reference: 'شماره و تاریخ بخشنامه حداقل مزد',
     marital_allowance: 'حق تاهل',
-    seniority_base: 'پایه سنوات',
+    seniority_base: 'پایه سنوات بعد از یک سابقه کارگر در کارگاه',
 };
 
 export const uiLabels = {

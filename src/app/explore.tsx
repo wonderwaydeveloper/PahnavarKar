@@ -6,7 +6,7 @@ import {
   Card,
   Snackbar
 } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -18,13 +18,9 @@ import type { PeriodRecord, YearRecord } from '@/database/types';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function ExploreScreen() {
-  const safeAreaInsets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isWide = width >= 960;
-  const insets = {
-    ...safeAreaInsets,
-    bottom: safeAreaInsets.bottom,
-  };
   const theme = useTheme();
 
   // State management
@@ -40,10 +36,10 @@ export default function ExploreScreen() {
 
   const selectedYear = useMemo(() => {
     if (selectedYearId == null) {
-      return years[0] ?? null;
+      return [...years].sort((a, b) => b.year - a.year)[0] ?? null;
     }
 
-    return years.find((year) => year.id === selectedYearId) ?? years[0] ?? null;
+    return years.find((year) => year.id === selectedYearId) ?? [...years].sort((a, b) => b.year - a.year)[0] ?? null;
   }, [selectedYearId, years]);
 
   const loadPeriodsForYear = async (year: YearRecord | null, showLoading = true) => {
@@ -78,10 +74,12 @@ export default function ExploreScreen() {
       try {
         await seedFromJsonAsset();
         const yearRows = await fetchYears();
+        const sortedYearRows = [...yearRows].sort((a, b) => b.year - a.year);
         setYears(yearRows);
-        setSelectedYearId(yearRows[0]?.id ?? null);
+        const latestYear = sortedYearRows[0] ?? null;
+        setSelectedYearId(latestYear?.id ?? null);
         setError(null);
-        await loadPeriodsForYear(yearRows[0] ?? null, false);
+        await loadPeriodsForYear(latestYear ?? null, false);
       } catch (err) {
         const errorMsg = String(err);
         setError(errorMsg);
@@ -103,14 +101,16 @@ export default function ExploreScreen() {
 
   const contentPlatformStyle = Platform.select({
     android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
+      paddingTop: Spacing.three,
+      paddingLeft: Spacing.four,
+      paddingRight: Spacing.four,
+      paddingBottom: Spacing.four,
     },
     web: {
       paddingTop: Spacing.six,
       paddingBottom: Spacing.four,
+      paddingLeft: Spacing.four,
+      paddingRight: Spacing.four,
     },
   });
 
@@ -167,13 +167,13 @@ export default function ExploreScreen() {
             <ThemedText type="small" style={styles.loadingText}>در حال بارگذاری داده‌ها...</ThemedText>
           </View>
         ) : (
-          <ScrollView
-            style={[styles.scrollView, { backgroundColor: theme.background }]}
-            contentInset={insets}
-            contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}
-            showsVerticalScrollIndicator={false}
-          >
-            <YearSelectorCard
+          <SafeAreaView style={styles.safeArea}>
+            <ScrollView
+              style={[styles.scrollView, { backgroundColor: theme.background }]}
+              contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}
+              showsVerticalScrollIndicator={false}
+            >
+              <YearSelectorCard
               selectedYear={selectedYear}
               years={sortedYears}
               visible={yearPickerVisible}
@@ -184,7 +184,7 @@ export default function ExploreScreen() {
             />
 
             {/* Periods Section */}
-            <View style={{ marginHorizontal: Spacing.three, marginTop: Spacing.two }}>
+            <View style={{ marginTop: Spacing.two }}>
               <View style={styles.periodsSectionHeader}>
                 <ThemedText type="smallBold" themeColor="text" style={styles.periodsSectionTitle}>جزئیات دوره‌ها</ThemedText>
                 {loadingPeriods && <ActivityIndicator size="small" color={theme.primary} />}
@@ -214,7 +214,8 @@ export default function ExploreScreen() {
             </View>
 
             {Platform.OS === 'web' && <WebBadge />}
-          </ScrollView>
+            </ScrollView>
+          </SafeAreaView>
         )}
       </ThemedView>
 
@@ -248,6 +249,10 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: Spacing.six,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   centerContainer: {
     flex: 1,

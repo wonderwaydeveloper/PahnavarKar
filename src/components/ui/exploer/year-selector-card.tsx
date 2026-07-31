@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Card } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
@@ -27,9 +28,10 @@ export function YearSelectorCard({
   formatYear,
 }: YearSelectorCardProps) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { marginHorizontal: Spacing.three, marginBottom: Spacing.four }]}>
+    <View style={[styles.container, { marginBottom: Spacing.four }]}> 
       <Card elevation={1} style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Card.Content style={styles.cardContent}>
           <View style={styles.headerRow}>
@@ -79,7 +81,7 @@ export function YearSelectorCard({
             ]}
           >
             <MaterialCommunityIcons name="pencil" size={18} color={theme.surface} />
-            <ThemedText type="labelBold" style={{ color: theme.surface }}>
+            <ThemedText style={[styles.buttonLabel, { color: theme.surface }]}>
               تغییر سال
             </ThemedText>
           </Pressable>
@@ -88,7 +90,7 @@ export function YearSelectorCard({
 
       <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
         <Pressable style={styles.yearPickerOverlay} onPress={onClose}>
-          <Pressable style={[styles.yearPickerModal, { backgroundColor: theme.surfaceElevated }]}> 
+          <Pressable style={[styles.yearPickerModal, { backgroundColor: theme.surfaceElevated, paddingBottom: Spacing.three + insets.bottom }]}> 
             <View style={styles.yearPickerHandle} />
             <View style={styles.yearPickerHeader}>
               <View style={styles.yearPickerHeaderTextBlock}>
@@ -101,7 +103,7 @@ export function YearSelectorCard({
             </View>
 
             <ScrollView style={styles.yearPickerList} showsVerticalScrollIndicator={false} contentContainerStyle={styles.yearPickerListContent}>
-              {years.map(year => {
+              {[...years].sort((a, b) => b.year - a.year).map(year => {
                 const isSelected = selectedYear?.id === year.id;
                 return (
                   <Pressable
@@ -200,6 +202,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
+  },
+  buttonLabel: {
+    fontFamily: 'Vazirmatn-Medium',
+    fontSize: 14,
+    lineHeight: 20,
   },
   yearPickerOverlay: {
     flex: 1,

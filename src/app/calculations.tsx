@@ -199,6 +199,11 @@ export default function CalculationsScreen() {
     setShowDetailedBreakdown(false);
   };
 
+  const handleReset = () => {
+    setResult(null);
+    setShowDetailedBreakdown(false);
+  };
+
   const formattedResult = useMemo(() => {
     if (!result) {
       return '۰ ریال';
@@ -213,12 +218,13 @@ export default function CalculationsScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
+            paddingTop: insets.top + Spacing.three,
             paddingBottom: insets.bottom + Spacing.four,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={styles.safeArea}> 
           <Card elevation={1} style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Card.Content style={styles.cardContent}>
               <View style={styles.headerRow}>
@@ -261,18 +267,35 @@ export default function CalculationsScreen() {
                 </View>
               </View>
 
-              <Button
-                mode="contained"
-                onPress={handleCalculate}
-                style={styles.actionButton}
-                labelStyle={styles.actionLabel}
-                buttonColor={theme.primary}
-                textColor={theme.surface}
-                loading={isLoadingData}
-                disabled={isLoadingData}
-              >
-                محاسبه
-              </Button>
+              <View style={styles.actionsGroup}>
+                <Button
+                  mode="contained"
+                  onPress={handleCalculate}
+                  icon="calculator-variant"
+                  style={styles.actionButton}
+                  labelStyle={styles.actionLabel}
+                  buttonColor={theme.primary}
+                  textColor={theme.surface}
+                  loading={isLoadingData}
+                  disabled={isLoadingData}
+                >
+                  محاسبه
+                </Button>
+
+                {result && result.breakdown.length > 0 ? (
+                  <Button
+                    mode="outlined"
+                    onPress={handleReset}
+                    icon="refresh"
+                    style={[styles.actionButton, styles.resetButton]}
+                    labelStyle={styles.actionLabel}
+                    textColor={theme.primary}
+                    disabled={isLoadingData}
+                  >
+                    بازنشانی
+                  </Button>
+                ) : null}
+              </View>
 
               {result && result.breakdown.length > 0 ? (
                 <Card style={[styles.breakdownCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}> 
@@ -441,8 +464,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.four,
   },
   card: {
     borderRadius: 20,
@@ -509,14 +531,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  actionsGroup: {
+    gap: Spacing.two,
+  },
   actionButton: {
     borderRadius: 12,
-    marginTop: Spacing.one,
+  },
+  resetButton: {
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   actionLabel: {
     fontFamily: 'Vazirmatn-Medium',
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
   },
   breakdownCard: {
     borderRadius: Radius.lg,

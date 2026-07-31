@@ -78,19 +78,6 @@ export async function seedDatabase(data: SeedData) {
                     throw new Error(`Invalid year value in seed data: ${rawYearValue}`);
                 }
 
-                const firstPeriod = Array.isArray(yearRecord.periods) && yearRecord.periods.length > 0
-                    ? yearRecord.periods[0]
-                    : null;
-                const periodBaseValues = {
-                    days_in_year: firstPeriod?.['تعداد_روزهاي_سال'] ?? null,
-                    fridays_in_year: firstPeriod?.['تعداد_جمعه_های_سال'] ?? null,
-                    official_holidays_in_year: firstPeriod?.['تعداد_تعطيلات_رسمي_سال'] ?? null,
-                    total_official_holidays: firstPeriod?.['کل_تعطیلات_رسمی_سال'] ?? null,
-                    total_work_hours_year: firstPeriod?.['تعداد_ساعات_کارکرد_موظفی_کارگر_در_سال'] ?? null,
-                    daily_minimum_wage: firstPeriod?.['مبلغ_حداقل_مزد_روزانه_مصوب_شورای_عالی_کار'] ?? null,
-                    friday_work_per_day: firstPeriod?.['مبلغ_جمعه_کاری_یک_روز'] ?? null,
-                };
-
                 const yearResult = await yearStatement.executeAsync([
                     normalizedYear,
                     yearRecord.periods ? yearRecord.periods.length : 0,
@@ -110,13 +97,13 @@ export async function seedDatabase(data: SeedData) {
                             yearId,
                             index + 1,
                             period['تعداد_ماه_های_کارکرد_سال'] ?? null,
-                            periodBaseValues.days_in_year,
-                            periodBaseValues.fridays_in_year,
-                            periodBaseValues.official_holidays_in_year,
-                            periodBaseValues.total_official_holidays,
-                            periodBaseValues.total_work_hours_year,
-                            periodBaseValues.daily_minimum_wage,
-                            periodBaseValues.friday_work_per_day,
+                            period['تعداد_روزهاي_سال'] ?? null,
+                            period['تعداد_جمعه_های_سال'] ?? null,
+                            period['تعداد_تعطيلات_رسمي_سال'] ?? null,
+                            period['کل_تعطیلات_رسمی_سال'] ?? null,
+                            period['تعداد_ساعات_کارکرد_موظفی_کارگر_در_سال'] ?? null,
+                            period['مبلغ_حداقل_مزد_روزانه_مصوب_شورای_عالی_کار'] ?? null,
+                            period['مبلغ_جمعه_کاری_یک_روز'] ?? null,
                             period['نوبت_کاری_ماهانه']?.['صبح وعصر  10%'] ?? null,
                             period['نوبت_کاری_ماهانه']?.['صبح وعصر وشب  15%'] ?? null,
                             period['نوبت_کاری_ماهانه']?.['صبح  وشب یا عصر وشب   22.5%'] ?? null,

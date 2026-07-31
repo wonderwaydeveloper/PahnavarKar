@@ -3,6 +3,7 @@ import { isLeapJalaaliYear, isValidJalaaliDate, toJalaali } from 'jalaali-js';
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
@@ -98,6 +99,7 @@ export function PersianDatePickerModal({
   availableYears = [],
 }: PersianDatePickerModalProps) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   const currentJalaliDate = useMemo(() => {
     const today = new Date();
@@ -137,9 +139,9 @@ export function PersianDatePickerModal({
 
   const years = useMemo(() => {
     if (availableYears.length > 0) {
-      return [...availableYears].sort((a, b) => a - b);
+      return [...availableYears].sort((a, b) => b - a);
     }
-    return Array.from({ length: currentYear - 1369 + 1 }, (_, index) => 1369 + index);
+    return Array.from({ length: currentYear - 1369 + 1 }, (_, index) => 1369 + index).reverse();
   }, [availableYears, currentYear]);
 
   const months = useMemo(() => Array.from({ length: 12 }, (_, index) => index + 1), []);
@@ -173,7 +175,7 @@ export function PersianDatePickerModal({
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable
-          style={[styles.modalContent, { backgroundColor: theme.surfaceElevated }]}
+          style={[styles.modalContent, { backgroundColor: theme.surfaceElevated, paddingBottom: Spacing.three + insets.bottom }]}
           onPress={(e) => e.stopPropagation()}
         >
           <View style={styles.handle} />
