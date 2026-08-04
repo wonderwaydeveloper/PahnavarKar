@@ -46,6 +46,9 @@ export async function seedDatabase(data: SeedData) {
                     total_official_holidays,
                     total_work_hours_year,
                     daily_minimum_wage,
+                    percent_increase,
+                    seniority_base_previous,
+                    seniority_base_entitlement,
                     friday_work_per_day,
                     monthly_shift_work_morning_evening_10,
                     monthly_shift_work_morning_evening_night_15,
@@ -63,7 +66,7 @@ export async function seedDatabase(data: SeedData) {
                     formula_increase,
                     min_wage_decree_reference,
                     marital_allowance
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             `);
 
             await database.execAsync('DELETE FROM periods;');
@@ -97,16 +100,19 @@ export async function seedDatabase(data: SeedData) {
                             yearId,
                             index + 1,
                             period['تعداد_ماه_های_کارکرد_سال'] ?? null,
-                            period['تعداد_روزهاي_سال'] ?? null,
+                            period['تعداد_روزهای_سال'] ?? null,
                             period['تعداد_جمعه_های_سال'] ?? null,
-                            period['تعداد_تعطيلات_رسمي_سال'] ?? null,
+                            period['تعداد_تعطيلات_رسمی_سال'] ?? null,
                             period['کل_تعطیلات_رسمی_سال'] ?? null,
                             period['تعداد_ساعات_کارکرد_موظفی_کارگر_در_سال'] ?? null,
                             period['مبلغ_حداقل_مزد_روزانه_مصوب_شورای_عالی_کار'] ?? null,
+                            period['درصد_افزايش'] ?? null,
+                            period['پایه_سنواتی_گذشته'] ?? null,
+                            period['پایه_سنوات_استحقاقی'] ?? null,
                             period['مبلغ_جمعه_کاری_یک_روز'] ?? null,
-                            period['نوبت_کاری_ماهانه']?.['صبح وعصر  10%'] ?? null,
-                            period['نوبت_کاری_ماهانه']?.['صبح وعصر وشب  15%'] ?? null,
-                            period['نوبت_کاری_ماهانه']?.['صبح  وشب یا عصر وشب   22.5%'] ?? null,
+                            period['نوبت_کاری_ماهیانه']?.['صبح وعصر  10%'] ?? null,
+                            period['نوبت_کاری_ماهیانه']?.['صبح وعصر وشب  15%'] ?? null,
+                            period['نوبت_کاری_ماهیانه']?.['صبح  وشب یا عصر وشب   22.5%'] ?? null,
                             period['پایه_سنوات_بعداز_یک_سابقه_کارگر_در_کارگاه'] ?? null,
                             period['مبلغ_اضافه_كاری_یک_ساعت'] ?? null,
                             period['مبلغ_شب_کاری_یک_ساعت'] ?? null,

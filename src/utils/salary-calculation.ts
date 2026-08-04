@@ -19,7 +19,22 @@ export interface SalaryPeriodBucket {
         period_index: number;
         month_count: number | null;
         daily_minimum_wage: number | null;
+        child_allowance?: number | null;
     }[];
+}
+
+export interface FamilyAllowanceCalculationBreakdownItem {
+    year: number;
+    periodIndex: number;
+    monthsCovered: number;
+    daysCovered: number;
+    childAllowance: number | null;
+    amount: number;
+}
+
+export interface FamilyAllowanceCalculationResult {
+    totalAmount: number;
+    breakdown: FamilyAllowanceCalculationBreakdownItem[];
 }
 
 export interface ParsedDateInput {
@@ -151,6 +166,77 @@ export function calculateSalaryFromPeriodData(
                     daysCovered,
                     dailyMinimumWage: period.daily_minimum_wage,
                     amount: (period.daily_minimum_wage ?? 0) * daysCovered,
+                });
+            }
+
+            monthOffset = periodEndMonth;
+        }
+    }
+
+    return {
+        totalAmount: breakdown.reduce((sum, item) => sum + item.amount, 0),
+        breakdown,
+    };
+}
+
+export function calculateFamilyAllowanceFromPeriodData(
+    startDate: ParsedDateInput,
+    endDate: ParsedDateInput,
+    periodBuckets: SalaryPeriodBucket[],
+    numberOfChildren: number,
+    includeDaysCovered = true,
+): FamilyAllowanceCalculationResult {
+    if (compareParsedDates(startDate, endDate) > 0) {
+        return { totalAmount: 0, breakdown: [] };
+    }
+
+    const breakdown: FamilyAllowanceCalculationBreakdownItem[] = [];
+
+    for (const bucket of [...periodBuckets].sort((a, b) => a.year - b.year)) {
+        const sortedPeriods = [...bucket.periods].sort((a, b) => a.period_index - b.period_index);
+        let monthOffset = 0;
+
+        for (const period of sortedPeriods) {
+            const periodLength = Number(period.month_count ?? 0);
+            if (!Number.isFinite(periodLength) || periodLength <= 0) {
+                continue;
+            }
+
+            const periodStartMonth = monthOffset + 1;
+            const periodEndMonth = monthOffset + periodLength;
+            let monthsCovered = 0;
+            let daysCovered = 0;
+            let periodAmount = 0;
+            const monthlyAllowance = Number(period.child_allowance ?? 0) * numberOfChildren;
+
+            for (let monthIndex = periodStartMonth; monthIndex <= periodEndMonth; monthIndex += 1) {
+                const calendarYear = bucket.year + Math.floor((monthIndex - 1) / 12);
+                const calendarMonth = ((monthIndex - 1) % 12) + 1;
+                const monthDays = getDaysInPersianMonth(calendarYear, calendarMonth);
+                const overlapDays = getOverlapDaysForMonth(startDate, endDate, calendarYear, calendarMonth);
+
+                if (overlapDays > 0) {
+                    if (overlapDays === monthDays) {
+                        monthsCovered += 1;
+                    } else if (includeDaysCovered) {
+                        daysCovered += overlapDays;
+                        periodAmount += (monthlyAllowance * overlapDays) / monthDays;
+                    }
+
+                    if (overlapDays === monthDays) {
+                        periodAmount += monthlyAllowance;
+                    }
+                }
+            }
+
+            if ((monthsCovered > 0 || daysCovered > 0) && monthlyAllowance > 0) {
+                breakdown.push({
+                    year: bucket.year,
+                    periodIndex: period.period_index,
+                    monthsCovered,
+                    daysCovered,
+                    childAllowance: period.child_allowance ?? null,
+                    amount: Math.round(periodAmount),
                 });
             }
 

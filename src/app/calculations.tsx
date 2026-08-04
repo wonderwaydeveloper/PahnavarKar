@@ -224,41 +224,48 @@ export default function CalculationsScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <SafeAreaView style={styles.safeArea}> 
+        <SafeAreaView style={styles.safeArea}>
           <Card elevation={1} style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Card.Content style={styles.cardContent}>
               <View style={styles.headerRow}>
                 <View style={styles.headerText}>
-                  <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}> 
-                    کارت محاسبه مزد
+                  <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
+                    کارت محاسبه حقوق پایه
                   </ThemedText>
-                  <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}> 
+                  <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
                     بازه‌ی زمانی خود را انتخاب کنید تا مبلغ بر اساس داده‌های دوره‌های ثبت‌شده محاسبه شود.
                   </ThemedText>
                 </View>
               </View>
-
+              <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                <ThemedText type="small" style={[styles.formulaLabel, { color: theme.textSecondary }]}>
+                  فرمول محاسبه
+                </ThemedText>
+                <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>
+                  مبلغ حداقل مزد روزانه مصوب شورای عالی کار در هر سال × تعداد روزهای کارکرد هر سال
+                </ThemedText>
+              </View>
               <View style={styles.metricsRow}>
-                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}> 
-                  <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}> 
+                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
+                  <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
                     از تاریخ
                   </ThemedText>
                   <Pressable onPress={() => openPicker('start')}>
-                    <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-                      <ThemedText type="small" style={[styles.fieldValue, { color: startDate ? theme.text : theme.textSecondary }]}> 
+                    <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                      <ThemedText type="small" style={[styles.fieldValue, { color: startDate ? theme.text : theme.textSecondary }]}>
                         {formatDisplayedDate(startDate) || '۱۴۰۳/۰۱/۰۱'}
                       </ThemedText>
                       <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
                     </View>
                   </Pressable>
                 </View>
-                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}> 
-                  <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}> 
+                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
+                  <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
                     تا تاریخ
                   </ThemedText>
                   <Pressable onPress={() => openPicker('end')}>
-                    <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-                      <ThemedText type="small" style={[styles.fieldValue, { color: endDate ? theme.text : theme.textSecondary }]}> 
+                    <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                      <ThemedText type="small" style={[styles.fieldValue, { color: endDate ? theme.text : theme.textSecondary }]}>
                         {formatDisplayedDate(endDate) || '۱۴۰۳/۱۲/۲۹'}
                       </ThemedText>
                       <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
@@ -298,78 +305,55 @@ export default function CalculationsScreen() {
               </View>
 
               {result && result.breakdown.length > 0 ? (
-                <Card style={[styles.breakdownCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}> 
+                <Card style={[styles.breakdownCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                   <Card.Content style={styles.breakdownContent}>
                     <View style={styles.breakdownHeaderRow}>
                       <View style={styles.breakdownHeaderTextBlock}>
                         <View style={styles.breakdownTitleRow}>
-                          <View style={[styles.breakdownIconBadge, { backgroundColor: theme.primaryContainer }]}> 
-                            <MaterialCommunityIcons name="calculator-variant-outline" size={18} color={theme.primary} />
-                          </View>
                           <View style={styles.breakdownTitleInner}>
-                            <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text }]}> 
+                            <ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.text }]}>
                               جزئیات محاسبه
                             </ThemedText>
-                            <View style={[styles.breakdownSummaryPill, { backgroundColor: theme.surface, borderColor: theme.border, marginTop: Spacing.one }]}> 
-                              <ThemedText type="smallBold" style={[styles.pillText, { color: theme.primary }]}> 
-                                {`بازه: ${formatDisplayedDate(startDate)} تا ${formatDisplayedDate(endDate)}`}
-                              </ThemedText>
-                            </View>
                           </View>
                         </View>
                       </View>
                     </View>
 
                     <View style={styles.summaryBoxHeader}>
-                      <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-                        <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}> 
-                          مبلغ قابل محاسبه
+                      <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                        <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
+                          مبلغ کل حقوق پایه
                         </ThemedText>
-                        <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}> 
+                        <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>
                           {isLoadingData ? 'در حال بارگذاری...' : formattedResult}
                         </ThemedText>
                       </View>
-                      <View style={[styles.formulaBox, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-                        <ThemedText type="small" style={[styles.formulaLabel, { color: theme.textSecondary }]}> 
-                          فرمول محاسبه
-                        </ThemedText>
-                        <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}> 
-                          مبلغ حداقل مزد روزانه مصوب شورای عالی کار در هر سال × تعداد روزهای کارکرد هر سال
-                        </ThemedText>
-                      </View>
-                      <View style={[styles.formulaBox, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-                        <ThemedText type="small" style={[styles.formulaLabel, { color: theme.textSecondary }]}> 
-                          توضیح ساده
-                        </ThemedText>
-                        <ThemedText type="small" style={[styles.formulaValue, { color: theme.textSecondary }]}> 
-                          اگر بازه‌ی انتخابی شما از چند دوره عبور کند، هر دوره جداگانه حساب می‌شود. فقط روزهایی از آن دوره که داخل بازه‌ی شما قرار می‌گیرند در نظر گرفته می‌شوند و سپس این مقادیر با هم جمع می‌شوند.
-                        </ThemedText>
-                      </View>
-                    </View>
 
-                    <View style={styles.breakdownSectionHeader}>
-                      <ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.text }]}> 
-                        جزئیات دوره‌ها
-                      </ThemedText>
-                      <Pressable
-                        onPress={() => setShowDetailedBreakdown((value) => !value)}
-                        style={[
-                          styles.toggleButton,
-                          {
-                            backgroundColor: theme.surface,
-                            borderColor: theme.border,
-                          },
-                        ]}
-                      >
-                      <ThemedText type="smallBold" style={[styles.toggleButtonLabel, { color: theme.primary }]}> 
-                        {showDetailedBreakdown ? 'عدم نمایش' : 'نمایش جزئیات'}
-                      </ThemedText>
-                        <MaterialCommunityIcons
-                          name={showDetailedBreakdown ? 'chevron-up' : 'chevron-down'}
-                          size={18}
-                          color={theme.primary}
-                        />
-                      </Pressable>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.one, marginTop: Spacing.one }}>
+                        <ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.text }]}>
+                          جزئیات دوره‌ها
+                        </ThemedText>
+
+                        <Pressable
+                          onPress={() => setShowDetailedBreakdown((prev) => !prev)}
+                          style={[
+                            styles.toggleButton,
+                            {
+                              backgroundColor: theme.surface,
+                              borderColor: theme.border,
+                            },
+                          ]}
+                        >
+                          <ThemedText type="smallBold" style={[styles.toggleButtonLabel, { color: theme.primary }]}>
+                            {showDetailedBreakdown ? 'عدم نمایش' : 'نمایش جزئیات'}
+                          </ThemedText>
+                          <MaterialCommunityIcons
+                            name={showDetailedBreakdown ? 'chevron-up' : 'chevron-down'}
+                            size={18}
+                            color={theme.primary}
+                          />
+                        </Pressable>
+                      </View>
                     </View>
 
                     {showDetailedBreakdown ? (
@@ -386,30 +370,33 @@ export default function CalculationsScreen() {
                             ]}
                           >
                             <View style={styles.breakdownItemHeaderRow}>
-                              <ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}> 
+                              <ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>
                                 {`سال ${toPersianDigits(String(item.year))} · دوره ${toPersianDigits(String(item.periodIndex))}`}
                               </ThemedText>
-                              <View style={[styles.breakdownSummaryPill, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}> 
-                                <ThemedText type="smallBold" style={[styles.breakdownPillValue, { color: theme.primary }]}> 
-                                  {`${toPersianDigits(String(item.daysCovered))} روز پوشش`}
-                                </ThemedText>
-                              </View>
                             </View>
 
                             <View style={styles.breakdownDetailGrid}>
-                              <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}> 
-                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}> 
+                              <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>تعداد روز های پوشش</ThemedText>
+                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>
+                                  {toPersianDigits(String(item.daysCovered)) + ' روز'}
+                                </ThemedText>
+                              </View>
+
+                              <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
                                   حداقل مزد روزانه
                                 </ThemedText>
-                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}> 
+                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
                                   {toPersianDigits(formatCurrency(item.dailyMinimumWage ?? 0))}
                                 </ThemedText>
                               </View>
-                              <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}> 
-                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}> 
+
+                              <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
                                   مبلغ دوره
                                 </ThemedText>
-                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}> 
+                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>
                                   {toPersianDigits(formatCurrency(item.amount))}
                                 </ThemedText>
                               </View>
@@ -610,9 +597,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
   },
   toggleButtonLabel: {
-    fontFamily: 'Vazirmatn-Medium',
-    fontSize: 12.5,
-    lineHeight: 18,
+    fontFamily: 'Vazirmatn-Bold',
+    fontSize: 13,
+    lineHeight: 19,
   },
   breakdownGrid: {
     flexDirection: 'column',
@@ -633,13 +620,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   breakdownDetailGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     gap: Spacing.two,
   },
   breakdownDetailBox: {
-    flex: 1,
-    minWidth: 120,
+    width: '100%',
     borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: Spacing.two,

@@ -1,4 +1,4 @@
-import { useTheme } from '@/hooks/use-theme';
+import { useAppContext } from '@/hooks/use-app-context';
 import { Appbar } from 'react-native-paper';
 
 interface AppHeaderProps {
@@ -8,7 +8,10 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
-  const theme = useTheme();
+  const { colors, theme: appTheme } = useAppContext();
+  const isLightTheme = appTheme === 'light';
+  const headerBackgroundColor = isLightTheme ? colors.primary : colors.surface;
+  const titleColor = isLightTheme ? colors.surface : colors.text;
 
   const getHeaderConfig = (routeName: string) => {
     switch (routeName) {
@@ -16,6 +19,8 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
         return { title: 'کاوش' };
       case 'calculations':
         return { title: 'محاسبات' };
+      case 'family-allowance':
+        return { title: 'حق عائله‌مندی' };
       case 'index':
       default:
         return { title: 'خانه' };
@@ -27,10 +32,10 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
   return (
     <Appbar.Header
       style={{
-        backgroundColor: theme.surface,
+        backgroundColor: headerBackgroundColor,
         elevation: 4,
-        shadowColor: theme.text,
-        shadowOpacity: 0.08,
+        shadowColor: colors.text,
+        shadowOpacity: isLightTheme ? 0.16 : 0.08,
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 4 },
       }}
@@ -40,7 +45,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
         titleStyle={{
           fontSize: 18,
           fontFamily: 'Vazirmatn-Bold',
-          color: theme.text,
+          color: titleColor,
         }}
       />
     </Appbar.Header>

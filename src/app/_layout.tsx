@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { I18nManager } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -8,6 +9,7 @@ import { useAppContext } from '@/hooks/use-app-context';
 import { useFontLoading } from '@/hooks/use-font-loading';
 import { NavigationBar } from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
+import * as SystemUI from 'expo-system-ui';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // ✅ فعال کردن RTL برای فارسی
@@ -15,10 +17,17 @@ I18nManager.allowRTL(true);
 I18nManager.forceRTL(true);
 
 function AppContent() {
-  const { theme } = useAppContext();
+  const { theme, colors } = useAppContext();
+  const isLightTheme = theme === 'light';
+  const headerBackgroundColor = isLightTheme ? colors.primary : colors.surface;
+
+  useEffect(() => {
+    void SystemUI.setBackgroundColorAsync(headerBackgroundColor);
+  }, [headerBackgroundColor]);
+
   return (
     <>
-      <StatusBar style={'light'} />
+      <StatusBar style="light" />
       <NavigationBar style={theme == 'dark' ? 'light' : 'dark'} />
       <AnimatedSplashOverlay />
       <RootTabs />

@@ -33,6 +33,13 @@ export default function HomeScreen() {
       mode: 'outlined' as const,
       onPress: () => router.push('/calculations'),
     },
+    {
+      key: 'family-allowance',
+      label: 'حق عائله‌مندی',
+      icon: 'account-group-outline' as const,
+      mode: 'outlined' as const,
+      onPress: () => router.push('/family-allowance'),
+    },
   ];
 
   return (
@@ -64,20 +71,20 @@ export default function HomeScreen() {
 
           <View style={[styles.actionGroup, isWide && styles.actionGroupWide]}>
             {actions.map((action) => {
-              const isOutlined = action.key === 'calculations';
+              const isOutlined = action.key !== 'explore';
 
               return (
                 <Button
                   key={action.key}
                   icon={action.icon}
-                  mode={isOutlined ? 'outlined' : 'contained'}
+                  mode={action.mode}
                   style={[
                     styles.actionButton,
                     isOutlined && styles.outlinedActionButton,
                   ]}
                   labelStyle={styles.actionLabel}
-                  buttonColor={isOutlined ? theme.surface : theme.primary}
-                  textColor={isOutlined ? theme.primary : theme.surface}
+                  buttonColor={action.mode === 'outlined' ? theme.surface : theme.primary}
+                  textColor={action.mode === 'outlined' ? theme.primary : theme.surface}
                   onPress={action.onPress}
                 >
                   {action.label}
@@ -85,8 +92,6 @@ export default function HomeScreen() {
               );
             })}
           </View>
-
-
 
           {Platform.OS === 'web' && <WebBadge />}
         </SafeAreaView>

@@ -29,6 +29,9 @@ export interface PeriodRecord {
     monthly_married_allowance: number | null;
     monthly_housing_single: number | null;
     monthly_housing_married: number | null;
+    percent_increase: number | null;
+    seniority_base_previous: number | null;
+    seniority_base_entitlement: number | null;
     child_allowance: number | null;
     min_monthly_bonus: number | null;
     max_monthly_bonus: number | null;
@@ -39,19 +42,22 @@ export interface PeriodRecord {
 
 export interface SeedPeriodRecord {
     'تعداد_ماه_های_کارکرد_سال'?: number | null;
-    'تعداد_روزهاي_سال'?: number | null;
+    'تعداد_روزهای_سال'?: number | null;
     'تعداد_جمعه_های_سال'?: number | null;
-    'تعداد_تعطيلات_رسمي_سال'?: number | null;
+    'تعداد_تعطيلات_رسمی_سال'?: number | null;
     'کل_تعطیلات_رسمی_سال'?: number | null;
     'تعداد_ساعات_کارکرد_موظفی_کارگر_در_سال'?: number | null;
     'مبلغ_حداقل_مزد_روزانه_مصوب_شورای_عالی_کار'?: number | null;
     'مبلغ_جمعه_کاری_یک_روز'?: number | null;
-    'نوبت_کاری_ماهانه'?: {
+    'نوبت_کاری_ماهیانه'?: {
         'صبح وعصر  10%'?: number | null;
         'صبح وعصر وشب  15%'?: number | null;
         'صبح  وشب یا عصر وشب   22.5%'?: number | null;
     } | null;
     'پایه_سنوات_بعداز_یک_سابقه_کارگر_در_کارگاه'?: number | null;
+    'درصد_افزايش'?: number | null;
+    'پایه_سنواتی_گذشته'?: number | null;
+    'پایه_سنوات_استحقاقی'?: number | null;
     'مبلغ_اضافه_كاری_یک_ساعت'?: number | null;
     'مبلغ_شب_کاری_یک_ساعت'?: number | null;
     'بن_ماهیانه'?: {

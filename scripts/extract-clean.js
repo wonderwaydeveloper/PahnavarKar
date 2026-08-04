@@ -3,28 +3,48 @@ const fs = require('fs');
 const path = require('path');
 
 const dataSourceDir = path.join(__dirname, '..', 'assets', 'data-source');
+const assetsDir = path.join(__dirname, '..', 'assets');
 
-// فقط استخراج از calculator-data.xls
-const excelFile = path.join(dataSourceDir, 'calculator-data.xls');
+// مبنای اصلی همیشه فایل جدید اکسل در پوشه data-source است
+const excelFileXlsx = path.join(dataSourceDir, 'calculator-data.xlsx');
+const excelFileXls = path.join(dataSourceDir, 'calculator-data.xls');
+const legacyExcelFileXlsx = path.join(assetsDir, 'calculator-data.xlsx');
 
-if (!fs.existsSync(excelFile)) {
-    throw new Error('❌ فایل calculator-data.xls پیدا نشد!');
+let excelFile;
+if (fs.existsSync(excelFileXlsx)) {
+    excelFile = excelFileXlsx;
+    console.log('✅ فایل Excel جدید در data-source پیدا شد');
+} else if (fs.existsSync(legacyExcelFileXlsx)) {
+    // اگر نسخه قدیمی هنوز در assets بوده، آن را به data-source منتقل می‌کنیم.
+    const newPath = excelFileXlsx;
+    fs.mkdirSync(dataSourceDir, { recursive: true });
+    fs.renameSync(legacyExcelFileXlsx, newPath);
+    excelFile = newPath;
+    console.log('⚠️ فایل Excel جدید از assets به data-source منتقل شد و اکنون مبنا است');
+} else if (fs.existsSync(excelFileXls)) {
+    excelFile = excelFileXls;
+    console.log('⚠️ فایل Excel قدیمی (.xls) در data-source پیدا شد، اما بهتر است فایل جدید .xlsx را جایگزین کنید');
+} else {
+    throw new Error('❌ هیچ فایل Excel پیدا نشد! (calculator-data.xlsx در assets/data-source یا calculator-data.xls در assets/data-source)');
 }
 
 const outputFile = path.join(dataSourceDir, 'calculator-data.json');
-const sheetName = 'محاسبات سالانه';
 
 if (!fs.existsSync(dataSourceDir)) {
     fs.mkdirSync(dataSourceDir, { recursive: true });
 }
 
 console.log('\n📊 استخراج دقیق داده‌های فایل اکسل\n');
-console.log(`📖 فایل: ${excelFile}`);
-console.log(`📋 شیت: ${sheetName}\n`);
+console.log(`📖 فایل: ${excelFile}\n`);
 
 try {
     // خواندن فایل اکسل
     const workbook = XLSX.readFile(excelFile);
+    
+    // نام شیت به صورت خودکار از فایل Excel خوانده می‌شود
+    const sheetName = workbook.SheetNames[0]; // اولین شیت را می‌گیریم
+    
+    console.log(`📋 شیت: ${sheetName}\n`);
 
     if (!workbook.SheetNames.includes(sheetName)) {
         throw new Error(`❌ شیت "${sheetName}" پیدا نشد!`);
@@ -105,7 +125,13 @@ try {
     }
 
     const headerAliases = {
-        'پایه_سنواتی_جاری': 'پایه_سنوات_بعداز_یک_سابقه_کارگر_در_کارگاه'
+        'پایه_سنواتی_جاری': 'پایه_سنوات_بعداز_یک_سابقه_کارگر_در_کارگاه',
+        // هدرهای تکراری که باید به عنوان یک سطحی پردازش شوند
+        'درصد_افزايش_درصد_افزايش': 'درصد_افزايش',
+        'پایه_سنواتی_جاری_پایه_سنواتی_جاری': 'پایه_سنوات_بعداز_یک_سابقه_کارگر_در_کارگاه',
+        // هدرهای مشابه که باید به عنوان یک سطحی پردازش شوند
+        'پایه_سنواتی_گذشته_پایه_سنواتي_گذشته': 'پایه_سنواتی_گذشته',
+        'پایه_سنوات_استحقاقی_پایه_سنوات_تجمیعی': 'پایه_سنوات_استحقاقی'
     };
 
     // ایجاد نقشه کلیدهای JSON - ترتیب اصلی از اکسل
@@ -129,10 +155,32 @@ try {
         const mainText = hasMainHeader ? main : prevMainForMap;
         const normalizedMain = mainText.replace(/\s+/g, '_');
         const normalizedSub = hasSubHeader ? sub.replace(/\s+/g, '_') : '';
-        const rawKey = normalizedSub ? `${normalizedMain}_${normalizedSub}` : normalizedMain;
+        
+        // بررسی می‌کنیم که آیا هدر فرعی معتبر است یا خیر
+        // اگر هدر فرعی همان هدر اصلی باشد یا مشابه آن باشد، آن را نادیده می‌گیریم
+        const isDuplicateSubHeader = normalizedSub === normalizedMain || 
+                                     normalizedSub === '' || 
+                                     normalizedSub === '__EMPTY' ||
+                                     // هدرهای فرعی که مشابه هدر اصلی هستند
+                                     (normalizedSub && (
+                                       // شامل هدر اصلی باشد
+                                       normalizedSub.includes(normalizedMain) ||
+                                       normalizedMain.includes(normalizedSub) ||
+                                       // تغییرات کوچک در کاراکترها
+                                       normalizedSub.replace(/ي|ی/g, 'ی') === normalizedMain.replace(/ي|ی/g, 'ی') ||
+                                       // برای موارد خاص شناخته شده
+                                       normalizedSub === 'پایه_سنواتي_گذشته' ||
+                                       normalizedSub === 'پایه_سنوات_تجمیعی' ||
+                                       normalizedSub === 'درصد_افزايش'
+                                     ));
+        
+        const rawKey = !isDuplicateSubHeader && normalizedSub ? 
+                       `${normalizedMain}_${normalizedSub}` : normalizedMain;
         const fullKey = (headerAliases[rawKey] || rawKey).replace(/\s+/g, '_');
         const key = headerAliases[normalizedMain] || normalizedMain;
-        const isNested = Boolean(normalizedSub);
+        
+        // ستون زمانی nested است که هدر فرعی معتبر و متفاوت از هدر اصلی داشته باشد
+        const isNested = !isDuplicateSubHeader && Boolean(normalizedSub);
 
         if (hasMainHeader) {
             prevMainForMap = main;
@@ -167,6 +215,7 @@ try {
                     }
                 } else if (key !== 'سال_كاركرد') {
                     if (isNested) {
+                        // ستون‌های دو سطحی: اضافه به periodLevelKeys و periodLevelGroups
                         if (!periodLevelKeys.includes(key)) {
                             periodLevelKeys.push(key);
                         }
@@ -177,9 +226,11 @@ try {
                             periodLevelGroups[key].push(normalizedSub);
                         }
                     } else {
+                        // ستون‌های یک سطحی: فقط اضافه به periodLevelKeys
                         if (!periodLevelKeys.includes(fullKey)) {
                             periodLevelKeys.push(fullKey);
                         }
+                        // ستون‌های یک سطحی نباید در periodLevelGroups قرار گیرند
                     }
                 }
             }
@@ -193,12 +244,25 @@ try {
     for (let rowIndex = 2; rowIndex < rawData.length; rowIndex++) {
         const row = rawData[rowIndex] || [];
 
-        // بررسی ردیف خالی
+        // بررسی ردیف کاملاً خالی (همه سلول‌ها خالی)
         const isEmptyRow = row.every(cell => 
-            cell === null || cell === undefined || cell === ''
+            cell === null || cell === undefined || cell === '' || String(cell).trim() === ''
         );
-        if (isEmptyRow) continue;
+        
+        // بررسی ردیف تقریباً خالی (فقط چند ستون اول خالی هستند)
+        // سطرهایی که فقط در ستون‌های اولیه (سال و ماه) خالی هستند اما بقیه ستون‌ها داده دارند
+        // باید با دقت بیشتری بررسی شوند
+        const hasYear = row[0] !== null && row[0] !== undefined && String(row[0]).trim() !== '';
+        const hasMonth = row[1] !== null && row[1] !== undefined && String(row[1]).trim() !== '';
+        
+        // ردیف‌های کاملاً خالی را نادیده می‌گیریم
+        if (isEmptyRow) {
+            console.log(`⚠️ ردیف کاملاً خالی ${rowIndex + 1} نادیده گرفته شد`);
+            continue;
+        }
 
+        // اگر ردیف سال ندارد اما ماه دارد، این یک خطا در داده است
+        // برای سازگاری با داده‌های فعلی، اگر ماه دارد آن را پردازش می‌کنیم
         const record = {};
 
         // پردازش ستون‌ها - بدون تغییر
@@ -207,36 +271,64 @@ try {
             if (!def) continue;
 
             const value = row[colIndex];
-            const normalizedValue = value === '' || value === undefined ? null : value;
+            const normalizedValue = value === '' || value === undefined || value === null || String(value).trim() === '' ? null : value;
 
             if (def.isNested) {
+                // ستون‌های دو سطحی (مثل نوبت کاری ماهیانه)
                 if (!record[def.normalizedMain] || typeof record[def.normalizedMain] !== 'object') {
                     record[def.normalizedMain] = {};
                 }
                 record[def.normalizedMain][def.sub] = normalizedValue;
             } else {
+                // ستون‌های یک سطحی
+                // از def.key استفاده می‌کنیم که ممکن است alias شده باشد
                 record[def.key] = normalizedValue;
             }
         }
 
         // مدیریت ردیف‌های بدون سال
         if (!record['سال_كاركرد'] && lastYear !== null) {
-            record['سال_كاركرد'] = lastYear;
+            // اگر ردیف سال ندارد اما ماه کارکرد دارد، از سال قبلی استفاده می‌کنیم
+            // این برای سال‌های چنددوره‌ای ضروری است
+            if (record['تعداد_ماه_کارکرد'] !== null || row[1] !== undefined) {
+                record['سال_كاركرد'] = lastYear;
+                console.log(`   ➕ ردیف ${rowIndex + 1}: سال از ${lastYear} تکمیل شد (چنددوره‌ای)`);
+            }
         } else if (record['سال_كاركرد']) {
             lastYear = record['سال_كاركرد'];
         }
 
-        if (!record['سال_كاركرد']) continue;
+        // اگر بعد از تکمیل هم سال نداشت، ردیف را نادیده می‌گیریم
+        if (!record['سال_كاركرد']) {
+            console.log(`⚠️ ردیف ${rowIndex + 1} بدون سال نادیده گرفته شد`);
+            continue;
+        }
 
         records.push(record);
     }
 
     console.log(`✓ کل ردیف‌های خوانده‌شده: ${records.length}\n`);
 
+    // فیلتر کردن رکوردهایی که واقعاً داده دارند
+    const validRecords = records.filter(record => {
+        // بررسی می‌کنیم که رکورد حداقل یک فیلد غیر null داشته باشد
+        const hasValidData = Object.values(record).some(value => 
+            value !== null && value !== undefined && String(value).trim() !== ''
+        );
+        return hasValidData;
+    });
+
+    console.log(`✓ رکوردهای معتبر بعد از فیلتر: ${validRecords.length}\n`);
+    
+    // نمایش اطلاعات درباره حذف رکوردها
+    if (records.length !== validRecords.length) {
+        console.log(`⚠️ ${records.length - validRecords.length} رکورد نامعتبر حذف شدند\n`);
+    }
+
     // گروپ‌بندی بر اساس سال
     const yearMap = new Map();
     
-    records.forEach(record => {
+    validRecords.forEach(record => {
         const year = record['سال_كاركرد'];
         if (!yearMap.has(year)) {
             yearMap.set(year, []);
@@ -286,15 +378,15 @@ try {
             const period = {};
             
             periodLevelKeys.forEach(key => {
-                if (entry[key] !== undefined) {
+                if (Object.prototype.hasOwnProperty.call(entry, key)) {
                     period[key] = entry[key];
                     delete entry[key];
+                } else {
+                    period[key] = null;
                 }
             });
             
-            if (Object.keys(period).length > 0) {
-                periods.push(period);
-            }
+            periods.push(period);
             
             entry.periods = periods;
             entry['تعداد_دوره_ها'] = periods.length;
@@ -312,7 +404,7 @@ try {
             const periods = [];
             const lastSeenValues = {};
 
-            yearRecords.forEach(record => {
+            yearRecords.forEach((record, index) => {
                 const period = {};
 
                 periodLevelKeys.forEach(key => {
@@ -324,6 +416,8 @@ try {
                         lastSeenValues[key] = value;
                     } else if (carryForwardFields.has(key) && lastSeenValues[key] !== undefined) {
                         period[key] = lastSeenValues[key];
+                    } else {
+                        period[key] = null;
                     }
                 });
 
@@ -335,8 +429,15 @@ try {
                 delete entry[key];
             });
             
-            entry.periods = periods;
-            entry['تعداد_دوره_ها'] = periods.length;
+            // اگر دوره‌ای باقی نمانده، آن را سال تک‌دوره‌ای می‌کنیم
+            if (periods.length === 0) {
+                console.log(`⚠️ سال ${year} بدون دوره معتبر، به تک‌دوره‌ای تبدیل شد`);
+                entry.periods = [{}];
+                entry['تعداد_دوره_ها'] = 1;
+            } else {
+                entry.periods = periods;
+                entry['تعداد_دوره_ها'] = periods.length;
+            }
             
             finalData.push(entry);
         }

@@ -9,12 +9,15 @@ export const yearKeyTranslations = {
 // این فیلدها برای هر دوره ذخیره می‌شوند.
 export const periodKeyTranslations = {
     تعداد_ماه_های_کارکرد_سال: 'month_count',
-    تعداد_روزهاي_سال: 'days_in_year',
+    تعداد_روزهای_سال: 'days_in_year',
     تعداد_جمعه_های_سال: 'fridays_in_year',
-    تعداد_تعطيلات_رسمي_سال: 'official_holidays_in_year',
+    تعداد_تعطيلات_رسمی_سال: 'official_holidays_in_year',
     کل_تعطیلات_رسمی_سال: 'total_official_holidays',
     تعداد_ساعات_کارکرد_موظفی_کارگر_در_سال: 'total_work_hours_year',
     مبلغ_حداقل_مزد_روزانه_مصوب_شورای_عالی_کار: 'daily_minimum_wage',
+    درصد_افزايش: 'percent_increase',
+    پایه_سنواتی_گذشته: 'seniority_base_previous',
+    پایه_سنوات_استحقاقی: 'seniority_base_entitlement',
     پایه_سنوات_بعداز_یک_سابقه_کارگر_در_کارگاه: 'seniority_base',
     مبلغ_اضافه_كاری_یک_ساعت: 'overtime_per_hour',
     مبلغ_شب_کاری_یک_ساعت: 'night_work_per_hour',
