@@ -17,7 +17,7 @@ import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database'
 import type { PeriodRecord, YearRecord } from '@/database/types';
 import { useTheme } from '@/hooks/use-theme';
 
-export default function ExploreScreen() {
+export default function YearlyInfoScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isWide = width >= 960;
