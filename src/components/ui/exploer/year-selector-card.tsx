@@ -31,7 +31,7 @@ export function YearSelectorCard({
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { marginBottom: Spacing.four }]}> 
+    <View style={[styles.container, { marginBottom: Spacing.four }]}>
       <Card elevation={1} style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Card.Content style={styles.cardContent}>
           <View style={styles.headerRow}>
@@ -90,7 +90,7 @@ export function YearSelectorCard({
 
       <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
         <Pressable style={styles.yearPickerOverlay} onPress={onClose}>
-          <Pressable style={[styles.yearPickerModal, { backgroundColor: theme.surfaceElevated, paddingBottom: Spacing.three + insets.bottom }]}> 
+          <Pressable style={[styles.yearPickerModal, { backgroundColor: theme.surfaceElevated, paddingBottom: Spacing.three + insets.bottom }]}>
             <View style={styles.yearPickerHandle} />
             <View style={styles.yearPickerHeader}>
               <View style={styles.yearPickerHeaderTextBlock}>
@@ -149,13 +149,13 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   card: {
-    borderRadius: 20,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
   cardContent: {
     gap: Spacing.three,
-    paddingVertical: Spacing.four,
+    paddingVertical: Spacing.three,
     paddingHorizontal: Spacing.three,
   },
   headerRow: {
@@ -166,10 +166,14 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   pageTitle: {
-    fontWeight: '600',
+    fontFamily: 'Vazirmatn-Bold',
+    fontSize: 16,
+    lineHeight: 22,
   },
   pageDescription: {
-    fontWeight: '400',
+    fontFamily: 'Vazirmatn-Regular',
+    fontSize: 12,
+    lineHeight: 18,
   },
   metricsRow: {
     flexDirection: 'row',
@@ -184,7 +188,8 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 12,
-    fontWeight: '500',
+    lineHeight: 18,
+    fontFamily: 'Vazirmatn-Medium',
   },
   metricContent: {
     flexDirection: 'row',
@@ -192,7 +197,9 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   fieldValue: {
-    fontWeight: '600',
+    fontFamily: 'Vazirmatn-Bold',
+    fontSize: 13,
+    lineHeight: 19,
   },
   actionButton: {
     flexDirection: 'row',
@@ -204,9 +211,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   buttonLabel: {
-    fontFamily: 'Vazirmatn-Medium',
-    fontSize: 14,
-    lineHeight: 20,
+    fontFamily: 'Vazirmatn-Bold',
+    fontSize: 13,
+    lineHeight: 19,
   },
   yearPickerOverlay: {
     flex: 1,

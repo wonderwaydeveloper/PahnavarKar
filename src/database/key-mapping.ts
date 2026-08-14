@@ -18,7 +18,7 @@ export const periodKeyTranslations = {
     درصد_افزايش: 'percent_increase',
     پایه_سنواتی_گذشته: 'seniority_base_previous',
     پایه_سنوات_استحقاقی: 'seniority_base_entitlement',
-    پایه_سنوات_بعداز_یک_سابقه_کارگر_در_کارگاه: 'seniority_base',
+    پایه_سنواتی_جاری: 'seniority_base',
     مبلغ_اضافه_كاری_یک_ساعت: 'overtime_per_hour',
     مبلغ_شب_کاری_یک_ساعت: 'night_work_per_hour',
     مبلغ_جمعه_کاری_یک_روز: 'friday_work_per_day',

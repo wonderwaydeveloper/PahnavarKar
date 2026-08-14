@@ -1,8 +1,9 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Snackbar } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import appConfig from '@/../app.json';
 
@@ -13,58 +14,77 @@ import { useTheme } from '@/hooks/use-theme';
 
 const profileActions = [
     { key: 'edit-profile', label: 'ویرایش پروفایل', subtitle: 'تغییر اطلاعات شخصی و حساب شما', icon: 'account-edit', color: '#4f46e5' },
-    { key: 'settings', label: 'تنظیمات', subtitle: 'مدیریت ترجیحات و رفتار برنامه', icon: 'cog-outline', color: '#0f766e' },
-    { key: 'support', label: 'پشتیبانی', subtitle: 'ارتباط سریع با تیم پشتیبانی', icon: 'lifebuoy', color: '#d97706' },
-    { key: 'about-us', label: 'درباره ما', subtitle: 'معرفی پروژه و اهداف ما', icon: 'information-outline', color: '#ec4899' },
+    { key: 'settings', label: 'تنظیمات', subtitle: 'مدیریت ترجیحات و رفتار برنامه', icon: 'cog-outline', color: '#14b8a6' },
+    { key: 'support', label: 'پشتیبانی', subtitle: 'ارتباط سریع با تیم پشتیبانی', icon: 'lifebuoy', color: '#2563eb' },
+    { key: 'about-us', label: 'درباره ما', subtitle: 'معرفی پروژه و اهداف ما', icon: 'information-outline', color: '#8b5cf6' },
 ];
 
 const profileFields = [
-    { label: 'نام و نام خانوادگی', value: 'کاربر نمونه' },
-    { label: 'نام کاربری', value: 'user_demo' },
-    { label: 'ایمیل', value: 'user@example.com' },
-    { label: 'شماره تلفن', value: '۰۹۱۲-۳۴۵-۶۷۸۹' },
-    { label: 'نوع عضویت', value: 'عادی' },
-    { label: 'تاریخ عضویت', value: '۱۴۰۳/۰۲/۰۱' },
-    { label: 'وضعیت حساب', value: 'فعال', isStatus: true },
+    { key: 'fullName', label: 'نام و نام خانوادگی', value: 'کاربر نمونه', type: 'text' },
+    { key: 'username', label: 'نام کاربری', value: 'user_demo', type: 'text' },
+    { key: 'email', label: 'ایمیل', value: 'user@example.com', type: 'text' },
+    { key: 'phone', label: 'شماره تلفن', value: '۰۹۱۲-۳۴۵-۶۷۸۹', type: 'text' },
+    { key: 'membership', label: 'نوع عضویت', value: 'عادی', type: 'text' },
+    { key: 'joinedAt', label: 'تاریخ عضویت', value: '۱۴۰۳/۰۲/۰۱', type: 'text' },
+    { key: 'wallet', label: 'مبلغ کیف پول', value: '۱۲٬۳۴۵ تومان', type: 'text' },
+    { key: 'status', label: 'وضعیت حساب', value: 'فعال', type: 'chip' },
 ];
 
 export default function AccountScreen() {
     const theme = useTheme();
     const router = useRouter();
+    const insets = useSafeAreaInsets();
+    const lastPressRef = useRef(0);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
     const appVersion = appConfig.expo?.version ?? '1.0.0';
 
-    const handleUnavailableAction = (key: string) => {
-        if (key === 'about-us' || key === 'app-info') {
-            router.push(`/(tabs)/account/${key}` as any);
+    const handleDebouncedAction = (callback: () => void) => {
+        const now = Date.now();
+        if (now - lastPressRef.current < 500) {
             return;
         }
 
-        setSnackbarVisible(true);
+        lastPressRef.current = now;
+        callback();
+    };
+
+    const handleUnavailableAction = (key: string) => {
+        if (key === 'about-us' || key === 'app-info') {
+            handleDebouncedAction(() => router.push(`/(tabs)/account/${key}` as any));
+            return;
+        }
+
+        handleDebouncedAction(() => setSnackbarVisible(true));
     };
 
     return (
         <ThemedView style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                contentContainerStyle={[
+                    styles.scrollContent,
+                    {
+                        paddingBottom: insets.bottom + Spacing.four,
+                    },
+                ]}
+                showsVerticalScrollIndicator={false}
+            >
                 <View style={styles.sectionWrap}>
                     <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text }]}>اطلاعات کاربری</ThemedText>
 
                     <View style={[styles.profileCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                         <View style={[styles.profileHeader, { backgroundColor: theme.surface }]}>
-                            <View style={[styles.avatarWrap, { backgroundColor: theme.primaryContainer }]}>
-                                <MaterialCommunityIcons name="account-circle" size={54} color={theme.primary} />
-                            </View>
+                            <Image
+                                source={require('@/assets/pictures/avatar.png')}
+                                style={[styles.avatarWrap, { backgroundColor: theme.primaryContainer }]}
+                            />
 
-                            <View style={styles.identityBlock}>
-                                <ThemedText type="largeTitle" style={styles.name}>کاربر نمونه</ThemedText>
-                                <ThemedText type="small" style={[styles.role, { color: theme.textSecondary }]}>کاربر حرفه‌ای</ThemedText>
-                            </View>
+                            {/* identity block removed per request: name and username are not shown under avatar */}
                         </View>
 
                         <View style={styles.infoCard}>
-                            {profileFields.map((field, index) => (
+                            {profileFields.filter(f => f.type !== 'avatar').map((field, index) => (
                                 <View
-                                    key={field.label}
+                                    key={field.key}
                                     style={[
                                         styles.infoRow,
                                         index !== 0 && styles.infoRowSeparated,
@@ -74,8 +94,7 @@ export default function AccountScreen() {
                                     <ThemedText type="small" style={[styles.infoLabel, { color: theme.textSecondary }]}>
                                         {field.label}
                                     </ThemedText>
-
-                                    {field.isStatus ? (
+                                    {field.type === 'chip' ? (
                                         <View style={styles.statusStack}>
                                             <View
                                                 style={[
@@ -103,7 +122,7 @@ export default function AccountScreen() {
                     <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text }]}>اطلاعات برنامه</ThemedText>
 
                     <Pressable
-                        onPress={() => router.push('/(tabs)/account/app-info' as any)}
+                        onPress={() => handleDebouncedAction(() => router.push('/(tabs)/account/app-info' as any))}
                         style={({ pressed }) => [
                             styles.appInfoListItem,
                             {
@@ -126,8 +145,8 @@ export default function AccountScreen() {
                             </ThemedText>
                         </View>
 
-                        <View style={styles.valuePill}>
-                            <ThemedText type="smallBold" style={[styles.valueText, { color: theme.success }]}>
+                        <View style={[styles.valuePill, { backgroundColor: `${theme.primary}1A`, borderColor: `${theme.primary}33` }]}>
+                            <ThemedText type="smallBold" style={[styles.valueText, { color: theme.primary }]}>
                                 {appVersion}
                             </ThemedText>
                         </View>
@@ -146,7 +165,7 @@ export default function AccountScreen() {
                                 onPress={() => handleUnavailableAction(action.key)}
                                 style={({ pressed }) => [
                                     styles.actionItem,
-                                    index !== 0 && styles.actionItemSeparated,
+                                    index === 0 && styles.firstActionItem,
                                     {
                                         opacity: pressed ? 0.88 : 1,
                                         borderTopColor: theme.border,
@@ -185,7 +204,7 @@ export default function AccountScreen() {
                 visible={snackbarVisible}
                 onDismiss={() => setSnackbarVisible(false)}
                 duration={3000}
-                style={{ backgroundColor: theme.error, borderRadius: Radius.md }}
+                style={{ backgroundColor: theme.info, borderRadius: Radius.md }}
                 action={{
                     label: 'بستن',
                     onPress: () => setSnackbarVisible(false),
@@ -202,16 +221,21 @@ export default function AccountScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    scrollContent: { flexGrow: 1, padding: Spacing.four, gap: Spacing.three },
+    scrollContent: {
+        flexGrow: 1,
+        paddingHorizontal: Spacing.four,
+        paddingTop: Spacing.four,
+        gap: Spacing.three,
+    },
     profileCard: {
         borderRadius: 20,
         borderWidth: 1,
         overflow: 'hidden',
     },
     profileHeader: {
-        flexDirection: 'row',
+        flexDirection: 'column',
         alignItems: 'center',
-        gap: Spacing.three,
+        gap: Spacing.one,
         paddingHorizontal: Spacing.three,
         paddingVertical: Spacing.three,
     },
@@ -226,6 +250,11 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'flex-start',
         gap: Spacing.one,
+    },
+
+    identityCentered: {
+        alignItems: 'center',
+        marginTop: Spacing.one,
     },
     name: {},
     role: {},
@@ -271,6 +300,12 @@ const styles = StyleSheet.create({
     infoValue: {
         marginLeft: Spacing.two,
     },
+    listAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        alignSelf: 'flex-end',
+    },
     valueChip: {
         paddingHorizontal: Spacing.two,
         paddingVertical: Spacing.one,
@@ -306,8 +341,7 @@ const styles = StyleSheet.create({
     actionsCard: {
         borderRadius: 20,
         borderWidth: 1,
-        padding: Spacing.three,
-        gap: Spacing.two,
+        overflow: 'hidden',
     },
     sectionHeader: {
         flexDirection: 'row',
@@ -332,24 +366,26 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: Spacing.two,
+        paddingHorizontal: Spacing.three,
         paddingVertical: Spacing.three,
-        paddingHorizontal: Spacing.two,
-        borderRadius: 14,
-        borderTopWidth: 0,
+        borderTopWidth: 1,
     },
     actionItemSeparated: {
         borderTopWidth: 1,
     },
+    firstActionItem: {
+        borderTopWidth: 0,
+    },
     actionIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
+        width: 44,
+        height: 44,
+        borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
     },
     actionTextWrap: {
         flex: 1,
-        gap: 2,
+        gap: Spacing.one,
     },
     actionLabel: {
         flex: 1,

@@ -230,7 +230,7 @@ export default function BaseSalaryScreen() {
                             <View style={styles.headerRow}>
                                 <View style={styles.headerText}>
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
-                                        کارت محاسبه حقوق پایه
+                                        محاسبه حقوق پایه
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
                                         بازه‌ی زمانی خود را انتخاب کنید تا مبلغ بر اساس داده‌های دوره‌های ثبت‌شده محاسبه شود.
@@ -307,18 +307,6 @@ export default function BaseSalaryScreen() {
                             {result && result.breakdown.length > 0 ? (
                                 <Card style={[styles.breakdownCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                     <Card.Content style={styles.breakdownContent}>
-                                        <View style={styles.breakdownHeaderRow}>
-                                            <View style={styles.breakdownHeaderTextBlock}>
-                                                <View style={styles.breakdownTitleRow}>
-                                                    <View style={styles.breakdownTitleInner}>
-                                                        <ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.text }]}>
-                                                            جزئیات محاسبه
-                                                        </ThemedText>
-                                                    </View>
-                                                </View>
-                                            </View>
-                                        </View>
-
                                         <View style={styles.summaryBoxHeader}>
                                             <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                                 <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
@@ -328,32 +316,32 @@ export default function BaseSalaryScreen() {
                                                     {isLoadingData ? 'در حال بارگذاری...' : formattedResult}
                                                 </ThemedText>
                                             </View>
+                                        </View>
 
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.one, marginTop: Spacing.one }}>
-                                                <ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.text }]}>
-                                                    جزئیات دوره‌ها
+                                        <View style={styles.breakdownSectionHeader}>
+                                            <ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.text }]}>
+                                                جزئیات دوره‌ها
+                                            </ThemedText>
+
+                                            <Pressable
+                                                onPress={() => setShowDetailedBreakdown((prev) => !prev)}
+                                                style={[
+                                                    styles.toggleButton,
+                                                    {
+                                                        backgroundColor: theme.surface,
+                                                        borderColor: theme.border,
+                                                    },
+                                                ]}
+                                            >
+                                                <ThemedText type="smallBold" style={[styles.toggleButtonLabel, { color: theme.primary }]}>
+                                                    {showDetailedBreakdown ? 'عدم نمایش' : 'نمایش جزئیات'}
                                                 </ThemedText>
-
-                                                <Pressable
-                                                    onPress={() => setShowDetailedBreakdown((prev) => !prev)}
-                                                    style={[
-                                                        styles.toggleButton,
-                                                        {
-                                                            backgroundColor: theme.surface,
-                                                            borderColor: theme.border,
-                                                        },
-                                                    ]}
-                                                >
-                                                    <ThemedText type="smallBold" style={[styles.toggleButtonLabel, { color: theme.primary }]}>
-                                                        {showDetailedBreakdown ? 'عدم نمایش' : 'نمایش جزئیات'}
-                                                    </ThemedText>
-                                                    <MaterialCommunityIcons
-                                                        name={showDetailedBreakdown ? 'chevron-up' : 'chevron-down'}
-                                                        size={18}
-                                                        color={theme.primary}
-                                                    />
-                                                </Pressable>
-                                            </View>
+                                                <MaterialCommunityIcons
+                                                    name={showDetailedBreakdown ? 'chevron-up' : 'chevron-down'}
+                                                    size={18}
+                                                    color={theme.primary}
+                                                />
+                                            </Pressable>
                                         </View>
 
                                         {showDetailedBreakdown ? (
@@ -455,7 +443,7 @@ const styles = StyleSheet.create({
     },
     card: {
         borderRadius: 20,
-        borderWidth: StyleSheet.hairlineWidth,
+        borderWidth: 1,
         overflow: 'hidden',
     },
     cardContent: {
@@ -470,166 +458,121 @@ const styles = StyleSheet.create({
         flex: 1,
         gap: Spacing.one,
     },
-    summaryBox: {
-        borderRadius: 16,
-        paddingHorizontal: Spacing.three,
-        paddingVertical: Spacing.three,
-        gap: Spacing.two,
-        borderWidth: StyleSheet.hairlineWidth,
-    },
     summaryBoxHeader: {
-        gap: Spacing.one,
+        alignItems: 'center',
+        marginBottom: Spacing.one,
     },
     summaryBoxContent: {
-        borderRadius: Radius.md,
-        borderWidth: StyleSheet.hairlineWidth,
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.two,
+        width: '100%',
+        borderRadius: 12,
+        borderWidth: 1,
+        padding: Spacing.two,
         gap: Spacing.one,
+        alignItems: 'center',
     },
     formulaBox: {
-        borderRadius: Radius.md,
-        borderWidth: StyleSheet.hairlineWidth,
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.two,
+        borderRadius: 12,
+        borderWidth: 1,
+        padding: Spacing.two,
         gap: Spacing.one,
     },
     metricsRow: {
         flexDirection: 'row',
+        alignItems: 'stretch',
         gap: Spacing.two,
     },
     metricBox: {
         flex: 1,
-        borderRadius: 14,
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.two,
+        borderRadius: 12,
+        padding: Spacing.two,
         gap: Spacing.one,
     },
-    input: {
-        width: '100%',
-        fontFamily: 'Vazirmatn-Regular',
-    },
     dateInput: {
-        borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         paddingHorizontal: Spacing.two,
         paddingVertical: Spacing.two,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        borderRadius: 8,
+        borderWidth: 1,
+        minHeight: 40,
     },
     actionsGroup: {
+        flexDirection: 'row',
         gap: Spacing.two,
+        marginTop: Spacing.one,
     },
     actionButton: {
+        flex: 1,
         borderRadius: 12,
     },
     resetButton: {
-        borderRadius: 12,
-        borderWidth: StyleSheet.hairlineWidth,
+        borderWidth: 1,
     },
     actionLabel: {
-        fontFamily: 'Vazirmatn-Medium',
-        fontSize: 14,
-        lineHeight: 20,
+        fontFamily: 'Vazirmatn-Bold',
+        fontSize: 12,
     },
     breakdownCard: {
-        borderRadius: Radius.lg,
-        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: 12,
+        borderWidth: 1,
+        marginTop: Spacing.two,
+        overflow: 'hidden',
     },
     breakdownContent: {
         gap: Spacing.two,
-    },
-    breakdownHeaderRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        gap: Spacing.two,
-    },
-    breakdownHeaderTextBlock: {
-        flex: 1,
-        flexDirection: 'column',
-        gap: Spacing.two,
-    },
-    breakdownTitleRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.two,
-    },
-    breakdownIconBadge: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    breakdownTitleInner: {
-        flex: 1,
-        minWidth: 0,
-    },
-    breakdownSummaryPill: {
-        alignSelf: 'flex-start',
-        borderRadius: 999,
-        borderWidth: StyleSheet.hairlineWidth,
+        paddingVertical: Spacing.three,
         paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.one,
     },
     breakdownSectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        gap: Spacing.two,
-        marginTop: Spacing.one,
+        paddingHorizontal: Spacing.one,
+        paddingVertical: Spacing.one,
+        gap: Spacing.one,
     },
     breakdownSectionTitle: {
-        fontFamily: 'Vazirmatn-Bold',
         fontSize: 13,
-        lineHeight: 20,
+        fontFamily: 'Vazirmatn-Bold',
     },
     toggleButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        alignSelf: 'flex-start',
         gap: Spacing.one,
-        borderRadius: Radius.md,
+        borderRadius: 12,
         borderWidth: StyleSheet.hairlineWidth,
         paddingHorizontal: Spacing.two,
         paddingVertical: Spacing.one,
     },
     toggleButtonLabel: {
-        fontFamily: 'Vazirmatn-Bold',
-        fontSize: 13,
-        lineHeight: 19,
+        fontSize: 11,
     },
     breakdownGrid: {
-        flexDirection: 'column',
         gap: Spacing.two,
     },
     breakdownItemCard: {
-        borderRadius: Radius.md,
-        borderWidth: StyleSheet.hairlineWidth,
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.two,
-        gap: Spacing.two,
+        borderRadius: 12,
+        borderWidth: 1,
+        padding: Spacing.two,
+        gap: Spacing.one,
     },
     breakdownItemHeaderRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: Spacing.two,
-        flexWrap: 'wrap',
+        paddingTop: 2,
+        paddingBottom: 2,
+        marginBottom: 2,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: 'rgba(0, 0, 0, 0.12)',
     },
     breakdownDetailGrid: {
-        flexDirection: 'column',
-        gap: Spacing.two,
+        gap: Spacing.one,
     },
     breakdownDetailBox: {
-        width: '100%',
-        borderRadius: Radius.md,
-        borderWidth: StyleSheet.hairlineWidth,
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.two,
-        gap: Spacing.one,
+        borderRadius: 8,
+        borderWidth: 1,
+        padding: Spacing.one,
+        gap: Spacing.half,
+        alignItems: 'center',
     },
     pageTitle: {
         fontSize: 16,
@@ -637,75 +580,38 @@ const styles = StyleSheet.create({
         fontFamily: 'Vazirmatn-Bold',
     },
     pageDescription: {
-        fontSize: 12.5,
-        lineHeight: 19,
-        fontFamily: 'Vazirmatn-Regular',
+        lineHeight: 20,
+        fontSize: 12,
     },
     sectionLabel: {
-        fontSize: 12.5,
-        lineHeight: 18,
-        fontFamily: 'Vazirmatn-Medium',
+        fontSize: 11,
+        fontWeight: '500',
     },
     fieldValue: {
         fontSize: 13,
-        lineHeight: 19,
-        fontFamily: 'Vazirmatn-Medium',
-    },
-    sectionTitle: {
-        fontSize: 14,
-        lineHeight: 20,
-        fontFamily: 'Vazirmatn-Bold',
-    },
-    pillText: {
-        fontSize: 12.5,
-        lineHeight: 18,
-        fontFamily: 'Vazirmatn-Bold',
+        flex: 1,
     },
     summaryLabel: {
-        fontSize: 12.5,
-        lineHeight: 18,
-        fontFamily: 'Vazirmatn-Medium',
+        fontSize: 11,
     },
     amountValue: {
-        fontSize: 22,
-        lineHeight: 28,
-        fontFamily: 'Vazirmatn-Bold',
+        fontSize: 18,
     },
     formulaLabel: {
-        fontSize: 12.5,
-        lineHeight: 18,
-        fontFamily: 'Vazirmatn-Medium',
+        fontSize: 11,
+        fontWeight: '500',
     },
     formulaValue: {
-        fontSize: 12.5,
+        fontSize: 13,
         lineHeight: 18,
-        fontFamily: 'Vazirmatn-Regular',
-    },
-    explanationText: {
-        flex: 1,
-        fontSize: 11.5,
-        lineHeight: 17,
-        fontFamily: 'Vazirmatn-Regular',
-        textAlign: 'right',
     },
     breakdownItemTitle: {
-        fontSize: 13,
-        lineHeight: 19,
-        fontFamily: 'Vazirmatn-Bold',
-    },
-    breakdownPillValue: {
-        fontSize: 12.5,
-        lineHeight: 18,
-        fontFamily: 'Vazirmatn-Bold',
+        fontSize: 12,
     },
     detailLabel: {
-        fontSize: 12.2,
-        lineHeight: 17,
-        fontFamily: 'Vazirmatn-Medium',
+        fontSize: 10,
     },
     detailValue: {
-        fontSize: 13,
-        lineHeight: 19,
-        fontFamily: 'Vazirmatn-Bold',
+        fontSize: 12,
     },
 });

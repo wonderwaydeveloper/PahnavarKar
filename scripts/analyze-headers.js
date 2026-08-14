@@ -3,18 +3,32 @@ const fs = require('fs');
 const path = require('path');
 
 const assetsDir = path.join(__dirname, '..', 'assets');
-const excelFileXlsx = path.join(assetsDir, 'calculator-data.xlsx');
-const excelFileXls = path.join(assetsDir, 'data-source', 'calculator-data.xls');
+const dataSourceDir = path.join(assetsDir, 'data-source');
+const candidateExcelFiles = [
+    path.join(dataSourceDir, 'data.xlsx'),
+    path.join(dataSourceDir, 'data.xls'),
+    path.join(assetsDir, 'calculator-data.xlsx'),
+    path.join(dataSourceDir, 'calculator-data.xlsx'),
+    path.join(dataSourceDir, 'calculator-data.xls'),
+    path.join(assetsDir, 'calculator-data.xls'),
+];
+const preferredSheetNames = [
+    'پایه سنوات عادی و داده ها',
+    'پایه سنوات عادی',
+    'محاسبات عددی',
+    'پایه سنوات طرح طبقه',
+];
 
 let excelFile;
-if (fs.existsSync(excelFileXlsx)) {
-    excelFile = excelFileXlsx;
-    console.log('✅ فایل Excel جدید (.xlsx) پیدا شد');
-} else if (fs.existsSync(excelFileXls)) {
-    excelFile = excelFileXls;
-    console.log('⚠️ فایل Excel قدیمی (.xls) پیدا شد');
-} else {
-    throw new Error('❌ هیچ فایل Excel پیدا نشد! (calculator-data.xlsx یا calculator-data.xls)');
+for (const candidate of candidateExcelFiles) {
+    if (fs.existsSync(candidate)) {
+        excelFile = candidate;
+        break;
+    }
+}
+
+if (!excelFile) {
+    throw new Error('❌ هیچ فایل Excel پیدا نشد! (data.xlsx یا calculator-data.xlsx / .xls)');
 }
 
 console.log('\n📊 تحلیل ساختار هدرهای فایل اکسل\n');
@@ -23,7 +37,9 @@ console.log(`📖 فایل: ${excelFile}\n`);
 try {
     // خواندن فایل اکسل
     const workbook = XLSX.readFile(excelFile);
-    const sheetName = workbook.SheetNames[0];
+    const sheetName = preferredSheetNames.find((name) => workbook.SheetNames.includes(name))
+        ?? workbook.SheetNames.find((name) => /داده|کارکرد|مزد|سنوات/i.test(name))
+        ?? workbook.SheetNames[0];
     console.log(`📋 شیت: ${sheetName}\n`);
 
     const worksheet = workbook.Sheets[sheetName];

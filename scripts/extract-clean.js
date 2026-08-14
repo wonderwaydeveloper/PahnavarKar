@@ -5,27 +5,38 @@ const path = require('path');
 const dataSourceDir = path.join(__dirname, '..', 'assets', 'data-source');
 const assetsDir = path.join(__dirname, '..', 'assets');
 
-// مبنای اصلی همیشه فایل جدید اکسل در پوشه data-source است
-const excelFileXlsx = path.join(dataSourceDir, 'calculator-data.xlsx');
-const excelFileXls = path.join(dataSourceDir, 'calculator-data.xls');
-const legacyExcelFileXlsx = path.join(assetsDir, 'calculator-data.xlsx');
+const candidateExcelFiles = [
+    path.join(dataSourceDir, 'data.xlsx'),
+    path.join(dataSourceDir, 'data.xls'),
+    path.join(dataSourceDir, 'calculator-data.xlsx'),
+    path.join(dataSourceDir, 'calculator-data.xls'),
+    path.join(assetsDir, 'data.xlsx'),
+    path.join(assetsDir, 'calculator-data.xlsx'),
+    path.join(assetsDir, 'calculator-data.xls'),
+];
+
+const preferredSheetNames = [
+    'پایه سنوات عادی و داده ها',
+    'پایه سنوات عادی',
+    'محاسبات عددی',
+    'محاسبات_عددی',
+    'پایه سنوات طرح طبقه',
+];
 
 let excelFile;
-if (fs.existsSync(excelFileXlsx)) {
-    excelFile = excelFileXlsx;
-    console.log('✅ فایل Excel جدید در data-source پیدا شد');
-} else if (fs.existsSync(legacyExcelFileXlsx)) {
-    // اگر نسخه قدیمی هنوز در assets بوده، آن را به data-source منتقل می‌کنیم.
-    const newPath = excelFileXlsx;
-    fs.mkdirSync(dataSourceDir, { recursive: true });
-    fs.renameSync(legacyExcelFileXlsx, newPath);
-    excelFile = newPath;
-    console.log('⚠️ فایل Excel جدید از assets به data-source منتقل شد و اکنون مبنا است');
-} else if (fs.existsSync(excelFileXls)) {
-    excelFile = excelFileXls;
-    console.log('⚠️ فایل Excel قدیمی (.xls) در data-source پیدا شد، اما بهتر است فایل جدید .xlsx را جایگزین کنید');
-} else {
-    throw new Error('❌ هیچ فایل Excel پیدا نشد! (calculator-data.xlsx در assets/data-source یا calculator-data.xls در assets/data-source)');
+for (const candidate of candidateExcelFiles) {
+    if (fs.existsSync(candidate)) {
+        excelFile = candidate;
+        break;
+    }
+}
+
+if (!excelFile) {
+    throw new Error('❌ هیچ فایل Excel پیدا نشد! (data.xlsx، calculator-data.xlsx یا فایل .xls مربوطه)');
+}
+
+if (path.basename(excelFile) !== 'data.xlsx' && fs.existsSync(path.join(dataSourceDir, 'data.xlsx')) && excelFile !== path.join(dataSourceDir, 'data.xlsx')) {
+    console.log('⚠️ فایل جدید data.xlsx موجود است و به‌عنوان ورودی اصلی استفاده می‌شود');
 }
 
 const outputFile = path.join(dataSourceDir, 'calculator-data.json');
@@ -40,10 +51,13 @@ console.log(`📖 فایل: ${excelFile}\n`);
 try {
     // خواندن فایل اکسل
     const workbook = XLSX.readFile(excelFile);
-    
-    // نام شیت به صورت خودکار از فایل Excel خوانده می‌شود
-    const sheetName = workbook.SheetNames[0]; // اولین شیت را می‌گیریم
-    
+
+    const selectedSheetName = preferredSheetNames.find((name) => workbook.SheetNames.includes(name))
+        ?? workbook.SheetNames.find((name) => /داده|کارکرد|مزد|سنوات/i.test(name))
+        ?? workbook.SheetNames[0];
+
+    const sheetName = selectedSheetName;
+
     console.log(`📋 شیت: ${sheetName}\n`);
 
     if (!workbook.SheetNames.includes(sheetName)) {
@@ -125,13 +139,11 @@ try {
     }
 
     const headerAliases = {
-        'پایه_سنواتی_جاری': 'پایه_سنوات_بعداز_یک_سابقه_کارگر_در_کارگاه',
-        // هدرهای تکراری که باید به عنوان یک سطحی پردازش شوند
+        'پایه_سنواتي_گذشته': 'پایه_سنواتی_گذشته',
+        'پایه_سنواتی_جاری': 'پایه_سنواتی_جاری',
+        'پایه_سنواتی_جاری_پایه_سنواتی_جاری': 'پایه_سنواتی_جاری',
         'درصد_افزايش_درصد_افزايش': 'درصد_افزايش',
-        'پایه_سنواتی_جاری_پایه_سنواتی_جاری': 'پایه_سنوات_بعداز_یک_سابقه_کارگر_در_کارگاه',
-        // هدرهای مشابه که باید به عنوان یک سطحی پردازش شوند
-        'پایه_سنواتی_گذشته_پایه_سنواتي_گذشته': 'پایه_سنواتی_گذشته',
-        'پایه_سنوات_استحقاقی_پایه_سنوات_تجمیعی': 'پایه_سنوات_استحقاقی'
+        'پایه_سنوات_استحقاقی_پایه_سنوات_تجمیعی': 'پایه_سنوات_استحقاقی',
     };
 
     // ایجاد نقشه کلیدهای JSON - ترتیب اصلی از اکسل
@@ -301,6 +313,52 @@ try {
         // اگر بعد از تکمیل هم سال نداشت، ردیف را نادیده می‌گیریم
         if (!record['سال_كاركرد']) {
             console.log(`⚠️ ردیف ${rowIndex + 1} بدون سال نادیده گرفته شد`);
+            continue;
+        }
+
+        // ردیف‌های ناقص/زباله‌ای که فقط متادیتا یا رفرنس‌های بی‌معنی دارند
+        // نباید به عنوان دورهٔ جدید محسوب شوند؛ حداقل باید یک مقدار عددی اصلی دوره وجود داشته باشد.
+        const meaningfulPeriodFields = new Set([
+            'تعداد_ماه_های_کارکرد_سال',
+            'تعداد_روزهای_سال',
+            'تعداد_جمعه_های_سال',
+            'تعداد_تعطيلات_رسمی_سال',
+            'کل_تعطیلات_رسمی_سال',
+            'تعداد_ساعات_کارکرد_موظفی_کارگر_در_سال',
+            'مبلغ_حداقل_مزد_روزانه_مصوب_شورای_عالی_کار',
+            'درصد_افزايش',
+            'پایه_سنواتی_گذشته',
+            'پایه_سنواتی_جاری',
+            'پایه_سنوات_استحقاقی',
+            'مبلغ_اضافه_كاری_یک_ساعت',
+            'مبلغ_شب_کاری_یک_ساعت',
+            'مبلغ_جمعه_کاری_یک_روز',
+            'حق_تاهل',
+            'مبلغ_عائله_مندی_به_یک_فرزند_واجد_شرایط',
+            'مبلغ_حداقل_عیدی_ماهیانه',
+            'مبلغ_حداکثر_عیدی_ماهیانه'
+        ]);
+
+        const hasMeaningfulPeriodData = Object.entries(record).some(([key, value]) => {
+            if (key === 'سال_كاركرد') return false;
+            if (value === null || value === undefined || value === '') return false;
+
+            if (typeof value === 'object') {
+                return Object.values(value).some(nestedValue => {
+                    if (nestedValue === null || nestedValue === undefined || nestedValue === '') return false;
+                    return typeof nestedValue === 'number' && Number.isFinite(nestedValue);
+                });
+            }
+
+            if (meaningfulPeriodFields.has(key)) {
+                return typeof value === 'number' && Number.isFinite(value);
+            }
+
+            return false;
+        });
+
+        if (!hasMeaningfulPeriodData) {
+            console.log(`⚠️ ردیف ${rowIndex + 1} بدون دادهٔ واقعی دوره نادیده گرفته شد`);
             continue;
         }
 

@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Checkbox, Menu, Snackbar } from 'react-native-paper';
+import { Button, Card, Checkbox, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -12,15 +12,13 @@ import { Radius, Spacing } from '@/constants/theme';
 import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
 import {
-    calculateFamilyAllowanceFromPeriodData,
+    calculateMaximumBonusAndEntitlementFromPeriodData,
     parseDateInput,
-    type FamilyAllowanceCalculationResult,
+    type MaximumBonusAndEntitlementCalculationResult,
     type SalaryPeriodBucket,
 } from '@/utils/salary-calculation';
 
-const CHILDREN_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
-
-export default function FamilyAllowanceScreen() {
+export default function MaximumBonusScreen() {
     const theme = useTheme();
     const insets = useSafeAreaInsets();
     const currentJalaliDate = useMemo(() => {
@@ -36,14 +34,12 @@ export default function FamilyAllowanceScreen() {
     const [endDate, setEndDate] = useState(defaultEndDate);
     const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | null>(null);
     const [pickerVisible, setPickerVisible] = useState(false);
-    const [childrenCount, setChildrenCount] = useState(1);
-    const [childrenMenuVisible, setChildrenMenuVisible] = useState(false);
     const [periodBuckets, setPeriodBuckets] = useState<SalaryPeriodBucket[]>([]);
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
+    const [result, setResult] = useState<MaximumBonusAndEntitlementCalculationResult | null>(null);
     const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
     const [includeDaysCovered, setIncludeDaysCovered] = useState(true);
-    const [result, setResult] = useState<FamilyAllowanceCalculationResult | null>(null);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
 
@@ -70,7 +66,6 @@ export default function FamilyAllowanceScreen() {
                             period_index: period.period_index,
                             month_count: period.month_count,
                             daily_minimum_wage: period.daily_minimum_wage,
-                            child_allowance: period.child_allowance,
                         })),
                     });
                 }
@@ -79,7 +74,7 @@ export default function FamilyAllowanceScreen() {
                     setPeriodBuckets(buckets);
                     setAvailableYears(years.map((year) => year.year));
                 }
-            } catch (error) {
+            } catch {
                 if (isMounted) {
                     setSnackbarMessage('خطا در بارگذاری داده‌ها. لطفاً دوباره تلاش کنید.');
                     setSnackbarVisible(true);
@@ -126,42 +121,53 @@ export default function FamilyAllowanceScreen() {
         setPickerTarget(null);
     };
 
-    const openChildrenMenu = () => {
-        setChildrenMenuVisible(true);
-    };
+    const compareDates = (left: string, right: string) => {
+        const parsedLeft = parseDateInput(left);
+        const parsedRight = parseDateInput(right);
 
-    const closeChildrenMenu = () => {
-        setChildrenMenuVisible(false);
+        if (!parsedLeft || !parsedRight) {
+            return 0;
+        }
+
+        const leftValue = parsedLeft.year * 10000 + parsedLeft.month * 100 + parsedLeft.day;
+        const rightValue = parsedRight.year * 10000 + parsedRight.month * 100 + parsedRight.day;
+
+        if (leftValue < rightValue) {
+            return -1;
+        }
+
+        if (leftValue > rightValue) {
+            return 1;
+        }
+
+        return 0;
     };
 
     const handleDateSelect = (value: string) => {
         if (pickerTarget === 'start') {
             setStartDate(value);
+
             if (endDate) {
-                const parsedStart = parseDateInput(value);
-                const parsedEnd = parseDateInput(endDate);
-                if (parsedStart && parsedEnd && parsedStart.year > parsedEnd.year) {
+                const comparison = compareDates(value, endDate);
+                if (comparison > 0) {
                     setEndDate(value);
                 }
             }
+
             return;
         }
 
         if (pickerTarget === 'end') {
             if (startDate) {
-                const parsedStart = parseDateInput(startDate);
-                const parsedEnd = parseDateInput(value);
-                if (parsedStart && parsedEnd) {
-                    const leftValue = parsedStart.year * 10000 + parsedStart.month * 100 + parsedStart.day;
-                    const rightValue = parsedEnd.year * 10000 + parsedEnd.month * 100 + parsedEnd.day;
-                    if (rightValue < leftValue) {
-                        setEndDate(startDate);
-                        setSnackbarMessage('تاریخ پایان باید برابر یا بزرگتر از تاریخ شروع باشد.');
-                        setSnackbarVisible(true);
-                        return;
-                    }
+                const comparison = compareDates(value, startDate);
+                if (comparison < 0) {
+                    setEndDate(startDate);
+                    setSnackbarMessage('تاریخ پایان باید برابر یا بزرگتر از تاریخ شروع باشد.');
+                    setSnackbarVisible(true);
+                    return;
                 }
             }
+
             setEndDate(value);
         }
     };
@@ -171,45 +177,36 @@ export default function FamilyAllowanceScreen() {
         const parsedEnd = parseDateInput(endDate);
 
         if (!parsedStart || !parsedEnd) {
-            setSnackbarMessage('فرمت تاریخ نامعتبر است.');
-            setSnackbarVisible(true);
             setResult(null);
             return;
         }
 
-        const startValue = parsedStart.year * 10000 + parsedStart.month * 100 + parsedStart.day;
-        const endValue = parsedEnd.year * 10000 + parsedEnd.month * 100 + parsedEnd.day;
-
-        if (startValue > endValue) {
-            setSnackbarMessage('تاریخ شروع باید قبل از تاریخ پایان باشد.');
-            setSnackbarVisible(true);
+        if (parsedStart.year > parsedEnd.year ||
+            (parsedStart.year === parsedEnd.year && parsedStart.month > parsedEnd.month) ||
+            (parsedStart.year === parsedEnd.year && parsedStart.month === parsedEnd.month && parsedStart.day > parsedEnd.day)) {
             setResult(null);
             return;
         }
 
         if (periodBuckets.length === 0) {
-            setSnackbarMessage('داده دوره‌ای برای محاسبه موجود نیست.');
-            setSnackbarVisible(true);
             setResult(null);
             return;
         }
 
-        const calculation = calculateFamilyAllowanceFromPeriodData(
+        const calculation = calculateMaximumBonusAndEntitlementFromPeriodData(
             parsedStart,
             parsedEnd,
             periodBuckets,
-            childrenCount,
             includeDaysCovered,
         );
 
         if (calculation.breakdown.length === 0) {
-            setSnackbarMessage('برای بازه انتخاب‌شده ماه کارکرد یا حق عائله‌مندی ثبت نشده است.');
-            setSnackbarVisible(true);
             setResult(null);
             return;
         }
 
         setResult(calculation);
+        setShowDetailedBreakdown(false);
     };
 
     const handleReset = () => {
@@ -243,10 +240,10 @@ export default function FamilyAllowanceScreen() {
                             <View style={styles.headerRow}>
                                 <View style={styles.headerText}>
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
-                                        محاسبه حق عائله مندی
+                                        محاسبه حداکثر عیدی و پاداش استحقاقی
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        بازه‌ی زمانی و تعداد فرزندان واجد شرایط را انتخاب کنید تا مبلغ عائله‌مندی محاسبه شود.
+                                        بازه‌ی زمانی را انتخاب کنید تا مبلغ حداکثر عیدی و پاداش استحقاقی محاسبه شود.
                                     </ThemedText>
                                 </View>
                             </View>
@@ -256,7 +253,7 @@ export default function FamilyAllowanceScreen() {
                                     فرمول محاسبه
                                 </ThemedText>
                                 <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>
-                                    تعداد ماه کارکرد × تعداد فرزندان × مبلغ عائله مندی به یک فرزند واجد شرایط
+                                    تعداد ماه کارکرد در هر سال × (۷٫۵ × حداقل مزد روزانه مصوب شورای عالی کار در آن سال)
                                 </ThemedText>
                             </View>
 
@@ -274,6 +271,7 @@ export default function FamilyAllowanceScreen() {
                                         </View>
                                     </Pressable>
                                 </View>
+
                                 <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                     <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
                                         تا تاریخ
@@ -287,39 +285,6 @@ export default function FamilyAllowanceScreen() {
                                         </View>
                                     </Pressable>
                                 </View>
-                            </View>
-
-                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                                    تعداد فرزندان واجد شرایط
-                                </ThemedText>
-                                <Menu
-                                    visible={childrenMenuVisible}
-                                    onDismiss={closeChildrenMenu}
-                                    anchor={
-                                        <Pressable onPress={openChildrenMenu}>
-                                            <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                                <ThemedText type="small" style={[styles.fieldValue, { color: theme.text }]}>
-                                                    {`${toPersianDigits(String(childrenCount))} فرزند`}
-                                                </ThemedText>
-                                                <MaterialCommunityIcons name="account-group-outline" size={18} color={theme.primary} />
-                                            </View>
-                                        </Pressable>
-                                    }
-                                    contentStyle={{ borderRadius: 16, backgroundColor: theme.surface }}
-                                >
-                                    {CHILDREN_OPTIONS.map((count) => (
-                                        <Menu.Item
-                                            key={count}
-                                            onPress={() => {
-                                                setChildrenCount(count);
-                                                closeChildrenMenu();
-                                            }}
-                                            title={`${toPersianDigits(String(count))} فرزند`}
-                                            titleStyle={{ fontFamily: 'Vazirmatn-Regular', color: theme.text }}
-                                        />
-                                    ))}
-                                </Menu>
                             </View>
 
                             <View style={[styles.optionBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
@@ -338,8 +303,7 @@ export default function FamilyAllowanceScreen() {
 
                                 <View style={styles.helpRow}>
                                     <ThemedText type="small" style={[styles.helpText, { color: theme.textSecondary }]}>
-                                        با فعال بودن این گزینه، روزهای جزئی شمول هم در محاسبه لحاظ می‌شوند
-                                        اگر غیر فعال باشد، فقط ماه‌های کامل لحاظ می‌شوند.
+                                        با فعال بودن این گزینه، روزهای جزئی شمول هم در محاسبه لحاظ می‌شوند اگر غیرفعال باشد، فقط ماه‌های کامل لحاظ می‌شوند.
                                     </ThemedText>
                                 </View>
                             </View>
@@ -348,7 +312,7 @@ export default function FamilyAllowanceScreen() {
                                 <Button
                                     mode="contained"
                                     onPress={handleCalculate}
-                                    icon="family-tree"
+                                    icon="gift"
                                     style={styles.actionButton}
                                     labelStyle={styles.actionLabel}
                                     buttonColor={theme.primary}
@@ -377,13 +341,10 @@ export default function FamilyAllowanceScreen() {
                             {result ? (
                                 <Card style={[styles.breakdownCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                     <Card.Content style={styles.breakdownContent}>
-                                        <View style={{ marginBottom: Spacing.one }}>
-                                            <ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.text }]}>جزئیات محاسبه</ThemedText>
-                                        </View>
                                         <View style={styles.summaryBoxHeader}>
                                             <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                                 <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
-                                                    مبلغ کل حق عائله‌مندی
+                                                    مبلغ کل حداکثر عیدی و پاداش استحقاقی
                                                 </ThemedText>
                                                 <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>
                                                     {formattedResult}
@@ -452,14 +413,16 @@ export default function FamilyAllowanceScreen() {
                                                                     {toPersianDigits(String(item.daysCovered))} روز
                                                                 </ThemedText>
                                                             </View>
+
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    مبلغ عائله مندی به یک فرزند واجد شرایط
+                                                                    حداقل مزد روزانه
                                                                 </ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
-                                                                    {item.childAllowance != null ? toPersianDigits(formatCurrency(item.childAllowance)) : '-'}
+                                                                    {item.dailyMinimumWage != null ? toPersianDigits(formatCurrency(item.dailyMinimumWage)) : '-'}
                                                                 </ThemedText>
                                                             </View>
+
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
                                                                     مبلغ این دوره
@@ -523,7 +486,7 @@ const styles = StyleSheet.create({
     },
     card: {
         borderRadius: 20,
-        borderWidth: 1,
+        borderWidth: StyleSheet.hairlineWidth,
         overflow: 'hidden',
     },
     cardContent: {
@@ -538,81 +501,51 @@ const styles = StyleSheet.create({
         flex: 1,
         gap: Spacing.one,
     },
-    summaryBoxHeader: {
-        alignItems: 'center',
-        marginBottom: Spacing.one,
-    },
-    summaryBoxContent: {
-        width: '100%',
-        borderRadius: 12,
-        borderWidth: 1,
-        padding: Spacing.two,
-        gap: Spacing.one,
-        alignItems: 'center',
-    },
     formulaBox: {
-        borderRadius: 12,
-        borderWidth: 1,
-        padding: Spacing.two,
+        borderRadius: Radius.md,
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: Spacing.two,
+        paddingVertical: Spacing.two,
         gap: Spacing.one,
     },
     metricsRow: {
         flexDirection: 'row',
-        alignItems: 'stretch',
         gap: Spacing.two,
     },
     metricBox: {
         flex: 1,
-        borderRadius: 12,
-        padding: Spacing.two,
+        borderRadius: 14,
+        paddingHorizontal: Spacing.two,
+        paddingVertical: Spacing.two,
         gap: Spacing.one,
+    },
+    sectionLabel: {
+        fontSize: 12.5,
+        lineHeight: 18,
+        fontFamily: 'Vazirmatn-Medium',
     },
     dateInput: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+        gap: Spacing.one,
         paddingHorizontal: Spacing.two,
         paddingVertical: Spacing.two,
-        borderRadius: 8,
-        borderWidth: 1,
-        minHeight: 40,
-    },
-    childrenSection: {
-        gap: Spacing.two,
-    },
-    childSelectorButton: {
         borderRadius: 12,
-        paddingHorizontal: Spacing.four,
-    },
-    childrenOptionsRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: Spacing.two,
-    },
-    childOption: {
-        minWidth: 42,
         borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: 12,
-        paddingHorizontal: Spacing.three,
-        paddingVertical: Spacing.two,
-        alignItems: 'center',
-        justifyContent: 'center',
     },
-    actionsGroup: {
-        flexDirection: 'row',
-        gap: Spacing.two,
-        marginTop: Spacing.one,
-    },
-    actionButton: {
+    fieldValue: {
         flex: 1,
-        borderRadius: 12,
+        fontSize: 13,
+        lineHeight: 19,
+        fontFamily: 'Vazirmatn-Medium',
     },
-    resetButton: {
-        borderWidth: 1,
-    },
-    actionLabel: {
-        fontFamily: 'Vazirmatn-Bold',
-        fontSize: 12,
+    optionBox: {
+        borderRadius: Radius.md,
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: Spacing.two,
+        paddingVertical: Spacing.two,
+        gap: Spacing.one,
     },
     optionRow: {
         flexDirection: 'row',
@@ -624,12 +557,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: Spacing.one,
     },
-    optionBox: {
-        borderRadius: 12,
-        borderWidth: 1,
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.two,
-        gap: Spacing.one,
+    detailLabel: {
+        fontSize: 12.2,
+        lineHeight: 17,
+        fontFamily: 'Vazirmatn-Medium',
     },
     helpRow: {
         marginTop: Spacing.one,
@@ -639,24 +570,59 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontFamily: 'Vazirmatn-Regular',
     },
-    breakdownCard: {
+    actionsGroup: {
+        flexDirection: 'row',
+        gap: Spacing.two,
+    },
+    actionButton: {
+        flex: 1,
         borderRadius: 12,
+    },
+    actionLabel: {
+        fontSize: 13,
+        fontFamily: 'Vazirmatn-Bold',
+    },
+    resetButton: {
         borderWidth: 1,
-        marginTop: Spacing.two,
+    },
+    breakdownCard: {
+        borderRadius: 18,
+        borderWidth: StyleSheet.hairlineWidth,
         overflow: 'hidden',
     },
     breakdownContent: {
         gap: Spacing.two,
         paddingVertical: Spacing.three,
+    },
+    summaryBoxHeader: {
+        width: '100%',
+    },
+    summaryBoxContent: {
+        borderRadius: 14,
+        borderWidth: StyleSheet.hairlineWidth,
         paddingHorizontal: Spacing.two,
+        paddingVertical: Spacing.two,
+        alignItems: 'center',
+        gap: Spacing.one,
+    },
+    summaryLabel: {
+        fontSize: 12,
+        fontFamily: 'Vazirmatn-Medium',
+    },
+    amountValue: {
+        fontSize: 22,
+        lineHeight: 30,
+        fontFamily: 'Vazirmatn-Bold',
     },
     breakdownSectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: Spacing.one,
-        paddingVertical: Spacing.one,
-        gap: Spacing.one,
+        gap: Spacing.two,
+    },
+    breakdownSectionTitle: {
+        fontSize: 12,
+        fontFamily: 'Vazirmatn-Bold',
     },
     toggleButton: {
         flexDirection: 'row',
@@ -669,51 +635,39 @@ const styles = StyleSheet.create({
     },
     toggleButtonLabel: {
         fontSize: 11,
-    },
-    breakdownSectionTitle: {
-        fontSize: 13,
         fontFamily: 'Vazirmatn-Bold',
     },
     breakdownGrid: {
         gap: Spacing.two,
     },
     breakdownItemCard: {
-        borderRadius: 12,
-        borderWidth: 1,
+        borderRadius: 14,
+        borderWidth: StyleSheet.hairlineWidth,
         padding: Spacing.two,
-        gap: Spacing.one,
+        gap: Spacing.two,
+    },
+    breakdownItemHeaderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     breakdownItemTitle: {
         fontSize: 12,
-    },
-    breakdownSummaryPill: {
-        alignSelf: 'flex-start',
-        borderRadius: 999,
-        borderWidth: StyleSheet.hairlineWidth,
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.one,
-    },
-    breakdownPillValue: {
-        fontSize: 12,
-        lineHeight: 18,
         fontFamily: 'Vazirmatn-Bold',
-    },
-    breakdownItemHeaderRow: {
-        paddingTop: 2,
-        paddingBottom: 2,
-        marginBottom: 2,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: 'rgba(0, 0, 0, 0.12)',
     },
     breakdownDetailGrid: {
         gap: Spacing.one,
     },
     breakdownDetailBox: {
-        borderRadius: 8,
-        borderWidth: 1,
-        padding: Spacing.one,
-        gap: Spacing.half,
-        alignItems: 'center',
+        borderRadius: 10,
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: Spacing.two,
+        paddingVertical: Spacing.one,
+        gap: Spacing.one,
+    },
+    detailValue: {
+        fontSize: 12,
+        fontFamily: 'Vazirmatn-Bold',
     },
     pageTitle: {
         fontSize: 16,
@@ -723,33 +677,15 @@ const styles = StyleSheet.create({
     pageDescription: {
         lineHeight: 20,
         fontSize: 12,
-    },
-    sectionLabel: {
-        fontSize: 11,
-        fontWeight: '500',
-    },
-    fieldValue: {
-        fontSize: 13,
-        flex: 1,
-    },
-    summaryLabel: {
-        fontSize: 11,
-    },
-    amountValue: {
-        fontSize: 18,
+        fontFamily: 'Vazirmatn-Regular',
     },
     formulaLabel: {
         fontSize: 11,
-        fontWeight: '500',
+        fontFamily: 'Vazirmatn-Medium',
     },
     formulaValue: {
-        fontSize: 13,
-        lineHeight: 18,
-    },
-    detailLabel: {
-        fontSize: 10,
-    },
-    detailValue: {
+        lineHeight: 20,
         fontSize: 12,
+        fontFamily: 'Vazirmatn-Regular',
     },
 });

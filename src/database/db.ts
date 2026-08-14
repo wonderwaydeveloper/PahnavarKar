@@ -113,7 +113,7 @@ export async function seedDatabase(data: SeedData) {
                             period['نوبت_کاری_ماهیانه']?.['صبح وعصر  10%'] ?? null,
                             period['نوبت_کاری_ماهیانه']?.['صبح وعصر وشب  15%'] ?? null,
                             period['نوبت_کاری_ماهیانه']?.['صبح  وشب یا عصر وشب   22.5%'] ?? null,
-                            period['پایه_سنوات_بعداز_یک_سابقه_کارگر_در_کارگاه'] ?? null,
+                            period['پایه_سنواتی_جاری'] ?? null,
                             period['مبلغ_اضافه_كاری_یک_ساعت'] ?? null,
                             period['مبلغ_شب_کاری_یک_ساعت'] ?? null,
                             monthlySingleAllowance,

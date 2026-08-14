@@ -1,5 +1,6 @@
 import { useAppContext } from '@/hooks/use-app-context';
 import { usePathname, useRouter } from 'expo-router';
+import { useWindowDimensions } from 'react-native';
 import { Appbar } from 'react-native-paper';
 
 interface AppHeaderProps {
@@ -44,6 +45,28 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
         return { title: 'محاسبه حقوق پایه' };
       case 'family-allowance':
         return { title: 'محاسبه حق عائله مندی' };
+      case 'housing-allowance':
+        return { title: 'محاسبه حق مسکن ماهیانه' };
+      case 'monthly-allowance':
+        return { title: 'محاسبه بن ماهیانه' };
+      case 'yearly-bonus':
+        return { title: 'محاسبه حداقل عیدی و پاداش استحقاقی' };
+      case 'maximum-bonus':
+        return { title: 'محاسبه حداکثر عیدی و پاداش استحقاقی' };
+      case 'spousal-allowance':
+        return { title: 'محاسبه حق تاهل استحقاقی' };
+      case 'monthly-shift-work':
+        return { title: 'محاسبه نوبت کاری ماهیانه' };
+      case 'overtime-entitlement':
+        return { title: 'محاسبه اضافه کاری استحقاقی' };
+      case 'night-shift-entitlement':
+        return { title: 'محاسبه شب کاری استحقاقی' };
+      case 'insurance-days-entitlement':
+        return { title: 'محاسبه تعداد روزهای بیمه استحقاقی' };
+      case 'unused-leave-entitlement':
+        return { title: 'محاسبه تعداد روزهای مرخصی استفاده نشده' };
+      case 'end-of-service-years':
+        return { title: 'محاسبه سنوات پایان کار' };
       case 'home':
       case 'index':
       default:
@@ -54,7 +77,10 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
   const router = useRouter();
   const actualRouteName = normalizeRoute(pathname || route?.name);
   const { title } = getHeaderConfig(actualRouteName);
-  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance'].includes(actualRouteName);
+  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'yearly-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unused-leave-entitlement', 'end-of-service-years'].includes(actualRouteName);
+
+  const { width } = useWindowDimensions();
+  const titleFontSize = width >= 420 ? 18 : 16;
 
   return (
     <Appbar.Header
@@ -78,7 +104,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
       <Appbar.Content
         title={title}
         titleStyle={{
-          fontSize: 18,
+          fontSize: titleFontSize,
           fontFamily: 'Vazirmatn-Bold',
           color: titleColor,
         }}

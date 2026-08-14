@@ -2,25 +2,23 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Checkbox, Menu, Snackbar } from 'react-native-paper';
+import { Button, Card, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
+import { PersianTimePickerModal } from '@/components/persian-time-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
-import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
+import { fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
 import {
-    calculateFamilyAllowanceFromPeriodData,
+    calculateInsuranceDaysEntitlementFromPeriodData,
     parseDateInput,
-    type FamilyAllowanceCalculationResult,
-    type SalaryPeriodBucket,
+    type InsuranceDaysEntitlementCalculationResult,
 } from '@/utils/salary-calculation';
 
-const CHILDREN_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
-
-export default function FamilyAllowanceScreen() {
+export default function InsuranceDaysEntitlementScreen() {
     const theme = useTheme();
     const insets = useSafeAreaInsets();
     const currentJalaliDate = useMemo(() => {
@@ -36,14 +34,12 @@ export default function FamilyAllowanceScreen() {
     const [endDate, setEndDate] = useState(defaultEndDate);
     const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | null>(null);
     const [pickerVisible, setPickerVisible] = useState(false);
-    const [childrenCount, setChildrenCount] = useState(1);
-    const [childrenMenuVisible, setChildrenMenuVisible] = useState(false);
-    const [periodBuckets, setPeriodBuckets] = useState<SalaryPeriodBucket[]>([]);
+    const [timePickerVisible, setTimePickerVisible] = useState(false);
+    const [dailyWorkHours, setDailyWorkHours] = useState('07:20');
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
+    const [result, setResult] = useState<InsuranceDaysEntitlementCalculationResult | null>(null);
     const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
-    const [includeDaysCovered, setIncludeDaysCovered] = useState(true);
-    const [result, setResult] = useState<FamilyAllowanceCalculationResult | null>(null);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
 
@@ -56,30 +52,11 @@ export default function FamilyAllowanceScreen() {
                 await seedFromJsonAsset();
 
                 const years = await fetchYears();
-                const buckets: SalaryPeriodBucket[] = [];
-
-                for (const year of years) {
-                    const periods = await fetchPeriodsByYearId(year.id);
-                    if (periods.length === 0) {
-                        continue;
-                    }
-
-                    buckets.push({
-                        year: year.year,
-                        periods: periods.map((period) => ({
-                            period_index: period.period_index,
-                            month_count: period.month_count,
-                            daily_minimum_wage: period.daily_minimum_wage,
-                            child_allowance: period.child_allowance,
-                        })),
-                    });
-                }
 
                 if (isMounted) {
-                    setPeriodBuckets(buckets);
                     setAvailableYears(years.map((year) => year.year));
                 }
-            } catch (error) {
+            } catch {
                 if (isMounted) {
                     setSnackbarMessage('خطا در بارگذاری داده‌ها. لطفاً دوباره تلاش کنید.');
                     setSnackbarVisible(true);
@@ -103,8 +80,27 @@ export default function FamilyAllowanceScreen() {
     const toPersianDigits = (value: string) =>
         value.replace(/\d/g, (digit) => persianDigits[Number(digit)]);
 
-    const formatCurrency = (value: number) =>
-        `${new Intl.NumberFormat('fa-IR').format(value)} ریال`;
+    const persianMonthNames = [
+        'فروردین',
+        'اردیبهشت',
+        'خرداد',
+        'تیر',
+        'مرداد',
+        'شهریور',
+        'مهر',
+        'آبان',
+        'آذر',
+        'دی',
+        'بهمن',
+        'اسفند',
+    ];
+
+    const formatMonthName = (month: number) => persianMonthNames[month - 1] ?? '';
+
+    const formatNumber = (value: number) => {
+        const normalizedValue = Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2);
+        return toPersianDigits(normalizedValue);
+    };
 
     const formatDisplayedDate = (value: string) => {
         const parsed = parseDateInput(value);
@@ -114,6 +110,53 @@ export default function FamilyAllowanceScreen() {
         }
 
         return `${toPersianDigits(String(parsed.year))}/${toPersianDigits(String(parsed.month).padStart(2, '0'))}/${toPersianDigits(String(parsed.day).padStart(2, '0'))}`;
+    };
+
+    const parseTimeToDecimalHours = (value: string) => {
+        const match = value.match(/^(\d{1,2}):(\d{1,2})$/);
+
+        if (!match) {
+            return 0;
+        }
+
+        const hours = Number(match[1]);
+        const minutes = Number(match[2]);
+
+        if (!Number.isFinite(hours) || !Number.isFinite(minutes) || minutes >= 60) {
+            return 0;
+        }
+
+        return hours + minutes / 60;
+    };
+
+    const formatDecimalHours = (value: number) => {
+        const totalMinutes = Math.round(value * 60);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+
+        return `${toPersianDigits(String(hours))}:${toPersianDigits(String(minutes).padStart(2, '0'))}`;
+    };
+
+    const compareDates = (left: string, right: string) => {
+        const parsedLeft = parseDateInput(left);
+        const parsedRight = parseDateInput(right);
+
+        if (!parsedLeft || !parsedRight) {
+            return 0;
+        }
+
+        const leftValue = parsedLeft.year * 10000 + parsedLeft.month * 100 + parsedLeft.day;
+        const rightValue = parsedRight.year * 10000 + parsedRight.month * 100 + parsedRight.day;
+
+        if (leftValue < rightValue) {
+            return -1;
+        }
+
+        if (leftValue > rightValue) {
+            return 1;
+        }
+
+        return 0;
     };
 
     const openPicker = (target: 'start' | 'end') => {
@@ -126,42 +169,31 @@ export default function FamilyAllowanceScreen() {
         setPickerTarget(null);
     };
 
-    const openChildrenMenu = () => {
-        setChildrenMenuVisible(true);
-    };
-
-    const closeChildrenMenu = () => {
-        setChildrenMenuVisible(false);
-    };
-
     const handleDateSelect = (value: string) => {
         if (pickerTarget === 'start') {
             setStartDate(value);
+
             if (endDate) {
-                const parsedStart = parseDateInput(value);
-                const parsedEnd = parseDateInput(endDate);
-                if (parsedStart && parsedEnd && parsedStart.year > parsedEnd.year) {
+                const comparison = compareDates(value, endDate);
+                if (comparison > 0) {
                     setEndDate(value);
                 }
             }
+
             return;
         }
 
         if (pickerTarget === 'end') {
             if (startDate) {
-                const parsedStart = parseDateInput(startDate);
-                const parsedEnd = parseDateInput(value);
-                if (parsedStart && parsedEnd) {
-                    const leftValue = parsedStart.year * 10000 + parsedStart.month * 100 + parsedStart.day;
-                    const rightValue = parsedEnd.year * 10000 + parsedEnd.month * 100 + parsedEnd.day;
-                    if (rightValue < leftValue) {
-                        setEndDate(startDate);
-                        setSnackbarMessage('تاریخ پایان باید برابر یا بزرگتر از تاریخ شروع باشد.');
-                        setSnackbarVisible(true);
-                        return;
-                    }
+                const comparison = compareDates(value, startDate);
+                if (comparison < 0) {
+                    setEndDate(startDate);
+                    setSnackbarMessage('تاریخ پایان باید برابر یا بزرگتر از تاریخ شروع باشد.');
+                    setSnackbarVisible(true);
+                    return;
                 }
             }
+
             setEndDate(value);
         }
     };
@@ -171,45 +203,41 @@ export default function FamilyAllowanceScreen() {
         const parsedEnd = parseDateInput(endDate);
 
         if (!parsedStart || !parsedEnd) {
-            setSnackbarMessage('فرمت تاریخ نامعتبر است.');
-            setSnackbarVisible(true);
             setResult(null);
             return;
         }
 
-        const startValue = parsedStart.year * 10000 + parsedStart.month * 100 + parsedStart.day;
-        const endValue = parsedEnd.year * 10000 + parsedEnd.month * 100 + parsedEnd.day;
-
-        if (startValue > endValue) {
-            setSnackbarMessage('تاریخ شروع باید قبل از تاریخ پایان باشد.');
-            setSnackbarVisible(true);
+        if (
+            parsedStart.year > parsedEnd.year ||
+            (parsedStart.year === parsedEnd.year && parsedStart.month > parsedEnd.month) ||
+            (parsedStart.year === parsedEnd.year && parsedStart.month === parsedEnd.month && parsedStart.day > parsedEnd.day)
+        ) {
             setResult(null);
             return;
         }
 
-        if (periodBuckets.length === 0) {
-            setSnackbarMessage('داده دوره‌ای برای محاسبه موجود نیست.');
+        const hours = parseTimeToDecimalHours(dailyWorkHours);
+        if (!Number.isFinite(hours) || hours < 1 / 60) {
+            setSnackbarMessage('ساعات کاری روزانه باید حداقل ۱ دقیقه (۰۰:۰۱) باشد.');
             setSnackbarVisible(true);
-            setResult(null);
             return;
         }
 
-        const calculation = calculateFamilyAllowanceFromPeriodData(
-            parsedStart,
-            parsedEnd,
-            periodBuckets,
-            childrenCount,
-            includeDaysCovered,
-        );
+        if (hours > 8) {
+            setSnackbarMessage('ساعات کاری روزانه نمی‌تواند بیشتر از ۸ ساعت (۰۸:۰۰) باشد.');
+            setSnackbarVisible(true);
+            return;
+        }
+
+        const calculation = calculateInsuranceDaysEntitlementFromPeriodData(parsedStart, parsedEnd, hours);
 
         if (calculation.breakdown.length === 0) {
-            setSnackbarMessage('برای بازه انتخاب‌شده ماه کارکرد یا حق عائله‌مندی ثبت نشده است.');
-            setSnackbarVisible(true);
             setResult(null);
             return;
         }
 
         setResult(calculation);
+        setShowDetailedBreakdown(false);
     };
 
     const handleReset = () => {
@@ -219,10 +247,10 @@ export default function FamilyAllowanceScreen() {
 
     const formattedResult = useMemo(() => {
         if (!result) {
-            return '۰ ریال';
+            return '۰';
         }
 
-        return toPersianDigits(formatCurrency(result.totalAmount));
+        return formatNumber(result.totalDays);
     }, [result]);
 
     return (
@@ -243,10 +271,10 @@ export default function FamilyAllowanceScreen() {
                             <View style={styles.headerRow}>
                                 <View style={styles.headerText}>
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
-                                        محاسبه حق عائله مندی
+                                        محاسبه مجموع کل روزهای بیمه استحقاقی
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        بازه‌ی زمانی و تعداد فرزندان واجد شرایط را انتخاب کنید تا مبلغ عائله‌مندی محاسبه شود.
+                                        بازه زمانی و ساعات کاری روزانه را انتخاب کنید تا تعداد روزهای بیمه استحقاقی محاسبه شود.
                                     </ThemedText>
                                 </View>
                             </View>
@@ -256,7 +284,11 @@ export default function FamilyAllowanceScreen() {
                                     فرمول محاسبه
                                 </ThemedText>
                                 <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>
-                                    تعداد ماه کارکرد × تعداد فرزندان × مبلغ عائله مندی به یک فرزند واجد شرایط
+                                    ۱) اگر ساعات کاری روزانه ≥ ۷.۳۳ : {'\n'}
+                                    تعداد روزهای بیمه استحقاقی = تعداد روزهای ماه {'\n'}
+                                    {'\n'}
+                                    ۲) اگر ساعات کاری روزانه {'<'} ۷.۳۳ : {'\n'}
+                                    تعداد روزهای بیمه استحقاقی = تعداد روزهای ماه × (ساعات کاری روزانه ÷ ۷.۳۳)
                                 </ThemedText>
                             </View>
 
@@ -265,125 +297,80 @@ export default function FamilyAllowanceScreen() {
                                     <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
                                         از تاریخ
                                     </ThemedText>
-                                    <Pressable onPress={() => openPicker('start')}>
-                                        <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                            <ThemedText type="small" style={[styles.fieldValue, { color: startDate ? theme.text : theme.textSecondary }]}>
-                                                {formatDisplayedDate(startDate) || '۱۴۰۳/۰۱/۰۱'}
-                                            </ThemedText>
-                                            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                        </View>
+                                    <Pressable
+                                        style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                                        onPress={() => openPicker('start')}
+                                    >
+                                        <ThemedText type="smallBold" style={[styles.fieldValue, { color: theme.text }]}>
+                                            {formatDisplayedDate(startDate)}
+                                        </ThemedText>
+                                        <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
                                     </Pressable>
                                 </View>
+
                                 <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                     <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
                                         تا تاریخ
                                     </ThemedText>
-                                    <Pressable onPress={() => openPicker('end')}>
-                                        <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                            <ThemedText type="small" style={[styles.fieldValue, { color: endDate ? theme.text : theme.textSecondary }]}>
-                                                {formatDisplayedDate(endDate) || '۱۴۰۳/۱۲/۲۹'}
-                                            </ThemedText>
-                                            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                        </View>
+                                    <Pressable
+                                        style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                                        onPress={() => openPicker('end')}
+                                    >
+                                        <ThemedText type="smallBold" style={[styles.fieldValue, { color: theme.text }]}>
+                                            {formatDisplayedDate(endDate)}
+                                        </ThemedText>
+                                        <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
                                     </Pressable>
                                 </View>
                             </View>
 
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                                    تعداد فرزندان واجد شرایط
+                                    ساعات کاری روزانه
                                 </ThemedText>
-                                <Menu
-                                    visible={childrenMenuVisible}
-                                    onDismiss={closeChildrenMenu}
-                                    anchor={
-                                        <Pressable onPress={openChildrenMenu}>
-                                            <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                                <ThemedText type="small" style={[styles.fieldValue, { color: theme.text }]}>
-                                                    {`${toPersianDigits(String(childrenCount))} فرزند`}
-                                                </ThemedText>
-                                                <MaterialCommunityIcons name="account-group-outline" size={18} color={theme.primary} />
-                                            </View>
-                                        </Pressable>
-                                    }
-                                    contentStyle={{ borderRadius: 16, backgroundColor: theme.surface }}
+                                <Pressable
+                                    style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                                    onPress={() => setTimePickerVisible(true)}
                                 >
-                                    {CHILDREN_OPTIONS.map((count) => (
-                                        <Menu.Item
-                                            key={count}
-                                            onPress={() => {
-                                                setChildrenCount(count);
-                                                closeChildrenMenu();
-                                            }}
-                                            title={`${toPersianDigits(String(count))} فرزند`}
-                                            titleStyle={{ fontFamily: 'Vazirmatn-Regular', color: theme.text }}
-                                        />
-                                    ))}
-                                </Menu>
-                            </View>
-
-                            <View style={[styles.optionBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <View style={styles.optionRow}>
-                                    <View style={styles.checkboxRow}>
-                                        <Checkbox
-                                            status={includeDaysCovered ? 'checked' : 'unchecked'}
-                                            onPress={() => setIncludeDaysCovered((value) => !value)}
-                                            color={theme.primary}
-                                        />
-                                        <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                            محاسبه تعداد روزهای شمول
-                                        </ThemedText>
-                                    </View>
-                                </View>
-
-                                <View style={styles.helpRow}>
-                                    <ThemedText type="small" style={[styles.helpText, { color: theme.textSecondary }]}>
-                                        با فعال بودن این گزینه، روزهای جزئی شمول هم در محاسبه لحاظ می‌شوند
-                                        اگر غیر فعال باشد، فقط ماه‌های کامل لحاظ می‌شوند.
+                                    <ThemedText type="smallBold" style={[styles.fieldValue, { color: theme.text }]}>
+                                        {formatDecimalHours(parseTimeToDecimalHours(dailyWorkHours))}
                                     </ThemedText>
-                                </View>
+                                    <MaterialCommunityIcons name="clock-outline" size={18} color={theme.primary} />
+                                </Pressable>
                             </View>
 
                             <View style={styles.actionsGroup}>
                                 <Button
                                     mode="contained"
                                     onPress={handleCalculate}
-                                    icon="family-tree"
-                                    style={styles.actionButton}
-                                    labelStyle={styles.actionLabel}
+                                    icon="shield-check"
                                     buttonColor={theme.primary}
                                     textColor={theme.surface}
-                                    loading={isLoadingData}
-                                    disabled={isLoadingData}
+                                    style={styles.actionButton}
+                                    labelStyle={styles.actionLabel}
                                 >
                                     محاسبه
                                 </Button>
 
-                                {result ? (
-                                    <Button
-                                        mode="outlined"
-                                        onPress={handleReset}
-                                        icon="refresh"
-                                        style={[styles.actionButton, styles.resetButton]}
-                                        labelStyle={styles.actionLabel}
-                                        textColor={theme.primary}
-                                        disabled={isLoadingData}
-                                    >
-                                        بازنشانی
-                                    </Button>
-                                ) : null}
+                                <Button
+                                    mode="outlined"
+                                    onPress={handleReset}
+                                    icon="refresh"
+                                    textColor={theme.primary}
+                                    style={[styles.actionButton, styles.resetButton, { borderColor: theme.border }]}
+                                    labelStyle={styles.actionLabel}
+                                >
+                                    بازنشانی
+                                </Button>
                             </View>
 
                             {result ? (
                                 <Card style={[styles.breakdownCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                     <Card.Content style={styles.breakdownContent}>
-                                        <View style={{ marginBottom: Spacing.one }}>
-                                            <ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.text }]}>جزئیات محاسبه</ThemedText>
-                                        </View>
                                         <View style={styles.summaryBoxHeader}>
                                             <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                                 <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
-                                                    مبلغ کل حق عائله‌مندی
+                                                    مجموع کل روزهای بیمه استحقاقی
                                                 </ThemedText>
                                                 <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>
                                                     {formattedResult}
@@ -393,10 +380,10 @@ export default function FamilyAllowanceScreen() {
 
                                         <View style={styles.breakdownSectionHeader}>
                                             <ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.text }]}>
-                                                جزئیات دوره‌ها
+                                                جزئیات ماه‌ها
                                             </ThemedText>
                                             <Pressable
-                                                onPress={() => setShowDetailedBreakdown((value) => !value)}
+                                                onPress={() => setShowDetailedBreakdown((prev) => !prev)}
                                                 style={[
                                                     styles.toggleButton,
                                                     {
@@ -418,54 +405,45 @@ export default function FamilyAllowanceScreen() {
 
                                         {showDetailedBreakdown ? (
                                             <View style={styles.breakdownGrid}>
-                                                {result.breakdown.map((item, index) => (
-                                                    <View
-                                                        key={`${item.year}-${item.periodIndex}-${index}`}
-                                                        style={[
-                                                            styles.breakdownItemCard,
-                                                            {
-                                                                backgroundColor: theme.surface,
-                                                                borderColor: theme.border,
-                                                            },
-                                                        ]}
-                                                    >
+                                                {result.breakdown.map((item) => (
+                                                    <View key={`${item.year}-${item.periodIndex}`} style={[styles.breakdownItemCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                                         <View style={styles.breakdownItemHeaderRow}>
                                                             <ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>
-                                                                {`سال ${toPersianDigits(String(item.year))} · دوره ${toPersianDigits(String(item.periodIndex))}`}
+                                                                {`سال ${toPersianDigits(String(item.year))} · ماه ${toPersianDigits(String(item.periodIndex))} (${formatMonthName(item.periodIndex)})`}
                                                             </ThemedText>
                                                         </View>
 
                                                         <View style={styles.breakdownDetailGrid}>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    تعداد ماه‌های شمول
+                                                                    روزهای پوشش
                                                                 </ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
-                                                                    {toPersianDigits(String(item.monthsCovered))} ماه
+                                                                    {formatNumber(item.daysCovered)} روز
                                                                 </ThemedText>
                                                             </View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    تعداد روزهای شمول
+                                                                    ساعات کاری روزانه
                                                                 </ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
-                                                                    {toPersianDigits(String(item.daysCovered))} روز
+                                                                    {formatDecimalHours(item.dailyHours)}
                                                                 </ThemedText>
                                                             </View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    مبلغ عائله مندی به یک فرزند واجد شرایط
+                                                                    روش محاسبه
                                                                 </ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
-                                                                    {item.childAllowance != null ? toPersianDigits(formatCurrency(item.childAllowance)) : '-'}
+                                                                    {item.calculationType === 'month-full' ? 'فرمول ۱' : 'فرمول ۲'}
                                                                 </ThemedText>
                                                             </View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    مبلغ این دوره
+                                                                    روزهای بیمه
                                                                 </ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>
-                                                                    {toPersianDigits(formatCurrency(item.amount))}
+                                                                    {formatNumber(item.daysCalculated)}
                                                                 </ThemedText>
                                                             </View>
                                                         </View>
@@ -488,6 +466,18 @@ export default function FamilyAllowanceScreen() {
                 onClose={closePicker}
                 onSelect={handleDateSelect}
                 availableYears={availableYears}
+            />
+
+            <PersianTimePickerModal
+                visible={timePickerVisible}
+                value={dailyWorkHours}
+                title="انتخاب ساعات کاری روزانه"
+                onClose={() => setTimePickerVisible(false)}
+                onSelect={(value) => {
+                    setDailyWorkHours(value);
+                    setTimePickerVisible(false);
+                }}
+                maxHours={8}
             />
 
             <Snackbar
@@ -523,7 +513,7 @@ const styles = StyleSheet.create({
     },
     card: {
         borderRadius: 20,
-        borderWidth: 1,
+        borderWidth: StyleSheet.hairlineWidth,
         overflow: 'hidden',
     },
     cardContent: {
@@ -538,106 +528,71 @@ const styles = StyleSheet.create({
         flex: 1,
         gap: Spacing.one,
     },
-    summaryBoxHeader: {
-        alignItems: 'center',
-        marginBottom: Spacing.one,
+    pageTitle: {
+        fontSize: 16,
+        lineHeight: 22,
+        fontFamily: 'Vazirmatn-Bold',
     },
-    summaryBoxContent: {
-        width: '100%',
-        borderRadius: 12,
-        borderWidth: 1,
-        padding: Spacing.two,
-        gap: Spacing.one,
-        alignItems: 'center',
+    pageDescription: {
+        lineHeight: 20,
+        fontSize: 12,
     },
     formulaBox: {
-        borderRadius: 12,
-        borderWidth: 1,
-        padding: Spacing.two,
+        borderRadius: Radius.md,
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: Spacing.two,
+        paddingVertical: Spacing.two,
         gap: Spacing.one,
+    },
+    formulaLabel: {
+        fontSize: 11,
+    },
+    formulaValue: {
+        lineHeight: 20,
+        fontSize: 12,
     },
     metricsRow: {
         flexDirection: 'row',
-        alignItems: 'stretch',
         gap: Spacing.two,
     },
     metricBox: {
         flex: 1,
-        borderRadius: 12,
-        padding: Spacing.two,
+        borderRadius: 14,
+        paddingHorizontal: Spacing.two,
+        paddingVertical: Spacing.two,
         gap: Spacing.one,
+    },
+    sectionLabel: {
+        fontSize: 11,
     },
     dateInput: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+        gap: Spacing.one,
         paddingHorizontal: Spacing.two,
         paddingVertical: Spacing.two,
-        borderRadius: 8,
-        borderWidth: 1,
-        minHeight: 40,
-    },
-    childrenSection: {
-        gap: Spacing.two,
-    },
-    childSelectorButton: {
         borderRadius: 12,
-        paddingHorizontal: Spacing.four,
-    },
-    childrenOptionsRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: Spacing.two,
-    },
-    childOption: {
-        minWidth: 42,
         borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: 12,
-        paddingHorizontal: Spacing.three,
-        paddingVertical: Spacing.two,
-        alignItems: 'center',
-        justifyContent: 'center',
+    },
+    fieldValue: {
+        fontSize: 13,
+        flex: 1,
     },
     actionsGroup: {
         flexDirection: 'row',
         gap: Spacing.two,
-        marginTop: Spacing.one,
     },
     actionButton: {
         flex: 1,
         borderRadius: 12,
     },
-    resetButton: {
-        borderWidth: 1,
-    },
     actionLabel: {
         fontFamily: 'Vazirmatn-Bold',
         fontSize: 12,
     },
-    optionRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    checkboxRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.one,
-    },
-    optionBox: {
-        borderRadius: 12,
+    resetButton: {
         borderWidth: 1,
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.two,
-        gap: Spacing.one,
-    },
-    helpRow: {
-        marginTop: Spacing.one,
-    },
-    helpText: {
-        lineHeight: 20,
-        fontSize: 11,
-        fontFamily: 'Vazirmatn-Regular',
     },
     breakdownCard: {
         borderRadius: 12,
@@ -650,6 +605,24 @@ const styles = StyleSheet.create({
         paddingVertical: Spacing.three,
         paddingHorizontal: Spacing.two,
     },
+    summaryBoxHeader: {
+        alignItems: 'center',
+        marginBottom: Spacing.one,
+    },
+    summaryBoxContent: {
+        width: '100%',
+        borderRadius: 12,
+        borderWidth: 1,
+        padding: Spacing.two,
+        gap: Spacing.one,
+        alignItems: 'center',
+    },
+    summaryLabel: {
+        fontSize: 11,
+    },
+    amountValue: {
+        fontSize: 18,
+    },
     breakdownSectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -657,6 +630,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.one,
         paddingVertical: Spacing.one,
         gap: Spacing.one,
+    },
+    breakdownSectionTitle: {
+        fontSize: 13,
     },
     toggleButton: {
         flexDirection: 'row',
@@ -670,10 +646,6 @@ const styles = StyleSheet.create({
     toggleButtonLabel: {
         fontSize: 11,
     },
-    breakdownSectionTitle: {
-        fontSize: 13,
-        fontFamily: 'Vazirmatn-Bold',
-    },
     breakdownGrid: {
         gap: Spacing.two,
     },
@@ -683,27 +655,18 @@ const styles = StyleSheet.create({
         padding: Spacing.two,
         gap: Spacing.one,
     },
-    breakdownItemTitle: {
-        fontSize: 12,
-    },
-    breakdownSummaryPill: {
-        alignSelf: 'flex-start',
-        borderRadius: 999,
-        borderWidth: StyleSheet.hairlineWidth,
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.one,
-    },
-    breakdownPillValue: {
-        fontSize: 12,
-        lineHeight: 18,
-        fontFamily: 'Vazirmatn-Bold',
-    },
     breakdownItemHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         paddingTop: 2,
         paddingBottom: 2,
         marginBottom: 2,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: 'rgba(0, 0, 0, 0.12)',
+    },
+    breakdownItemTitle: {
+        fontSize: 12,
     },
     breakdownDetailGrid: {
         gap: Spacing.one,
@@ -714,37 +677,6 @@ const styles = StyleSheet.create({
         padding: Spacing.one,
         gap: Spacing.half,
         alignItems: 'center',
-    },
-    pageTitle: {
-        fontSize: 16,
-        lineHeight: 22,
-        fontFamily: 'Vazirmatn-Bold',
-    },
-    pageDescription: {
-        lineHeight: 20,
-        fontSize: 12,
-    },
-    sectionLabel: {
-        fontSize: 11,
-        fontWeight: '500',
-    },
-    fieldValue: {
-        fontSize: 13,
-        flex: 1,
-    },
-    summaryLabel: {
-        fontSize: 11,
-    },
-    amountValue: {
-        fontSize: 18,
-    },
-    formulaLabel: {
-        fontSize: 11,
-        fontWeight: '500',
-    },
-    formulaValue: {
-        fontSize: 13,
-        lineHeight: 18,
     },
     detailLabel: {
         fontSize: 10,

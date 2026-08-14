@@ -54,7 +54,7 @@ export interface SeedPeriodRecord {
         'صبح وعصر وشب  15%'?: number | null;
         'صبح  وشب یا عصر وشب   22.5%'?: number | null;
     } | null;
-    'پایه_سنوات_بعداز_یک_سابقه_کارگر_در_کارگاه'?: number | null;
+    'پایه_سنواتی_جاری'?: number | null;
     'درصد_افزايش'?: number | null;
     'پایه_سنواتی_گذشته'?: number | null;
     'پایه_سنوات_استحقاقی'?: number | null;
