@@ -2,8 +2,8 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
-// درخواست نگه‌داشتن splash screen تا فونت‌ها بارگیری شوند
-SplashScreen.preventAutoHideAsync();
+// فعال‌سازی امن splash native فقط در زمانی که واقعاً لازم است
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 export function useFontLoading() {
     const [fontsLoaded, fontError] = useFonts({
@@ -19,10 +19,20 @@ export function useFontLoading() {
     });
 
     useEffect(() => {
-        if (fontsLoaded || fontError) {
-            SplashScreen.hideAsync();
+        if (!fontsLoaded && !fontError) {
+            return;
         }
+
+        const hideSplash = async () => {
+            try {
+                await SplashScreen.hideAsync();
+            } catch {
+                // در build native بعضی محیط‌ها این فراخوانی ممکن است قبل از آماده‌سازی کامل رخ دهد
+            }
+        };
+
+        void hideSplash();
     }, [fontsLoaded, fontError]);
 
-    return fontsLoaded && !fontError;
+    return Boolean(fontsLoaded || fontError);
 }

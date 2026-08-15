@@ -39,10 +39,6 @@ function AppContent() {
 export default function RootLayout() {
   const fontsReady = useFontLoading();
 
-  if (!fontsReady) {
-    return null;
-  }
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
