@@ -520,7 +520,9 @@ const styles = StyleSheet.create({
         gap: Spacing.one,
     },
     sectionLabel: {
-        fontSize: 11,
+        fontSize: 10,
+        lineHeight: 16,
+        fontFamily: 'Vazirmatn-Medium',
     },
     dateInput: {
         flexDirection: 'row',
@@ -535,6 +537,8 @@ const styles = StyleSheet.create({
     fieldValue: {
         flex: 1,
         fontSize: 12,
+        lineHeight: 18,
+        fontFamily: 'Vazirmatn-Bold',
     },
     optionBox: {
         borderRadius: Radius.md,
@@ -554,7 +558,10 @@ const styles = StyleSheet.create({
         gap: Spacing.one,
     },
     detailLabel: {
-        fontSize: 12,
+        fontSize: 10,
+        lineHeight: 16,
+        fontFamily: 'Vazirmatn-Medium',
+        textAlign: 'center',
     },
     helpRow: {
         marginTop: Spacing.one,
@@ -599,11 +606,14 @@ const styles = StyleSheet.create({
         gap: Spacing.one,
     },
     summaryLabel: {
-        fontSize: 12,
+        fontSize: 10,
+        lineHeight: 16,
+        fontFamily: 'Vazirmatn-Medium',
     },
     amountValue: {
         fontSize: 22,
         lineHeight: 30,
+        fontFamily: 'Vazirmatn-Bold',
     },
     breakdownSectionHeader: {
         flexDirection: 'row',
@@ -612,7 +622,9 @@ const styles = StyleSheet.create({
         gap: Spacing.two,
     },
     breakdownSectionTitle: {
-        fontSize: 12,
+        fontSize: 13,
+        lineHeight: 19,
+        fontFamily: 'Vazirmatn-Bold',
     },
     toggleButton: {
         flexDirection: 'row',
@@ -625,6 +637,8 @@ const styles = StyleSheet.create({
     },
     toggleButtonLabel: {
         fontSize: 11,
+        lineHeight: 17,
+        fontFamily: 'Vazirmatn-Bold',
     },
     breakdownGrid: {
         gap: Spacing.two,
@@ -642,6 +656,8 @@ const styles = StyleSheet.create({
     },
     breakdownItemTitle: {
         fontSize: 12,
+        lineHeight: 18,
+        fontFamily: 'Vazirmatn-Bold',
     },
     breakdownDetailGrid: {
         gap: Spacing.one,
@@ -651,10 +667,15 @@ const styles = StyleSheet.create({
         borderWidth: StyleSheet.hairlineWidth,
         paddingHorizontal: Spacing.two,
         paddingVertical: Spacing.one,
-        gap: Spacing.one,
+        gap: Spacing.half,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     detailValue: {
         fontSize: 12,
+        lineHeight: 18,
+        fontFamily: 'Vazirmatn-Bold',
+        textAlign: 'center',
     },
     pageTitle: {
         fontSize: 16,
@@ -666,10 +687,13 @@ const styles = StyleSheet.create({
         fontSize: 12,
     },
     formulaLabel: {
-        fontSize: 11,
+        fontSize: 10,
+        lineHeight: 16,
+        fontFamily: 'Vazirmatn-Medium',
     },
     formulaValue: {
         lineHeight: 20,
         fontSize: 12,
+        fontFamily: 'Vazirmatn-Medium',
     },
 });

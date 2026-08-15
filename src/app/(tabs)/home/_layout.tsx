@@ -16,7 +16,7 @@ export default function HomeLayout() {
             <Stack.Screen name="family-allowance" options={{ title: 'محاسبه حق عائله مندی' }} />
             <Stack.Screen name="housing-allowance" options={{ title: 'محاسبه حق مسکن ماهیانه' }} />
             <Stack.Screen name="monthly-allowance" options={{ title: 'محاسبه بن ماهیانه' }} />
-            <Stack.Screen name="yearly-bonus" options={{ title: 'محاسبه حداقل عیدی و پاداش استحقاقی' }} />
+            <Stack.Screen name="minimum-bonus" options={{ title: 'محاسبه حداقل عیدی و پاداش استحقاقی' }} />
             <Stack.Screen name="maximum-bonus" options={{ title: 'محاسبه حداکثر عیدی و پاداش استحقاقی' }} />
             <Stack.Screen name="spousal-allowance" options={{ title: 'محاسبه حق تاهل استحقاقی' }} />
             <Stack.Screen name="monthly-shift-work" options={{ title: 'محاسبه نوبت کاری ماهیانه' }} />

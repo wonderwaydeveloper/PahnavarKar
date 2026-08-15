@@ -84,12 +84,12 @@ export default function HomeTabScreen() {
             onPress: () => router.push('/home/monthly-shift-work'),
         },
         {
-            key: 'yearly-bonus',
+            key: 'minimum-bonus',
             title: 'محاسبه حداقل عیدی و پاداش استحقاقی',
             icon: 'gift-outline' as const,
             accent: '#ef4444',
             detail: 'محاسبه حداقل عیدی و پاداش استحقاقی بر اساس تعداد ماه‌های کارکرد',
-            onPress: () => router.push('/home/yearly-bonus'),
+            onPress: () => router.push('/home/minimum-bonus'),
         },
         {
             key: 'maximum-bonus',

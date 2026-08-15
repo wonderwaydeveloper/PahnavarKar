@@ -49,7 +49,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
         return { title: 'محاسبه حق مسکن ماهیانه' };
       case 'monthly-allowance':
         return { title: 'محاسبه بن ماهیانه' };
-      case 'yearly-bonus':
+      case 'minimum-bonus':
         return { title: 'محاسبه حداقل عیدی و پاداش استحقاقی' };
       case 'maximum-bonus':
         return { title: 'محاسبه حداکثر عیدی و پاداش استحقاقی' };
@@ -77,7 +77,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
   const router = useRouter();
   const actualRouteName = normalizeRoute(pathname || route?.name);
   const { title } = getHeaderConfig(actualRouteName);
-  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'yearly-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unused-leave-entitlement', 'end-of-service-years'].includes(actualRouteName);
+  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unused-leave-entitlement', 'end-of-service-years'].includes(actualRouteName);
 
   const { width } = useWindowDimensions();
   const titleFontSize = width >= 420 ? 18 : 16;
