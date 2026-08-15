@@ -2,37 +2,33 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
-// فعال‌سازی امن splash native فقط در زمانی که واقعاً لازم است
-void SplashScreen.preventAutoHideAsync().catch(() => undefined);
+// مهم:
+// این باید در global scope باشد تا Native Splash قبل از mount شدن React
+// خودکار مخفی نشود.
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
+
+const FONT_MAP = {
+  'Vazirmatn-Regular': require('@/assets/fonts/Vazirmatn-Regular.ttf'),
+  'Vazirmatn-Medium': require('@/assets/fonts/Vazirmatn-Medium.ttf'),
+  'Vazirmatn-SemiBold': require('@/assets/fonts/Vazirmatn-SemiBold.ttf'),
+  'Vazirmatn-Bold': require('@/assets/fonts/Vazirmatn-Bold.ttf'),
+};
 
 export function useFontLoading() {
-    const [fontsLoaded, fontError] = useFonts({
-        'Vazirmatn-Thin': require('@/assets/fonts/Vazirmatn-Thin.ttf'),
-        'Vazirmatn-ExtraLight': require('@/assets/fonts/Vazirmatn-ExtraLight.ttf'),
-        'Vazirmatn-Light': require('@/assets/fonts/Vazirmatn-Light.ttf'),
-        'Vazirmatn-Regular': require('@/assets/fonts/Vazirmatn-Regular.ttf'),
-        'Vazirmatn-Medium': require('@/assets/fonts/Vazirmatn-Medium.ttf'),
-        'Vazirmatn-SemiBold': require('@/assets/fonts/Vazirmatn-SemiBold.ttf'),
-        'Vazirmatn-Bold': require('@/assets/fonts/Vazirmatn-Bold.ttf'),
-        'Vazirmatn-ExtraBold': require('@/assets/fonts/Vazirmatn-ExtraBold.ttf'),
-        'Vazirmatn-Black': require('@/assets/fonts/Vazirmatn-Black.ttf'),
-    });
+  const [fontsLoaded, fontError] = useFonts(FONT_MAP);
 
-    useEffect(() => {
-        if (!fontsLoaded && !fontError) {
-            return;
-        }
+  useEffect(() => {
+    // چه فونت‌ها با موفقیت load شده باشند
+    // و چه loading با error تمام شده باشد،
+    // نباید Native Splash برای همیشه باقی بماند.
+    if (fontsLoaded || fontError) {
+      SplashScreen.hide();
+    }
+  }, [fontsLoaded, fontError]);
 
-        const hideSplash = async () => {
-            try {
-                await SplashScreen.hideAsync();
-            } catch {
-                // در build native بعضی محیط‌ها این فراخوانی ممکن است قبل از آماده‌سازی کامل رخ دهد
-            }
-        };
-
-        void hideSplash();
-    }, [fontsLoaded, fontError]);
-
-    return Boolean(fontsLoaded || fontError);
+  return {
+    fontsLoaded,
+    fontError,
+    ready: fontsLoaded || !!fontError,
+  };
 }

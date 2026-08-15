@@ -3,7 +3,6 @@ import { useEffect } from 'react';
 import { I18nManager } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AppProvider } from '@/context';
 import { useAppContext } from '@/hooks/use-app-context';
 import { useFontLoading } from '@/hooks/use-font-loading';
@@ -28,7 +27,6 @@ function AppContent() {
     <>
       <StatusBar style="light" />
       <NavigationBar style={theme == 'dark' ? 'light' : 'dark'} />
-      <AnimatedSplashOverlay />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
@@ -37,7 +35,11 @@ function AppContent() {
 }
 
 export default function RootLayout() {
-  const fontsReady = useFontLoading();
+  const { ready } = useFontLoading();
+
+  if (!ready) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
