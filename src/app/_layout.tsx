@@ -20,7 +20,7 @@ function AppContent() {
   const headerBackgroundColor = isLightTheme ? colors.primary : colors.surface;
 
   useEffect(() => {
-    void SystemUI.setBackgroundColorAsync(headerBackgroundColor);
+    SystemUI.setBackgroundColorAsync(headerBackgroundColor).catch(() => { });
   }, [headerBackgroundColor]);
 
   return (
