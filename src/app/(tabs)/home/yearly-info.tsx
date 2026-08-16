@@ -6,7 +6,7 @@ import {
   Card,
   Snackbar
 } from 'react-native-paper';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -490,7 +490,6 @@ export default function YearlyInfoScreen() {
             <ThemedText type="small" style={styles.loadingText}>در حال بارگذاری داده‌ها...</ThemedText>
           </View>
         ) : (
-          <SafeAreaView style={styles.safeArea}>
             <ScrollView
               style={[styles.scrollView, { backgroundColor: theme.background }]}
               contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}
@@ -538,7 +537,6 @@ export default function YearlyInfoScreen() {
 
               {Platform.OS === 'web' && <WebBadge />}
             </ScrollView>
-          </SafeAreaView>
         )}
       </ThemedView>
 
@@ -572,10 +570,6 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: Spacing.six,
-  },
-  safeArea: {
-    flex: 1,
-    backgroundColor: 'transparent',
   },
   centerContainer: {
     flex: 1,
