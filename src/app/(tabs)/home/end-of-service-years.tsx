@@ -66,7 +66,7 @@ export default function EndOfServiceYearsScreen() {
                             period_index: period.period_index,
                             month_count: period.month_count,
                             daily_minimum_wage: period.daily_minimum_wage,
-                            seniority_base_entitlement: period.seniority_base_entitlement,
+                            seniority_base_cumulative: period.seniority_base_cumulative,
                         })),
                     });
                 }
