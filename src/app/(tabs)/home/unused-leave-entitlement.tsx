@@ -11,7 +11,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
-import { parseDateInput } from '@/utils/salary-calculation';
+import { calculateUnusedLeaveDays, calculateUnusedLeaveMonths, parseDateInput } from '@/utils/salary-calculation';
 
 export default function UnusedLeaveEntitlementScreen() {
     const theme = useTheme();
@@ -83,13 +83,7 @@ export default function UnusedLeaveEntitlementScreen() {
     const formatNumber = (value: number) =>
         Number.isInteger(value) ? toPersianDigits(value.toFixed(0)) : toPersianDigits(value.toFixed(2));
 
-    const formattedResult = useMemo(() => {
-        if (result === null) {
-            return '۰';
-        }
-
-        return formatNumber(result);
-    }, [result]);
+    const formattedResult = result === null ? '۰' : formatNumber(result);
 
     const formatDisplayedDate = (value: string) => {
         const parsed = parseDateInput(value);
@@ -99,24 +93,6 @@ export default function UnusedLeaveEntitlementScreen() {
         }
 
         return `${toPersianDigits(String(parsed.year))}/${toPersianDigits(String(parsed.month).padStart(2, '0'))}/${toPersianDigits(String(parsed.day).padStart(2, '0'))}`;
-    };
-
-    const getServiceMonths = (start: string, end: string) => {
-        const startParsed = parseDateInput(start);
-        const endParsed = parseDateInput(end);
-
-        if (!startParsed || !endParsed) {
-            return null;
-        }
-
-        if (startParsed.year > endParsed.year ||
-            (startParsed.year === endParsed.year && startParsed.month > endParsed.month) ||
-            (startParsed.year === endParsed.year && startParsed.month === endParsed.month && startParsed.day > endParsed.day)) {
-            return null;
-        }
-
-        const monthDiff = (endParsed.year - startParsed.year) * 12 + (endParsed.month - startParsed.month);
-        return endParsed.day < startParsed.day ? Math.max(0, monthDiff - 1) : Math.max(0, monthDiff);
     };
 
     const openPicker = (target: 'start' | 'end') => {
@@ -179,6 +155,9 @@ export default function UnusedLeaveEntitlementScreen() {
 
         if (!parsedStart || !parsedEnd) {
             setResult(null);
+            setCalculationDetails(null);
+            setSnackbarMessage('تاریخ واردشده معتبر نیست.');
+            setSnackbarVisible(true);
             return;
         }
 
@@ -188,7 +167,7 @@ export default function UnusedLeaveEntitlementScreen() {
             return;
         }
 
-        const totalMonthsWorked = getServiceMonths(startDate, endDate);
+        const totalMonthsWorked = calculateUnusedLeaveMonths(parsedStart, parsedEnd);
 
         if (totalMonthsWorked === null) {
             setSnackbarMessage('بازه زمانی وارد‌شده معتبر نیست.');
@@ -196,18 +175,16 @@ export default function UnusedLeaveEntitlementScreen() {
             return;
         }
 
-        let calculatedDays = 0;
         let fullYears = 0;
         let remainingMonths = 0;
 
-        if (totalMonthsWorked <= 12) {
-            calculatedDays = totalMonthsWorked * 2.5;
-            remainingMonths = totalMonthsWorked;
-        } else {
+        if (totalMonthsWorked > 12) {
             fullYears = Math.floor(totalMonthsWorked / 12);
             remainingMonths = totalMonthsWorked % 12;
-            calculatedDays = fullYears * 9 + remainingMonths * (9 / 12);
+        } else {
+            remainingMonths = totalMonthsWorked;
         }
+        const calculatedDays = calculateUnusedLeaveDays(totalMonthsWorked);
 
         setResult(calculatedDays);
         setCalculationDetails({
@@ -250,7 +227,7 @@ export default function UnusedLeaveEntitlementScreen() {
                                         محاسبه تعداد روزهای مرخصی استفاده نشده
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        بازه زمانی کارکرد را انتخاب کنید تا مجموع روزهای مرخصی استفاده نشده محاسبه شود.
+                                        برای محاسبه تعداد روزهای مرخصی استفاده نشده، بازهٔ زمانی کارکرد را انتخاب نمایید.
                                     </ThemedText>
                                 </View>
                             </View>

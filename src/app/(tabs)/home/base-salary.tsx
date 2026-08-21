@@ -233,7 +233,7 @@ export default function BaseSalaryScreen() {
                                         محاسبه حقوق پایه
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        بازه‌ی زمانی خود را انتخاب کنید تا مبلغ بر اساس داده‌های دوره‌های ثبت‌شده محاسبه شود.
+                                        بازهٔ زمانی موردنظر را وارد نمایید تا براساس مصوبات شورای عالی کار، حقوق پایه محاسبه شود.
                                     </ThemedText>
                                 </View>
                             </View>

@@ -1,4 +1,4 @@
-import { jalaaliMonthLength, toGregorian } from 'jalaali-js';
+import { isValidJalaaliDate, jalaaliMonthLength, toGregorian } from 'jalaali-js';
 
 export interface SalaryCalculationBreakdownItem {
     year: number;
@@ -13,12 +13,28 @@ export interface SalaryCalculationResult {
     breakdown: SalaryCalculationBreakdownItem[];
 }
 
+export interface FridayWorkCalculationBreakdownItem {
+    year: number;
+    periodIndex: number;
+    daysCovered: number;
+    fridaysInPeriod: number;
+    fridayWorkDays: number;
+    fridayWorkRate: number | null;
+    amount: number;
+}
+
+export interface FridayWorkCalculationResult {
+    totalAmount: number;
+    breakdown: FridayWorkCalculationBreakdownItem[];
+}
+
 export interface SalaryPeriodBucket {
     year: number;
     periods: {
         period_index: number;
         month_count: number | null;
         daily_minimum_wage: number | null;
+        friday_work_per_day?: number | null;
         overtime_per_hour?: number | null;
         night_work_per_hour?: number | null;
         child_allowance?: number | null;
@@ -151,7 +167,6 @@ export interface EndOfServiceYearsBreakdownItem {
     monthsCovered: number;
     daysCovered: number;
     dailyMinimumWage: number | null;
-    seniorityBase: number | null;
     amount: number;
 }
 
@@ -172,6 +187,20 @@ export interface InsuranceDaysEntitlementBreakdownItem {
 export interface InsuranceDaysEntitlementCalculationResult {
     totalDays: number;
     breakdown: InsuranceDaysEntitlementBreakdownItem[];
+}
+
+export type UnusedLeaveWageMaritalStatus = 'single' | 'married';
+
+export interface UnusedLeaveWageCalculationResult {
+    unusedLeaveDays: number;
+    dailyWage: number;
+    dailyMinimumWage: number;
+    dailyHousingAllowance: number;
+    dailyChildAllowance: number;
+    dailyMonthlyAllowance: number;
+    dailyMaritalAllowance: number;
+    year: number;
+    periodIndex: number;
 }
 
 export type MonthlyShiftWorkType =
@@ -230,7 +259,7 @@ export function parseDateInput(value: string): ParsedDateInput | null {
         return null;
     }
 
-    if (day < 1 || day > 31) {
+    if (!isValidJalaaliDate(year, month, day)) {
         return null;
     }
 
@@ -250,6 +279,97 @@ function compareParsedDates(left: ParsedDateInput, right: ParsedDateInput): numb
     }
 
     return 0;
+}
+
+export function calculateUnusedLeaveMonths(
+    startDate: ParsedDateInput,
+    endDate: ParsedDateInput,
+): number | null {
+    if (compareParsedDates(startDate, endDate) > 0) {
+        return null;
+    }
+
+    const monthDiff = (endDate.year - startDate.year) * 12 + (endDate.month - startDate.month);
+    if (startDate.day === 1) {
+        return monthDiff + 1;
+    }
+
+    return Math.max(0, monthDiff - (endDate.day < startDate.day ? 1 : 0));
+}
+
+export function calculateUnusedLeaveDays(totalMonthsWorked: number): number {
+    if (!Number.isFinite(totalMonthsWorked) || totalMonthsWorked <= 0) {
+        return 0;
+    }
+
+    if (totalMonthsWorked <= 12) {
+        return totalMonthsWorked * 2.5;
+    }
+
+    const fullYears = Math.floor(totalMonthsWorked / 12);
+    const remainingMonths = totalMonthsWorked % 12;
+    return fullYears * 9 + remainingMonths * (9 / 12);
+}
+
+export function calculateUnusedLeaveWageFromPeriodData(
+    startDate: ParsedDateInput,
+    endDate: ParsedDateInput,
+    periodBuckets: SalaryPeriodBucket[],
+    maritalStatus: UnusedLeaveWageMaritalStatus = 'single',
+    childrenCount = 1,
+): UnusedLeaveWageCalculationResult | null {
+    const totalMonthsWorked = calculateUnusedLeaveMonths(startDate, endDate);
+    if (totalMonthsWorked === null) {
+        return null;
+    }
+    const unusedLeaveDays = calculateUnusedLeaveDays(totalMonthsWorked);
+
+    const bucket = periodBuckets.find((item) => item.year === endDate.year);
+    if (!bucket) {
+        return null;
+    }
+
+    let monthOffset = 0;
+    const period = [...bucket.periods]
+        .sort((left, right) => left.period_index - right.period_index)
+        .find((item) => {
+            const periodLength = Number(item.month_count ?? 0);
+            const startsAt = monthOffset + 1;
+            const endsAt = monthOffset + periodLength;
+            monthOffset = endsAt;
+            return periodLength > 0 && endDate.month >= startsAt && endDate.month <= endsAt;
+        });
+
+    if (!period) {
+        return null;
+    }
+
+    const dailyMinimumWage = Number(period.daily_minimum_wage ?? 0);
+    const monthlyHousingAllowance = maritalStatus === 'married'
+        ? Number(period.monthly_housing_married ?? 0)
+        : Number(period.monthly_housing_single ?? 0);
+    const monthlyAllowance = maritalStatus === 'married'
+        ? Number(period.monthly_married_allowance ?? 0)
+        : Number(period.monthly_single_allowance ?? 0);
+    const childAllowance = Number(period.child_allowance ?? 0) * Math.max(1, Math.trunc(childrenCount));
+    const maritalAllowance = Number(period.marital_allowance ?? 0);
+    const dailyHousingAllowance = monthlyHousingAllowance / 30;
+    const dailyChildAllowance = childAllowance / 30;
+    const dailyMonthlyAllowance = monthlyAllowance / 30;
+    const dailyMaritalAllowance = maritalAllowance / 30;
+    const dailyWage = dailyMinimumWage + dailyHousingAllowance + dailyChildAllowance + dailyMonthlyAllowance + dailyMaritalAllowance;
+
+    return {
+        unusedLeaveDays,
+        dailyWage,
+        dailyMinimumWage,
+        dailyHousingAllowance,
+        dailyChildAllowance,
+        dailyMonthlyAllowance,
+        dailyMaritalAllowance,
+        year: bucket.year,
+        periodIndex: period.period_index,
+    };
 }
 
 function toDayNumber(date: ParsedDateInput): number {
@@ -283,6 +403,33 @@ function getOverlapDaysForMonth(
     }
 
     return overlapEnd - overlapStart + 1;
+}
+
+function getFridaysInMonthOverlap(
+    selectedStartDate: ParsedDateInput,
+    selectedEndDate: ParsedDateInput,
+    year: number,
+    month: number,
+): number {
+    const monthStartDay = toDayNumber({ year, month, day: 1 });
+    const monthEndDay = toDayNumber({ year, month, day: getDaysInPersianMonth(year, month) });
+    const selectedStartDay = toDayNumber(selectedStartDate);
+    const selectedEndDay = toDayNumber(selectedEndDate);
+    const overlapStart = Math.max(selectedStartDay, monthStartDay);
+    const overlapEnd = Math.min(selectedEndDay, monthEndDay);
+
+    if (overlapEnd < overlapStart) {
+        return 0;
+    }
+
+    let fridays = 0;
+    for (let dayNumber = overlapStart; dayNumber <= overlapEnd; dayNumber += 1) {
+        if (new Date(dayNumber * 86400000).getUTCDay() === 5) {
+            fridays += 1;
+        }
+    }
+
+    return fridays;
 }
 
 export function calculateSalaryFromPeriodData(
@@ -323,6 +470,67 @@ export function calculateSalaryFromPeriodData(
                     daysCovered,
                     dailyMinimumWage: period.daily_minimum_wage,
                     amount: (period.daily_minimum_wage ?? 0) * daysCovered,
+                });
+            }
+
+            monthOffset = periodEndMonth;
+        }
+    }
+
+    return {
+        totalAmount: breakdown.reduce((sum, item) => sum + item.amount, 0),
+        breakdown,
+    };
+}
+
+export function calculateFridayWorkFromPeriodData(
+    startDate: ParsedDateInput,
+    endDate: ParsedDateInput,
+    periodBuckets: SalaryPeriodBucket[],
+    fridayWorkDays: number,
+): FridayWorkCalculationResult {
+    if (
+        compareParsedDates(startDate, endDate) > 0 ||
+        !Number.isFinite(fridayWorkDays) ||
+        fridayWorkDays <= 0
+    ) {
+        return { totalAmount: 0, breakdown: [] };
+    }
+
+    const breakdown: FridayWorkCalculationBreakdownItem[] = [];
+
+    for (const bucket of [...periodBuckets].sort((a, b) => a.year - b.year)) {
+        const sortedPeriods = [...bucket.periods].sort((a, b) => a.period_index - b.period_index);
+        let monthOffset = 0;
+
+        for (const period of sortedPeriods) {
+            const periodLength = Number(period.month_count ?? 0);
+            if (!Number.isFinite(periodLength) || periodLength <= 0) {
+                continue;
+            }
+
+            const periodStartMonth = monthOffset + 1;
+            const periodEndMonth = monthOffset + periodLength;
+            let daysCovered = 0;
+            let fridaysInPeriod = 0;
+
+            for (let monthIndex = periodStartMonth; monthIndex <= periodEndMonth; monthIndex += 1) {
+                const calendarYear = bucket.year + Math.floor((monthIndex - 1) / 12);
+                const calendarMonth = ((monthIndex - 1) % 12) + 1;
+                daysCovered += getOverlapDaysForMonth(startDate, endDate, calendarYear, calendarMonth);
+                fridaysInPeriod += getFridaysInMonthOverlap(startDate, endDate, calendarYear, calendarMonth);
+            }
+
+            const fridayWorkRate = Number(period.friday_work_per_day ?? 0);
+            if (daysCovered > 0 && fridayWorkRate > 0) {
+                breakdown.push({
+                    year: bucket.year,
+                    periodIndex: period.period_index,
+                    daysCovered,
+                    fridaysInPeriod,
+                    fridayWorkDays,
+                    fridayWorkRate,
+                    amount: Math.round(fridayWorkDays * fridayWorkRate),
                 });
             }
 
@@ -892,7 +1100,14 @@ export function calculateEndOfServiceYearsFromPeriodData(
         return { totalAmount: 0, breakdown: [] };
     }
 
-    const breakdown: EndOfServiceYearsBreakdownItem[] = [];
+    const coveredPeriods: {
+        year: number;
+        periodIndex: number;
+        monthsCovered: number;
+        daysCovered: number;
+        coveredMonthEquivalent: number;
+        dailyMinimumWage: number;
+    }[] = [];
 
     for (const bucket of [...periodBuckets].sort((a, b) => a.year - b.year)) {
         const sortedPeriods = [...bucket.periods].sort((a, b) => a.period_index - b.period_index);
@@ -908,10 +1123,8 @@ export function calculateEndOfServiceYearsFromPeriodData(
             const periodEndMonth = monthOffset + periodLength;
             let monthsCovered = 0;
             let daysCovered = 0;
-            let periodAmount = 0;
             const dailyMinimumWage = Number(period.daily_minimum_wage ?? 0);
-            const seniorityBase = Number(period.seniority_base_entitlement ?? 0);
-            const monthlyFactor = 2.5 * (dailyMinimumWage + seniorityBase);
+            let coveredMonthEquivalent = 0;
 
             for (let monthIndex = periodStartMonth; monthIndex <= periodEndMonth; monthIndex += 1) {
                 const calendarYear = bucket.year + Math.floor((monthIndex - 1) / 12);
@@ -922,24 +1135,22 @@ export function calculateEndOfServiceYearsFromPeriodData(
                 if (overlapDays > 0) {
                     if (overlapDays === monthDays) {
                         monthsCovered += 1;
-                        periodAmount += monthlyFactor;
+                        coveredMonthEquivalent += 1;
                     } else if (includeDaysCovered) {
-                        const proratedAmount = (monthlyFactor * overlapDays) / monthDays;
                         daysCovered += overlapDays;
-                        periodAmount += proratedAmount;
+                        coveredMonthEquivalent += overlapDays / monthDays;
                     }
                 }
             }
 
-            if ((monthsCovered > 0 || daysCovered > 0 || periodAmount > 0) && (dailyMinimumWage > 0 || seniorityBase > 0)) {
-                breakdown.push({
+            if ((monthsCovered > 0 || daysCovered > 0) && dailyMinimumWage > 0) {
+                coveredPeriods.push({
                     year: bucket.year,
                     periodIndex: period.period_index,
                     monthsCovered,
                     daysCovered,
-                    dailyMinimumWage: dailyMinimumWage || null,
-                    seniorityBase: seniorityBase || null,
-                    amount: Math.round(periodAmount),
+                    coveredMonthEquivalent,
+                    dailyMinimumWage,
                 });
             }
 
@@ -947,8 +1158,22 @@ export function calculateEndOfServiceYearsFromPeriodData(
         }
     }
 
+    const lastDailyMinimumWage = coveredPeriods.at(-1)?.dailyMinimumWage ?? 0;
+    const breakdown: EndOfServiceYearsBreakdownItem[] = coveredPeriods.map((period) => {
+        return {
+            year: period.year,
+            periodIndex: period.periodIndex,
+            monthsCovered: period.monthsCovered,
+            daysCovered: period.daysCovered,
+            dailyMinimumWage: period.dailyMinimumWage,
+            amount: Math.round(period.coveredMonthEquivalent * 2.5 * lastDailyMinimumWage),
+        };
+    });
+
     return {
-        totalAmount: breakdown.reduce((sum, item) => sum + item.amount, 0),
+        totalAmount: Math.round(
+            coveredPeriods.reduce((sum, period) => sum + period.coveredMonthEquivalent, 0) * 2.5 * lastDailyMinimumWage,
+        ),
         breakdown,
     };
 }

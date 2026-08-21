@@ -287,7 +287,7 @@ export default function OvertimeEntitlementScreen() {
                                         محاسبه اضافه کاری استحقاقی
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        بازه زمانی، ساعت روزانه و مبلغ هر ساعت را وارد کنید تا مبلغ اضافه کاری استحقاقی محاسبه شود.
+                                        برای محاسبه مبلغ اضافه کاری استحقاقی ، بازه زمانی و تعداد ساعات اضافه کاری روزانه مورد نظر را انتخاب کنید.
                                     </ThemedText>
                                 </View>
                             </View>
@@ -333,7 +333,7 @@ export default function OvertimeEntitlementScreen() {
 
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                                    تعداد ساعات اضافه کاری
+                                    تعداد ساعات اضافه کاری روزانه
                                 </ThemedText>
                                 <Pressable onPress={() => setTimePickerVisible(true)}>
                                     <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -444,7 +444,7 @@ export default function OvertimeEntitlementScreen() {
                                                             </View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    تعداد ساعات اضافه کاری
+                                                                    تعداد ساعات اضافه کاری روزانه
                                                                 </ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
                                                                     {formatDecimalHours(item.dailyOvertimeHours)}
@@ -452,7 +452,7 @@ export default function OvertimeEntitlementScreen() {
                                                             </View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    مبلغ هر ساعت
+                                                                    مبلغ اضافه کاری یک ساعت
                                                                 </ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
                                                                     {item.overtimeRate != null ? toPersianDigits(formatCurrency(item.overtimeRate)) : '-'}

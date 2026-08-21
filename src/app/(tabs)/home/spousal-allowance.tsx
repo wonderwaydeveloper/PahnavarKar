@@ -201,6 +201,20 @@ export default function SpousalAllowanceScreen() {
             includeDaysCovered,
         );
 
+        const unavailableYears = periodBuckets
+            .filter((bucket) => bucket.year >= parsedStart.year && bucket.year <= parsedEnd.year)
+            .filter((bucket) => bucket.periods.some((period) => period.marital_allowance == null))
+            .map((bucket) => bucket.year);
+
+        if (unavailableYears.length > 0) {
+            const message = parsedEnd.year < 1403
+                ? 'حق تأهل از سال ۱۴۰۳ ایجاد شده است و شما در این بازهٔ زمانی مستحق دریافت آن نیستید.'
+                : `برای سال‌های ${unavailableYears.map((year) => toPersianDigits(String(year))).join('، ')} مبلغ حق تأهل در داده‌های مصوب ثبت نشده است.`;
+
+            setSnackbarMessage(message);
+            setSnackbarVisible(true);
+        }
+
         if (calculation.breakdown.length === 0) {
             setResult(null);
             return;
@@ -244,7 +258,7 @@ export default function SpousalAllowanceScreen() {
                                         محاسبه حق تاهل استحقاقی
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        بازه‌ی زمانی را انتخاب کنید تا مبلغ حق تاهل استحقاقی محاسبه شود.
+                                        برای محاسبهٔ حق تأهل استحقاقی، بازهٔ زمانی موردنظر را انتخاب کنید.
                                     </ThemedText>
                                 </View>
                             </View>

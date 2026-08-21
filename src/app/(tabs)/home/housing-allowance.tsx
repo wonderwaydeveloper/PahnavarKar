@@ -116,6 +116,23 @@ export default function HousingAllowanceScreen() {
         return `${toPersianDigits(String(parsed.year))}/${toPersianDigits(String(parsed.month).padStart(2, '0'))}/${toPersianDigits(String(parsed.day).padStart(2, '0'))}`;
     };
 
+    const shouldShowMaritalStatus = useMemo(() => {
+        const parsedStart = parseDateInput(startDate);
+        const parsedEnd = parseDateInput(endDate);
+
+        if (!parsedStart || !parsedEnd || periodBuckets.length === 0) {
+            return false;
+        }
+
+        return periodBuckets
+            .filter((bucket) => bucket.year >= parsedStart.year && bucket.year <= parsedEnd.year)
+            .some((bucket) => bucket.periods.some((period) => (
+                period.monthly_housing_single != null &&
+                period.monthly_housing_married != null &&
+                period.monthly_housing_single !== period.monthly_housing_married
+            )));
+    }, [endDate, periodBuckets, startDate]);
+
     const openPicker = (target: 'start' | 'end') => {
         setPickerTarget(target);
         setPickerVisible(true);
@@ -248,7 +265,9 @@ export default function HousingAllowanceScreen() {
                                         محاسبه حق مسکن ماهیانه
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        بازه‌ی زمانی و وضعیت تأهل را انتخاب کنید تا مبلغ حق مسکن ماهیانه محاسبه شود.
+                                        {shouldShowMaritalStatus
+                                            ? 'بازهٔ زمانی و وضعیت تأهل را انتخاب کنید تا مبلغ حق مسکن ماهیانه محاسبه شود.'
+                                            : 'برای محاسبهٔ حق مسکن ماهیانه، بازهٔ زمانی موردنظر را انتخاب کنید.'}
                                     </ThemedText>
                                 </View>
                             </View>
@@ -292,42 +311,44 @@ export default function HousingAllowanceScreen() {
                                 </View>
                             </View>
 
-                            <View style={styles.maritalSection}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                                    وضعیت تأهل
-                                </ThemedText>
-                                <View style={styles.optionsRow}>
-                                    {[
-                                        { label: 'مجرد', value: 'single' as const },
-                                        { label: 'متاهل', value: 'married' as const },
-                                    ].map((option) => {
-                                        const selected = maritalStatus === option.value;
+                            {shouldShowMaritalStatus ? (
+                                <View style={styles.maritalSection}>
+                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+                                        وضعیت تأهل
+                                    </ThemedText>
+                                    <View style={styles.optionsRow}>
+                                        {[
+                                            { label: 'مجرد', value: 'single' as const },
+                                            { label: 'متأهل', value: 'married' as const },
+                                        ].map((option) => {
+                                            const selected = maritalStatus === option.value;
 
-                                        return (
-                                            <Pressable
-                                                key={option.value}
-                                                onPress={() => setMaritalStatus(option.value)}
-                                                style={[
-                                                    styles.optionButton,
-                                                    {
-                                                        backgroundColor: selected ? theme.primary : theme.surface,
-                                                        borderColor: selected ? theme.primary : theme.border,
-                                                    },
-                                                ]}
-                                            >
-                                                <ThemedText
-                                                    type="smallBold"
-                                                    style={{
-                                                        color: selected ? theme.surface : theme.text,
-                                                    }}
+                                            return (
+                                                <Pressable
+                                                    key={option.value}
+                                                    onPress={() => setMaritalStatus(option.value)}
+                                                    style={[
+                                                        styles.optionButton,
+                                                        {
+                                                            backgroundColor: selected ? theme.primary : theme.surface,
+                                                            borderColor: selected ? theme.primary : theme.border,
+                                                        },
+                                                    ]}
                                                 >
-                                                    {option.label}
-                                                </ThemedText>
-                                            </Pressable>
-                                        );
-                                    })}
+                                                    <ThemedText
+                                                        type="smallBold"
+                                                        style={{
+                                                            color: selected ? theme.surface : theme.text,
+                                                        }}
+                                                    >
+                                                        {option.label}
+                                                    </ThemedText>
+                                                </Pressable>
+                                            );
+                                        })}
+                                    </View>
                                 </View>
-                            </View>
+                            ) : null}
 
                             <View style={[styles.optionBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                 <View style={styles.optionRow}>

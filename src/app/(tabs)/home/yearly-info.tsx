@@ -198,6 +198,9 @@ function PeriodCardLocal({
       );
     }
 
+    const isFormula = item.label === periodUiLabels.formula_increase;
+    const displayValue = isFormula ? `\u202A${item.value}\u202C` : item.value;
+
     return (
       <View
         key={item.label}
@@ -222,10 +225,14 @@ function PeriodCardLocal({
           </ThemedText>
           <ThemedText
             type="smallBold"
-            style={[styles.detailRowValue, getCompactTextStyle(item.value, true)]}
+            style={[
+              styles.detailRowValue,
+              getCompactTextStyle(item.value, true),
+              item.label === periodUiLabels.formula_increase ? styles.formulaValue : null,
+            ]}
             numberOfLines={2}
           >
-            {item.value}
+            {displayValue}
           </ThemedText>
         </View>
       </View>
@@ -490,53 +497,53 @@ export default function YearlyInfoScreen() {
             <ThemedText type="small" style={styles.loadingText}>در حال بارگذاری داده‌ها...</ThemedText>
           </View>
         ) : (
-            <ScrollView
-              style={[styles.scrollView, { backgroundColor: theme.background }]}
-              contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}
-              showsVerticalScrollIndicator={false}
-            >
-              <YearSelectorCard
-                selectedYear={selectedYear}
-                years={sortedYears}
-                visible={yearPickerVisible}
-                onOpen={() => setYearPickerVisible(true)}
-                onClose={() => setYearPickerVisible(false)}
-                onSelectYear={handleYearSelection}
-                formatYear={formatYear}
-              />
+          <ScrollView
+            style={[styles.scrollView, { backgroundColor: theme.background }]}
+            contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}
+            showsVerticalScrollIndicator={false}
+          >
+            <YearSelectorCard
+              selectedYear={selectedYear}
+              years={sortedYears}
+              visible={yearPickerVisible}
+              onOpen={() => setYearPickerVisible(true)}
+              onClose={() => setYearPickerVisible(false)}
+              onSelectYear={handleYearSelection}
+              formatYear={formatYear}
+            />
 
-              {/* Periods Section */}
-              <View style={{ marginTop: Spacing.two }}>
-                <View style={styles.periodsSectionHeader}>
-                  <ThemedText type="smallBold" themeColor="text" style={styles.periodsSectionTitle}>جزئیات دوره‌ها</ThemedText>
-                  {loadingPeriods && <ActivityIndicator size="small" color={theme.primary} />}
-                </View>
-
-                {loadingPeriods ? (
-                  <View style={styles.centerContainer}>
-                    <ActivityIndicator animating size="large" color={theme.primary} />
-                  </View>
-                ) : periods.length === 0 ? (
-                  <Card style={[styles.emptyStateCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                    <Card.Content style={styles.emptyStateContent}>
-                      <View style={[styles.emptyStateIcon, { backgroundColor: theme.primaryContainer }]}>
-                        <MaterialCommunityIcons name="calendar-blank" size={24} color={theme.primary} />
-                      </View>
-                      <ThemedText type="smallBold" style={styles.emptyText}>برای این سال دوره‌ای ثبت نشده است</ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary" style={styles.emptySubText}>
-                        با افزودن داده‌های جدید، جزئیات دوره‌ها اینجا به‌صورت خودکار ظاهر می‌شود.
-                      </ThemedText>
-                    </Card.Content>
-                  </Card>
-                ) : (
-                  <View style={styles.periodsGrid}>
-                    {periods.map((period, index) => renderPeriodCard(period, index))}
-                  </View>
-                )}
+            {/* Periods Section */}
+            <View style={{ marginTop: Spacing.two }}>
+              <View style={styles.periodsSectionHeader}>
+                <ThemedText type="smallBold" themeColor="text" style={styles.periodsSectionTitle}>جزئیات دوره‌ها</ThemedText>
+                {loadingPeriods && <ActivityIndicator size="small" color={theme.primary} />}
               </View>
 
-              {Platform.OS === 'web' && <WebBadge />}
-            </ScrollView>
+              {loadingPeriods ? (
+                <View style={styles.centerContainer}>
+                  <ActivityIndicator animating size="large" color={theme.primary} />
+                </View>
+              ) : periods.length === 0 ? (
+                <Card style={[styles.emptyStateCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                  <Card.Content style={styles.emptyStateContent}>
+                    <View style={[styles.emptyStateIcon, { backgroundColor: theme.primaryContainer }]}>
+                      <MaterialCommunityIcons name="calendar-blank" size={24} color={theme.primary} />
+                    </View>
+                    <ThemedText type="smallBold" style={styles.emptyText}>برای این سال دوره‌ای ثبت نشده است</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.emptySubText}>
+                      با افزودن داده‌های جدید، جزئیات دوره‌ها اینجا به‌صورت خودکار ظاهر می‌شود.
+                    </ThemedText>
+                  </Card.Content>
+                </Card>
+              ) : (
+                <View style={styles.periodsGrid}>
+                  {periods.map((period, index) => renderPeriodCard(period, index))}
+                </View>
+              )}
+            </View>
+
+            {Platform.OS === 'web' && <WebBadge />}
+          </ScrollView>
         )}
       </ThemedView>
 
@@ -736,6 +743,12 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     fontSize: 12,
     lineHeight: 18,
+    fontFamily: 'Vazirmatn-Bold',
+  },
+  formulaValue: {
+    direction: 'ltr',
+    writingDirection: 'ltr',
+    textAlign: 'center',
     fontFamily: 'Vazirmatn-Bold',
   },
   detailGroupBox: {

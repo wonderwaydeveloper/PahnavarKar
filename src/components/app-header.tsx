@@ -42,31 +42,35 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
       case 'yearly-info':
         return { title: 'اطلاعات سال کارکرد' };
       case 'base-salary':
-        return { title: 'محاسبه حقوق پایه' };
+        return { title: 'حقوق پایه' };
       case 'family-allowance':
-        return { title: 'محاسبه حق عائله مندی' };
+        return { title: 'حق عائله مندی' };
       case 'housing-allowance':
-        return { title: 'محاسبه حق مسکن ماهیانه' };
+        return { title: 'حق مسکن ماهیانه' };
       case 'monthly-allowance':
-        return { title: 'محاسبه بن ماهیانه' };
+        return { title: 'بن ماهیانه' };
       case 'minimum-bonus':
-        return { title: 'محاسبه حداقل عیدی و پاداش استحقاقی' };
+        return { title: 'حداقل عیدی و پاداش استحقاقی' };
       case 'maximum-bonus':
-        return { title: 'محاسبه حداکثر عیدی و پاداش استحقاقی' };
+        return { title: 'حداکثر عیدی و پاداش استحقاقی' };
       case 'spousal-allowance':
-        return { title: 'محاسبه حق تاهل استحقاقی' };
+        return { title: 'حق تاهل استحقاقی' };
       case 'monthly-shift-work':
-        return { title: 'محاسبه نوبت کاری ماهیانه' };
+        return { title: 'نوبت کاری ماهیانه' };
       case 'overtime-entitlement':
-        return { title: 'محاسبه اضافه کاری استحقاقی' };
+        return { title: 'اضافه کاری استحقاقی' };
       case 'night-shift-entitlement':
-        return { title: 'محاسبه شب کاری استحقاقی' };
+        return { title: 'شب کاری استحقاقی' };
       case 'insurance-days-entitlement':
-        return { title: 'محاسبه تعداد روزهای بیمه استحقاقی' };
+        return { title: 'تعداد روزهای بیمه استحقاقی' };
       case 'unused-leave-entitlement':
-        return { title: 'محاسبه تعداد روزهای مرخصی استفاده نشده' };
+        return { title: 'تعداد روزهای مرخصی استفاده نشده' };
+      case 'unused-leave-wage':
+        return { title: 'مزد مرخصی استفاده نشده' };
       case 'end-of-service-years':
-        return { title: 'محاسبه سنوات پایان کار' };
+        return { title: 'سنوات پایان کار' };
+      case 'friday-work':
+        return { title: 'جمعه کاری' };
       case 'home':
       case 'index':
       default:
@@ -77,7 +81,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
   const router = useRouter();
   const actualRouteName = normalizeRoute(pathname || route?.name);
   const { title } = getHeaderConfig(actualRouteName);
-  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unused-leave-entitlement', 'end-of-service-years'].includes(actualRouteName);
+  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unused-leave-entitlement', 'unused-leave-wage', 'end-of-service-years', 'friday-work'].includes(actualRouteName);
 
   const { width } = useWindowDimensions();
   const titleFontSize = width >= 420 ? 18 : 16;

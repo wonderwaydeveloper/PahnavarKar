@@ -254,7 +254,7 @@ export default function EndOfServiceYearsScreen() {
                                     فرمول محاسبه
                                 </ThemedText>
                                 <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>
-                                    تعداد کل ماه کارکرد × ۲٫۵ × (حداقل مزد روزانه مصوب شورای عالی کار در آخرین روز کارکرد + پایه سنوات استحقاقی در آخرین روز کارکرد)
+                                    تعداد کل ماه کارکرد * 2.5 * حداقل مزد روزانه مصوب شورای عالی کار در آخرین روز کارکرد
                                 </ThemedText>
                             </View>
 
@@ -420,14 +420,6 @@ export default function EndOfServiceYearsScreen() {
                                                                 </ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
                                                                     {item.dailyMinimumWage != null ? toPersianDigits(formatCurrency(item.dailyMinimumWage)) : '-'}
-                                                                </ThemedText>
-                                                            </View>
-                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    پایه سنوات استحقاقی
-                                                                </ThemedText>
-                                                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
-                                                                    {item.seniorityBase != null ? toPersianDigits(formatCurrency(item.seniorityBase)) : '-'}
                                                                 </ThemedText>
                                                             </View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>

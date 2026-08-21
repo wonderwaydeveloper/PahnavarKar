@@ -32,12 +32,12 @@ export default function HomeTabScreen() {
             title: 'اطلاعات سال کارکرد',
             icon: 'calendar-range' as const,
             accent: '#4f46e5',
-            detail: 'مشاهده اطلاعات سال کارکرد و جزئیات آن',
+            detail: 'جزئیاتی جامع از مصوبات شورای عالی کار از سال ۱۳۶۹ تاکنون',
             onPress: () => router.push('/home/yearly-info'),
         },
         {
             key: 'base-salary',
-            title: 'محاسبه حقوق پایه',
+            title: 'حقوق پایه',
             icon: 'calculator-variant' as const,
             accent: '#0f766e',
             detail: 'محاسبه حقوق پایه و نمایش جزئیات آن',
@@ -45,7 +45,7 @@ export default function HomeTabScreen() {
         },
         {
             key: 'housing-allowance',
-            title: 'محاسبه حق مسکن ماهیانه',
+            title: 'حق مسکن ماهیانه',
             icon: 'home-city' as const,
             accent: '#2563eb',
             detail: 'محاسبه حق مسکن ماهیانه بر اساس وضعیت تأهل و بازه زمانی',
@@ -53,7 +53,7 @@ export default function HomeTabScreen() {
         },
         {
             key: 'monthly-allowance',
-            title: 'محاسبه بن ماهیانه',
+            title: 'بن ماهیانه',
             icon: 'cash-multiple' as const,
             accent: '#8b5cf6',
             detail: 'محاسبه بن ماهیانه بر اساس تعداد ماه‌های کارکرد و وضعیت تأهل',
@@ -61,7 +61,7 @@ export default function HomeTabScreen() {
         },
         {
             key: 'family-allowance',
-            title: 'محاسبه حق عائله مندی',
+            title: 'حق عائله مندی',
             icon: 'family-tree' as const,
             accent: '#f59e0b',
             detail: 'محاسبه حق عائله‌مندی و نمایش جزئیات آن',
@@ -69,7 +69,7 @@ export default function HomeTabScreen() {
         },
         {
             key: 'spousal-allowance',
-            title: 'محاسبه حق تاهل استحقاقی',
+            title: 'حق تاهل استحقاقی',
             icon: 'heart-outline' as const,
             accent: '#f43f5e',
             detail: 'محاسبه حق تاهل استحقاقی بر اساس تعداد ماه‌های کارکرد',
@@ -77,7 +77,7 @@ export default function HomeTabScreen() {
         },
         {
             key: 'monthly-shift-work',
-            title: 'محاسبه نوبت کاری ماهیانه',
+            title: 'نوبت کاری ماهیانه',
             icon: 'calendar-clock' as const,
             accent: '#0f766e',
             detail: 'محاسبه نوبت کاری ماهیانه با انتخاب نوع نوبت کاری و بازه زمانی',
@@ -85,7 +85,7 @@ export default function HomeTabScreen() {
         },
         {
             key: 'minimum-bonus',
-            title: 'محاسبه حداقل عیدی و پاداش استحقاقی',
+            title: 'حداقل عیدی و پاداش استحقاقی',
             icon: 'gift-outline' as const,
             accent: '#ef4444',
             detail: 'محاسبه حداقل عیدی و پاداش استحقاقی بر اساس تعداد ماه‌های کارکرد',
@@ -93,7 +93,7 @@ export default function HomeTabScreen() {
         },
         {
             key: 'maximum-bonus',
-            title: 'محاسبه حداکثر عیدی و پاداش استحقاقی',
+            title: 'حداکثر عیدی و پاداش استحقاقی',
             icon: 'gift' as const,
             accent: '#ec4899',
             detail: 'محاسبه حداکثر عیدی و پاداش استحقاقی با درج تعداد ماه‌های کارکرد و گزینه روزهای شمول',
@@ -101,7 +101,7 @@ export default function HomeTabScreen() {
         },
         {
             key: 'overtime-entitlement',
-            title: 'محاسبه اضافه کاری استحقاقی',
+            title: 'اضافه کاری استحقاقی',
             icon: 'clock-alert-outline' as const,
             accent: '#f97316',
             detail: 'محاسبه اضافه کاری استحقاقی بر اساس ساعت روزانه، مبلغ هر ساعت و روزهای کارکرد',
@@ -109,7 +109,7 @@ export default function HomeTabScreen() {
         },
         {
             key: 'night-shift-entitlement',
-            title: 'محاسبه شب کاری استحقاقی',
+            title: 'شب کاری استحقاقی',
             icon: 'weather-night' as const,
             accent: '#0ea5e9',
             detail: 'محاسبه شب کاری استحقاقی بر اساس ۷.۳۳ ضریب، مبلغ هر ساعت و روزهای کارکرد',
@@ -117,15 +117,23 @@ export default function HomeTabScreen() {
         },
         {
             key: 'unused-leave-entitlement',
-            title: 'محاسبه تعداد روزهای مرخصی استفاده نشده',
+            title: 'تعداد روزهای مرخصی استفاده نشده',
             icon: 'calendar-clock' as const,
             accent: '#e11d48',
             detail: 'محاسبه تعداد روزهای مرخصی استفاده نشده بر اساس بازه زمانی کارکرد',
             onPress: () => router.push('/home/unused-leave-entitlement'),
         },
         {
+            key: 'unused-leave-wage',
+            title: 'مزد مرخصی استفاده نشده',
+            icon: 'cash-clock' as const,
+            accent: '#0891b2',
+            detail: 'محاسبه مزد مرخصی استفاده نشده بر اساس آخرین ماه کارکرد',
+            onPress: () => router.push('/home/unused-leave-wage'),
+        },
+        {
             key: 'insurance-days-entitlement',
-            title: 'محاسبه تعداد روزهای بیمه استحقاقی',
+            title: 'تعداد روزهای بیمه استحقاقی',
             icon: 'shield-check' as const,
             accent: '#22c55e',
             detail: 'محاسبه تعداد روزهای بیمه استحقاقی بر اساس ساعات کاری روزانه و بازه زمانی',
@@ -133,11 +141,19 @@ export default function HomeTabScreen() {
         },
         {
             key: 'end-of-service-years',
-            title: 'محاسبه سنوات پایان کار',
+            title: 'سنوات پایان کار',
             icon: 'briefcase-clock' as const,
             accent: '#14b8a6',
             detail: 'محاسبه سنوات پایان کار بر اساس تعداد ماه‌های کارکرد و پایه سنوات',
             onPress: () => router.push('/home/end-of-service-years'),
+        },
+        {
+            key: 'friday-work',
+            title: 'جمعه کاری',
+            icon: 'calendar-star' as const,
+            accent: '#f59e0b',
+            detail: 'محاسبه جمعه کاری بر اساس تعداد جمعه کاری و مبلغ مصوب همان سال',
+            onPress: () => router.push('/home/friday-work'),
         },
     ];
 
