@@ -1,4 +1,4 @@
-import { isValidJalaaliDate, jalaaliMonthLength, toGregorian } from 'jalaali-js';
+import { isValidJalaaliDate, jalaaliMonthLength, toGregorian, toJalaali } from 'jalaali-js';
 
 export interface SalaryCalculationBreakdownItem {
     year: number;
@@ -34,6 +34,8 @@ export interface SalaryPeriodBucket {
         period_index: number;
         month_count: number | null;
         daily_minimum_wage: number | null;
+        percent_increase?: number | null;
+        seniority_base?: number | null;
         friday_work_per_day?: number | null;
         overtime_per_hour?: number | null;
         night_work_per_hour?: number | null;
@@ -229,6 +231,23 @@ export interface ParsedDateInput {
     day: number;
 }
 
+export type SeniorityEntitlementSettlementStatus = 'settled' | 'unsettled';
+
+export interface SeniorityEntitlementBreakdownItem {
+    year: number;
+    periodIndex: number;
+    eligibleFrom: ParsedDateInput;
+    eligibleTo: ParsedDateInput | null;
+    seniorityBase: number;
+    percentIncrease: number | null;
+    amount: number;
+}
+
+export interface SeniorityEntitlementCalculationResult {
+    totalAmount: number;
+    breakdown: SeniorityEntitlementBreakdownItem[];
+}
+
 const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
 const latinDigits = '0123456789';
 
@@ -369,6 +388,124 @@ export function calculateUnusedLeaveWageFromPeriodData(
         dailyMaritalAllowance,
         year: bucket.year,
         periodIndex: period.period_index,
+    };
+}
+
+function getPeriodForMonth(bucket: SalaryPeriodBucket, month: number) {
+    let monthOffset = 0;
+
+    for (const period of [...bucket.periods].sort((left, right) => left.period_index - right.period_index)) {
+        const periodLength = Number(period.month_count ?? 0);
+        const periodStartMonth = monthOffset + 1;
+        const periodEndMonth = monthOffset + periodLength;
+        monthOffset = periodEndMonth;
+
+        if (periodLength > 0 && month >= periodStartMonth && month <= periodEndMonth) {
+            return period;
+        }
+    }
+
+    return null;
+}
+
+function getAnniversaryDate(startDate: ParsedDateInput, year: number): ParsedDateInput {
+    const monthDays = jalaaliMonthLength(year, startDate.month);
+    return {
+        year,
+        month: startDate.month,
+        day: Math.min(startDate.day, monthDays),
+    };
+}
+
+function getPreviousDate(date: ParsedDateInput): ParsedDateInput {
+    const gregorianDate = toGregorian(date.year, date.month, date.day);
+    const previousDate = new Date(Date.UTC(gregorianDate.gy, gregorianDate.gm - 1, gregorianDate.gd - 1));
+    const jalaaliDate = toJalaali(previousDate.getUTCFullYear(), previousDate.getUTCMonth() + 1, previousDate.getUTCDate());
+    return { year: jalaaliDate.jy, month: jalaaliDate.jm, day: jalaaliDate.jd };
+}
+
+function getYearEndDate(year: number): ParsedDateInput {
+    return { year, month: 12, day: jalaaliMonthLength(year, 12) };
+}
+
+export function calculateSeniorityEntitlementFromPeriodData(
+    startDate: ParsedDateInput,
+    endDate: ParsedDateInput,
+    periodBuckets: SalaryPeriodBucket[],
+    settlementStatus: SeniorityEntitlementSettlementStatus,
+): SeniorityEntitlementCalculationResult {
+    if (compareParsedDates(startDate, endDate) > 0) {
+        return { totalAmount: 0, breakdown: [] };
+    }
+
+    let firstEligibleDate: ParsedDateInput;
+    if (startDate.year < 1392 && settlementStatus === 'settled') {
+        firstEligibleDate = { year: 1393, month: 1, day: 1 };
+    } else {
+        firstEligibleDate = getAnniversaryDate(startDate, startDate.year + 1);
+    }
+
+    if (compareParsedDates(endDate, firstEligibleDate) < 0) {
+        return { totalAmount: 0, breakdown: [] };
+    }
+
+    const breakdown: SeniorityEntitlementBreakdownItem[] = [];
+    let previousAmount: number | null = null;
+
+    if (compareParsedDates(startDate, firstEligibleDate) < 0) {
+        const startBucket = periodBuckets.find((item) => item.year === startDate.year);
+        const startPeriod = startBucket ? getPeriodForMonth(startBucket, startDate.month) : null;
+        if (startPeriod) {
+            breakdown.push({
+                year: startDate.year,
+                periodIndex: startPeriod.period_index,
+                eligibleFrom: startDate,
+                eligibleTo: getPreviousDate(firstEligibleDate),
+                seniorityBase: 0,
+                percentIncrease: null,
+                amount: 0,
+            });
+        }
+    }
+
+    for (let year = firstEligibleDate.year; year <= endDate.year; year += 1) {
+        const eligibleFrom = year === firstEligibleDate.year
+            ? firstEligibleDate
+            : { year, month: 1, day: 1 };
+
+        if (compareParsedDates(eligibleFrom, endDate) > 0) {
+            break;
+        }
+
+        const bucket = periodBuckets.find((item) => item.year === year);
+        const period = bucket ? getPeriodForMonth(bucket, eligibleFrom.month) : null;
+        const seniorityBase = Number(period?.seniority_base ?? 0);
+        const rawPercentIncrease = Number(period?.percent_increase);
+        const percentIncrease = Number.isFinite(rawPercentIncrease) ? rawPercentIncrease : null;
+
+        if (!period || seniorityBase <= 0) {
+            continue;
+        }
+
+        const amount: number = previousAmount === null
+            ? seniorityBase
+            : previousAmount * (percentIncrease ?? 1) + seniorityBase;
+
+        breakdown.push({
+            year,
+            periodIndex: period.period_index,
+            eligibleFrom,
+            eligibleTo: year === endDate.year ? endDate : getYearEndDate(year),
+            seniorityBase,
+            percentIncrease,
+            amount,
+        });
+        previousAmount = amount;
+    }
+
+    return {
+        totalAmount: previousAmount ?? 0,
+        breakdown,
     };
 }
 

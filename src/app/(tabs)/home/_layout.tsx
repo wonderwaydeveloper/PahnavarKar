@@ -13,6 +13,7 @@ export default function HomeLayout() {
             <Stack.Screen name="index" options={{ title: 'خانه' }} />
             <Stack.Screen name="yearly-info" options={{ title: 'اطلاعات سال کارکرد' }} />
             <Stack.Screen name="base-salary" options={{ title: 'حقوق پایه' }} />
+            <Stack.Screen name="seniority-entitlement" options={{ title: 'پایه سنوات استحقاقی' }} />
             <Stack.Screen name="family-allowance" options={{ title: 'حق عائله مندی' }} />
             <Stack.Screen name="housing-allowance" options={{ title: 'حق مسکن ماهیانه' }} />
             <Stack.Screen name="monthly-allowance" options={{ title: 'بن ماهیانه' }} />
