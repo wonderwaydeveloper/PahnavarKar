@@ -163,6 +163,38 @@ export default function HomeTabScreen() {
             detail: 'محاسبه مزد جمعه‌کاری‌های انجام‌شده براساس ماده ۶۲ قانون کار',
             onPress: () => router.push('/home/friday-work'),
         },
+        {
+            key: 'suspension-wage',
+            title: 'محاسبه حق‌السعی ایام تعلیق',
+            icon: 'pause-circle-outline' as const,
+            accent: '#7c3aed',
+            detail: 'محاسبه حق‌السعی ایام تعلیق موضوع ماده ۶۷ آیین دادرسی کار',
+            onPress: () => router.push('/home/suspension-wage' as any),
+        },
+        {
+            key: 'ordinary-work-hours',
+            title: 'میزان ساعات کارکرد موظفی کارگر در مشاغل عادی',
+            icon: 'calendar-check-outline' as const,
+            accent: '#0891b2',
+            detail: 'محاسبه میزان ساعات کارکرد موظفی کارگر در مشاغل عادی طبق ماده ۵۱ قانون کار',
+            onPress: () => router.push('/home/ordinary-work-hours' as any),
+        },
+        {
+            key: 'hazardous-work-hours',
+            title: 'میزان ساعات کارکرد موظفی کارگر در مشاغل سخت و زیان‌آور',
+            icon: 'hard-hat' as const,
+            accent: '#d97706',
+            detail: 'تعیین ساعات کارکرد موظفی کارگر طبق ماده ۵۲ قانون کار',
+            onPress: () => router.push('/home/hazardous-work-hours' as any),
+        },
+        {
+            key: 'young-worker-work-hours',
+            title: 'میزان ساعات کارکرد موظفی کارگر نوجوان',
+            icon: 'account-child' as const,
+            accent: '#be123c',
+            detail: 'تعیین ساعات کارکرد کارگر نوجوان طبق ماده ۸۰ قانون کار',
+            onPress: () => router.push('/home/young-worker-work-hours' as any),
+        },
     ];
 
     return (

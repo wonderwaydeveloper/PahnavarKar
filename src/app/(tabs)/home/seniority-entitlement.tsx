@@ -228,6 +228,7 @@ export default function SeniorityEntitlementScreen() {
 
     const parsedStartDate = parseDateInput(startDate);
     const showSettlementStatus = parsedStartDate !== null && parsedStartDate.year < 1392;
+    const lastDailyEntitlement = result?.breakdown.at(-1)?.dailyEntitlement ?? 0;
 
     return (
         <ThemedView style={styles.container}>
@@ -291,6 +292,9 @@ export default function SeniorityEntitlementScreen() {
                                             <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                                 <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>مبلغ نهایی پایه سنوات استحقاقی</ThemedText>
                                                 <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>{formatCurrency(result.totalAmount)}</ThemedText>
+                                                <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
+                                                <ThemedText type="small" style={[styles.lastDailyEntitlementLabel, { color: theme.textSecondary }]}>پایه سنوات استحقاقی روزانه آخرین دوره</ThemedText>
+                                                <ThemedText type="smallBold" style={[styles.lastDailyEntitlementValue, { color: theme.text }]}>{formatCurrency(lastDailyEntitlement)}</ThemedText>
                                             </View>
                                         </View>
                                         <View style={styles.breakdownHeaderRow}>
@@ -368,6 +372,9 @@ const styles = StyleSheet.create({
     summaryBoxContent: { width: '100%', alignItems: 'center', gap: Spacing.one, padding: Spacing.two, borderRadius: 12, borderWidth: 1 },
     summaryLabel: { fontSize: 11 },
     amountValue: { fontSize: 18 },
+    summaryDivider: { width: '80%', height: StyleSheet.hairlineWidth, marginVertical: Spacing.one },
+    lastDailyEntitlementLabel: { fontSize: 11 },
+    lastDailyEntitlementValue: { fontSize: 12 },
     breakdownHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.one, paddingVertical: Spacing.one, gap: Spacing.one },
     detailsButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
     detailsButtonLabel: { fontSize: 11 },

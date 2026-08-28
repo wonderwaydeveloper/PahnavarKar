@@ -7,6 +7,17 @@ export interface YearRecord {
     period_count: number;
 }
 
+export interface OfficialHolidayRecord {
+    id: number;
+    year_id: number;
+    year: number;
+    month: number;
+    day: number;
+    holiday_date: string;
+}
+
+export type OfficialHolidayData = Record<string, string[]>;
+
 export interface PeriodRecord {
     id: number;
     year_id: number;
@@ -83,4 +94,5 @@ export interface SeedYearRecord {
 
 export interface SeedData {
     data: SeedYearRecord[];
+    officialHolidays?: OfficialHolidayData;
 }

@@ -73,6 +73,14 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
         return { title: 'سنوات پایان کار' };
       case 'friday-work':
         return { title: 'جمعه کاری' };
+      case 'suspension-wage':
+        return { title: 'محاسبه حق‌السعی ایام تعلیق' };
+      case 'ordinary-work-hours':
+        return { title: 'میزان ساعات کارکرد موظفی کارگر در مشاغل عادی' };
+      case 'hazardous-work-hours':
+        return { title: 'ساعات کارکرد موظفی کارگر در مشاغل سخت' };
+      case 'young-worker-work-hours':
+        return { title: 'میزان ساعات کارکرد موظفی کارگر نوجوان' };
       case 'home':
       case 'index':
       default:
@@ -83,7 +91,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
   const router = useRouter();
   const actualRouteName = normalizeRoute(pathname || route?.name);
   const { title } = getHeaderConfig(actualRouteName);
-  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'seniority-entitlement', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unused-leave-entitlement', 'unused-leave-wage', 'end-of-service-years', 'friday-work'].includes(actualRouteName);
+  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'seniority-entitlement', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unused-leave-entitlement', 'unused-leave-wage', 'end-of-service-years', 'friday-work', 'suspension-wage', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours'].includes(actualRouteName);
 
   const { width } = useWindowDimensions();
   const titleFontSize = width >= 420 ? 18 : 16;

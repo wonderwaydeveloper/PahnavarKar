@@ -1,7 +1,7 @@
 import { type SQLiteDatabase } from 'expo-sqlite';
 import { runWithDatabaseLock } from './connection';
 import { initializeSchema, recreateDatabaseTables } from './schema';
-import type { PeriodRecord, SeedData, YearRecord } from './types';
+import type { OfficialHolidayRecord, PeriodRecord, SeedData, YearRecord } from './types';
 
 export async function initDatabase() {
     return initializeSchema();
@@ -33,7 +33,7 @@ export async function setDatabaseUserVersion(version: number): Promise<void> {
 
 export async function clearDatabase() {
     return runWithDatabaseLock(async (database) => {
-        await database.execAsync('DROP TABLE IF EXISTS periods; DROP TABLE IF EXISTS years;');
+        await database.execAsync('DROP TABLE IF EXISTS official_holidays; DROP TABLE IF EXISTS periods; DROP TABLE IF EXISTS years;');
     });
 }
 
@@ -45,6 +45,7 @@ export async function seedDatabase(data: SeedData) {
 
         let yearStatement: Awaited<ReturnType<SQLiteDatabase['prepareAsync']>> | null = null;
         let periodStatement: Awaited<ReturnType<SQLiteDatabase['prepareAsync']>> | null = null;
+        let holidayStatement: Awaited<ReturnType<SQLiteDatabase['prepareAsync']>> | null = null;
         let transactionStarted = false;
 
         try {
@@ -93,6 +94,17 @@ export async function seedDatabase(data: SeedData) {
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             `);
 
+            holidayStatement = await database.prepareAsync(`
+                INSERT INTO official_holidays (
+                    year_id,
+                    month,
+                    day,
+                    holiday_date
+                ) VALUES (?, ?, ?, ?);
+            `);
+
+            const yearIds = new Map<number, number>();
+
             for (const yearRecord of data.data) {
                 const rawYearValue = yearRecord['سال_كاركرد'];
                 const numericYearValue = Number(rawYearValue);
@@ -108,6 +120,7 @@ export async function seedDatabase(data: SeedData) {
                 ]);
 
                 const yearId = Number(yearResult.lastInsertRowId);
+                yearIds.set(normalizedYear, yearId);
 
                 if (Array.isArray(yearRecord.periods)) {
                     for (const [index, period] of yearRecord.periods.entries()) {
@@ -152,6 +165,20 @@ export async function seedDatabase(data: SeedData) {
                 }
             }
 
+            if (data.officialHolidays) {
+                for (const [yearKey, holidayDates] of Object.entries(data.officialHolidays)) {
+                    const yearId = yearIds.get(Number(yearKey));
+                    if (!yearId) {
+                        throw new Error(`Official holidays refer to an unknown year: ${yearKey}`);
+                    }
+
+                    for (const holidayDate of holidayDates) {
+                        const [, month, day] = holidayDate.split('/').map(Number);
+                        await holidayStatement?.executeAsync([yearId, month, day, holidayDate]);
+                    }
+                }
+            }
+
             await database.execAsync('COMMIT;');
             transactionStarted = false;
         } catch (error) {
@@ -169,6 +196,9 @@ export async function seedDatabase(data: SeedData) {
             }
             if (periodStatement) {
                 await periodStatement.finalizeAsync();
+            }
+            if (holidayStatement) {
+                await holidayStatement.finalizeAsync();
             }
         }
     });
@@ -205,6 +235,28 @@ export async function fetchPeriodsByYearId(yearId: number): Promise<PeriodRecord
         try {
             const result = await statement.executeAsync<PeriodRecord>([yearId]);
             return await result.getAllAsync() as PeriodRecord[];
+        } finally {
+            await statement.finalizeAsync();
+        }
+    });
+}
+
+export async function fetchOfficialHolidaysBetweenDates(
+    startDate: string,
+    endDate: string,
+): Promise<OfficialHolidayRecord[]> {
+    return runWithDatabaseLock(async (database) => {
+        const statement = await database.prepareAsync(`
+            SELECT official_holidays.id, official_holidays.year_id, years.year, official_holidays.month, official_holidays.day, official_holidays.holiday_date
+            FROM official_holidays
+            INNER JOIN years ON years.id = official_holidays.year_id
+            WHERE holiday_date >= ? AND holiday_date <= ?
+            ORDER BY holiday_date ASC;
+        `);
+
+        try {
+            const result = await statement.executeAsync<OfficialHolidayRecord>([startDate, endDate]);
+            return await result.getAllAsync() as OfficialHolidayRecord[];
         } finally {
             await statement.finalizeAsync();
         }

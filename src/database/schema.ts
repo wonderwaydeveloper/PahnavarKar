@@ -35,6 +35,7 @@ const expectedPeriodColumns = [
     'min_wage_decree_reference',
     'marital_allowance',
 ];
+const expectedHolidayColumns = ['id', 'year_id', 'month', 'day', 'holiday_date'];
 
 export async function initializeSchema() {
     return runWithDatabaseLock(async (database) => {
@@ -44,6 +45,7 @@ export async function initializeSchema() {
 }
 
 export async function recreateDatabaseTables(database: SQLiteDatabase) {
+    await database.execAsync('DROP TABLE IF EXISTS official_holidays;');
     await database.execAsync('DROP TABLE IF EXISTS periods;');
     await database.execAsync('DROP TABLE IF EXISTS years;');
     await createTables(database);
@@ -89,16 +91,28 @@ async function createTables(database: SQLiteDatabase) {
         marital_allowance REAL,
         FOREIGN KEY(year_id) REFERENCES years(id) ON DELETE CASCADE
     );`);
+
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS official_holidays (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        year_id INTEGER NOT NULL,
+        month INTEGER NOT NULL,
+        day INTEGER NOT NULL,
+        holiday_date TEXT NOT NULL,
+        UNIQUE(year_id, month, day),
+        FOREIGN KEY(year_id) REFERENCES years(id) ON DELETE CASCADE
+    );`);
 }
 
 async function ensureCompatibleSchema(database: SQLiteDatabase) {
     const yearColumns = await getTableColumns(database, 'years');
     const periodColumns = await getTableColumns(database, 'periods');
+    const holidayColumns = await getTableColumns(database, 'official_holidays');
 
     const hasExpectedYearColumns = expectedYearColumns.every((column) => yearColumns.includes(column));
     const hasExpectedPeriodColumns = expectedPeriodColumns.every((column) => periodColumns.includes(column));
+    const hasExpectedHolidayColumns = expectedHolidayColumns.every((column) => holidayColumns.includes(column));
 
-    if (!hasExpectedYearColumns || !hasExpectedPeriodColumns) {
+    if (!hasExpectedYearColumns || !hasExpectedPeriodColumns || !hasExpectedHolidayColumns) {
         await recreateDatabaseTables(database);
     }
 }

@@ -28,6 +28,10 @@ export default function HomeLayout() {
             <Stack.Screen name="unused-leave-wage" options={{ title: 'مزد مرخصی استفاده نشده' }} />
             <Stack.Screen name="end-of-service-years" options={{ title: 'سنوات پایان کار' }} />
             <Stack.Screen name="friday-work" options={{ title: 'جمعه کاری' }} />
+            <Stack.Screen name="suspension-wage" options={{ title: 'محاسبه حق‌السعی ایام تعلیق' }} />
+            <Stack.Screen name="ordinary-work-hours" options={{ title: 'میزان ساعات کارکرد موظفی کارگر در مشاغل عادی' }} />
+            <Stack.Screen name="hazardous-work-hours" options={{ title: 'ساعات کارکرد موظفی کارگر در مشاغل سخت' }} />
+            <Stack.Screen name="young-worker-work-hours" options={{ title: 'میزان ساعات کارکرد موظفی کارگر نوجوان' }} />
         </Stack>
     );
 }
