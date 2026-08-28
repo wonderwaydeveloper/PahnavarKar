@@ -140,7 +140,7 @@ export interface OvertimeEntitlementBreakdownItem {
     year: number;
     periodIndex: number;
     daysCovered: number;
-    dailyOvertimeHours: number;
+    totalOvertimeHours: number;
     overtimeRate: number | null;
     amount: number;
 }
@@ -238,7 +238,9 @@ export interface SeniorityEntitlementBreakdownItem {
     periodIndex: number;
     eligibleFrom: ParsedDateInput;
     eligibleTo: ParsedDateInput;
+    daysCovered: number;
     seniorityBase: number;
+    dailyEntitlement: number;
     percentIncrease: number | null;
     amount: number;
 }
@@ -458,7 +460,7 @@ export function calculateSeniorityEntitlementFromPeriodData(
     let previousAmount = 0;
     const settledBefore1392 = startDate.year < 1392 && settlementStatus === 'settled';
     const firstAnniversary = settledBefore1392
-        ? { year: 1393, month: 1, day: 1 }
+        ? getAnniversaryDate(startDate, 1392)
         : getAnniversaryDate(startDate, startDate.year + 1);
     const firstEntitlementYearEnd = {
         year: firstAnniversary.year,
@@ -471,21 +473,24 @@ export function calculateSeniorityEntitlementFromPeriodData(
         period: SalaryPeriodBucket['periods'][number] | null,
         eligibleFrom: ParsedDateInput,
         eligibleTo: ParsedDateInput,
-        amount: number,
+        dailyEntitlement: number,
     ) => {
         if (!period || compareParsedDates(eligibleFrom, eligibleTo) > 0) {
             return;
         }
 
         const rawPercentIncrease = Number(period.percent_increase);
+        const daysCovered = Math.round(toDayNumber(eligibleTo) - toDayNumber(eligibleFrom) + 1);
         breakdown.push({
             year,
             periodIndex: period.period_index,
             eligibleFrom,
             eligibleTo,
+            daysCovered,
             seniorityBase: Number(period.seniority_base ?? 0),
+            dailyEntitlement,
             percentIncrease: Number.isFinite(rawPercentIncrease) ? rawPercentIncrease : null,
-            amount,
+            amount: Math.round(dailyEntitlement * daysCovered),
         });
     };
 
@@ -510,6 +515,14 @@ export function calculateSeniorityEntitlementFromPeriodData(
         }
     };
 
+    const findPeriodForDate = (bucket: SalaryPeriodBucket | undefined, date: ParsedDateInput) =>
+        bucket
+            ? getPeriodSegments(bucket).find((segment) => (
+                compareParsedDates(date, segment.start) >= 0 &&
+                compareParsedDates(date, segment.end) <= 0
+            ))?.period ?? null
+            : null;
+
     const appendAcrossYears = (
         rangeStart: ParsedDateInput,
         rangeEnd: ParsedDateInput,
@@ -519,21 +532,40 @@ export function calculateSeniorityEntitlementFromPeriodData(
             const yearStart = { year, month: 1, day: 1 };
             const yearEnd = { year, month: 12, day: jalaaliMonthLength(year, 12) };
             const bucket = periodBuckets.find((item) => item.year === year);
+            const currentRangeEnd = getEarlierDate(rangeEnd, yearEnd);
 
             appendRangeBreakdowns(
                 bucket,
                 getLaterDate(rangeStart, yearStart),
-                getEarlierDate(rangeEnd, yearEnd),
+                currentRangeEnd,
                 amountForPeriod,
             );
         }
     };
 
     if (!settledBefore1392) {
+        const beforeAnniversaryEnd = compareParsedDates(endDate, firstAnniversary) < 0
+            ? endDate
+            : getPreviousDate(firstAnniversary);
+
         appendAcrossYears(
             startDate,
-            compareParsedDates(endDate, firstAnniversary) < 0 ? endDate : getPreviousDate(firstAnniversary),
+            beforeAnniversaryEnd,
             () => 0,
+        );
+    } else {
+        const firstEntitlementYearStart = { year: 1392, month: 1, day: 1 };
+        const firstEntitlementYearBucket = periodBuckets.find((item) => item.year === 1392);
+        const beforeAnniversaryEnd = getPreviousDate(firstAnniversary);
+        const beforeAnniversaryStart = getLaterDate(startDate, firstEntitlementYearStart);
+        const beforeAnniversaryPeriod = findPeriodForDate(firstEntitlementYearBucket, beforeAnniversaryStart);
+
+        appendBreakdown(
+            1392,
+            beforeAnniversaryPeriod,
+            beforeAnniversaryStart,
+            getEarlierDate(endDate, beforeAnniversaryEnd),
+            0,
         );
     }
 
@@ -559,7 +591,10 @@ export function calculateSeniorityEntitlementFromPeriodData(
     }
 
     if (endDate.year <= firstAnniversary.year) {
-        return { totalAmount: previousAmount, breakdown };
+        return {
+            totalAmount: breakdown.reduce((sum, item) => sum + item.amount, 0),
+            breakdown,
+        };
     }
 
     for (let year = firstAnniversary.year + 1; year <= endDate.year; year += 1) {
@@ -604,7 +639,7 @@ export function calculateSeniorityEntitlementFromPeriodData(
     }
 
     return {
-        totalAmount: previousAmount ?? 0,
+        totalAmount: breakdown.reduce((sum, item) => sum + item.amount, 0),
         breakdown,
     };
 }
@@ -669,6 +704,31 @@ function getFridaysInMonthOverlap(
     return fridays;
 }
 
+export function calculateAvailableFridaysByYear(
+    startDate: ParsedDateInput,
+    endDate: ParsedDateInput,
+): Record<number, number> {
+    if (compareParsedDates(startDate, endDate) > 0) {
+        return {};
+    }
+
+    const availableFridaysByYear: Record<number, number> = {};
+
+    for (let year = startDate.year; year <= endDate.year; year += 1) {
+        let fridaysInYear = 0;
+        const firstMonth = year === startDate.year ? startDate.month : 1;
+        const lastMonth = year === endDate.year ? endDate.month : 12;
+
+        for (let month = firstMonth; month <= lastMonth; month += 1) {
+            fridaysInYear += getFridaysInMonthOverlap(startDate, endDate, year, month);
+        }
+
+        availableFridaysByYear[year] = fridaysInYear;
+    }
+
+    return availableFridaysByYear;
+}
+
 export function calculateSalaryFromPeriodData(
     startDate: ParsedDateInput,
     endDate: ParsedDateInput,
@@ -724,13 +784,9 @@ export function calculateFridayWorkFromPeriodData(
     startDate: ParsedDateInput,
     endDate: ParsedDateInput,
     periodBuckets: SalaryPeriodBucket[],
-    fridayWorkDays: number,
+    fridayWorkDaysByYear: Record<number, number>,
 ): FridayWorkCalculationResult {
-    if (
-        compareParsedDates(startDate, endDate) > 0 ||
-        !Number.isFinite(fridayWorkDays) ||
-        fridayWorkDays <= 0
-    ) {
+    if (compareParsedDates(startDate, endDate) > 0) {
         return { totalAmount: 0, breakdown: [] };
     }
 
@@ -739,6 +795,16 @@ export function calculateFridayWorkFromPeriodData(
     for (const bucket of [...periodBuckets].sort((a, b) => a.year - b.year)) {
         const sortedPeriods = [...bucket.periods].sort((a, b) => a.period_index - b.period_index);
         let monthOffset = 0;
+        const annualFridayWorkDays = Number(fridayWorkDaysByYear[bucket.year] ?? 0);
+        if (!Number.isInteger(annualFridayWorkDays) || annualFridayWorkDays < 0) {
+            continue;
+        }
+        const periodDetails: {
+            period: SalaryPeriodBucket['periods'][number];
+            daysCovered: number;
+            fridaysInPeriod: number;
+            fridayWorkDays: number;
+        }[] = [];
 
         for (const period of sortedPeriods) {
             const periodLength = Number(period.month_count ?? 0);
@@ -758,20 +824,54 @@ export function calculateFridayWorkFromPeriodData(
                 fridaysInPeriod += getFridaysInMonthOverlap(startDate, endDate, calendarYear, calendarMonth);
             }
 
-            const fridayWorkRate = Number(period.friday_work_per_day ?? 0);
-            if (daysCovered > 0 && fridayWorkRate > 0) {
-                breakdown.push({
-                    year: bucket.year,
-                    periodIndex: period.period_index,
-                    daysCovered,
-                    fridaysInPeriod,
-                    fridayWorkDays,
-                    fridayWorkRate,
-                    amount: Math.round(fridayWorkDays * fridayWorkRate),
-                });
+            if (daysCovered > 0) {
+                periodDetails.push({ period, daysCovered, fridaysInPeriod, fridayWorkDays: 0 });
             }
 
             monthOffset = periodEndMonth;
+        }
+
+        const totalAvailableFridays = periodDetails.reduce((sum, item) => sum + item.fridaysInPeriod, 0);
+        if (annualFridayWorkDays <= 0 || totalAvailableFridays <= 0) {
+            continue;
+        }
+
+        const cappedAnnualDays = Math.min(annualFridayWorkDays, totalAvailableFridays);
+        const allocations = periodDetails.map((item) => ({
+            item,
+            exact: cappedAnnualDays * item.fridaysInPeriod / totalAvailableFridays,
+        }));
+        let allocatedDays = 0;
+
+        for (const allocation of allocations) {
+            allocation.item.fridayWorkDays = Math.floor(allocation.exact);
+            allocatedDays += allocation.item.fridayWorkDays;
+        }
+
+        const remainingDays = cappedAnnualDays - allocatedDays;
+        allocations
+            .sort((left, right) => {
+                const fractionalDifference = (right.exact - Math.floor(right.exact)) - (left.exact - Math.floor(left.exact));
+                return fractionalDifference || left.item.period.period_index - right.item.period.period_index;
+            })
+            .slice(0, remainingDays)
+            .forEach((allocation) => {
+                allocation.item.fridayWorkDays += 1;
+            });
+
+        for (const item of periodDetails) {
+            const fridayWorkRate = Number(item.period.friday_work_per_day ?? 0);
+            if (item.fridayWorkDays > 0 && fridayWorkRate > 0) {
+                breakdown.push({
+                    year: bucket.year,
+                    periodIndex: item.period.period_index,
+                    daysCovered: item.daysCovered,
+                    fridaysInPeriod: item.fridaysInPeriod,
+                    fridayWorkDays: item.fridayWorkDays,
+                    fridayWorkRate,
+                    amount: Math.round(item.fridayWorkDays * fridayWorkRate),
+                });
+            }
         }
     }
 
@@ -1249,7 +1349,7 @@ export function calculateOvertimeEntitlementFromPeriodData(
                     year: bucket.year,
                     periodIndex: period.period_index,
                     daysCovered,
-                    dailyOvertimeHours,
+                    totalOvertimeHours: dailyOvertimeHours * daysCovered,
                     overtimeRate,
                     amount: Math.round(periodAmount),
                 });
@@ -1426,9 +1526,6 @@ export function calculateInsuranceDaysEntitlementFromPeriodData(
 
     const breakdown: InsuranceDaysEntitlementBreakdownItem[] = [];
     const thresholdHours = 7.33;
-    const monthStart = { year: startDate.year, month: startDate.month, day: 1 };
-    const monthEnd = { year: endDate.year, month: endDate.month, day: getDaysInPersianMonth(endDate.year, endDate.month) };
-
     const monthCursor = { year: startDate.year, month: startDate.month };
     const endCursor = { year: endDate.year, month: endDate.month };
 

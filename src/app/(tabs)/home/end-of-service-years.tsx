@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { toJalaali } from 'jalaali-js';
+import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Checkbox, Snackbar } from 'react-native-paper';
@@ -28,7 +28,7 @@ export default function EndOfServiceYearsScreen() {
 
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
-    const defaultEndDate = `${currentPersianYear}/12/29`;
+    const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
@@ -244,7 +244,7 @@ export default function EndOfServiceYearsScreen() {
                                         محاسبه سنوات پایان کار
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        بازه‌ی زمانی را انتخاب کنید تا مبلغ سنوات پایان کار محاسبه شود.
+                                        محاسبه سنوات پایان کار براساس ماده ۲۴ قانون کار
                                     </ThemedText>
                                 </View>
                             </View>

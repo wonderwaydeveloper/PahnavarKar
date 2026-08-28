@@ -26,7 +26,7 @@ function AppContent() {
   return (
     <>
       <StatusBar style="light" />
-      <NavigationBar style={theme == 'dark' ? 'light' : 'dark'} />
+      <NavigationBar style={theme === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>

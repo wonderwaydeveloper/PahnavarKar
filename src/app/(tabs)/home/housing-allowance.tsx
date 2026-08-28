@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { toJalaali } from 'jalaali-js';
+import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Checkbox, Snackbar } from 'react-native-paper';
@@ -30,7 +30,7 @@ export default function HousingAllowanceScreen() {
 
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
-    const defaultEndDate = `${currentPersianYear}/12/29`;
+    const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
@@ -265,9 +265,7 @@ export default function HousingAllowanceScreen() {
                                         محاسبه حق مسکن ماهیانه
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        {shouldShowMaritalStatus
-                                            ? 'بازهٔ زمانی و وضعیت تأهل را انتخاب کنید تا مبلغ حق مسکن ماهیانه محاسبه شود.'
-                                            : 'برای محاسبهٔ حق مسکن ماهیانه، بازهٔ زمانی موردنظر را انتخاب کنید.'}
+                                        محاسبه حق مسکن ماهیانه موضوع مصوبه هیات وزیران به تناسب بازه زمانی انتخابی
                                     </ThemedText>
                                 </View>
                             </View>

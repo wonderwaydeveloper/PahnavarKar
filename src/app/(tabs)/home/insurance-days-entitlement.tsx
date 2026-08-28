@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { toJalaali } from 'jalaali-js';
+import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Snackbar } from 'react-native-paper';
@@ -28,7 +28,7 @@ export default function InsuranceDaysEntitlementScreen() {
 
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
-    const defaultEndDate = `${currentPersianYear}/12/29`;
+    const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
@@ -37,7 +37,6 @@ export default function InsuranceDaysEntitlementScreen() {
     const [timePickerVisible, setTimePickerVisible] = useState(false);
     const [dailyWorkHours, setDailyWorkHours] = useState('07:20');
     const [availableYears, setAvailableYears] = useState<number[]>([]);
-    const [isLoadingData, setIsLoadingData] = useState(true);
     const [result, setResult] = useState<InsuranceDaysEntitlementCalculationResult | null>(null);
     const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
@@ -48,7 +47,6 @@ export default function InsuranceDaysEntitlementScreen() {
 
         const loadData = async () => {
             try {
-                setIsLoadingData(true);
                 await seedFromJsonAsset();
 
                 const years = await fetchYears();
@@ -63,7 +61,6 @@ export default function InsuranceDaysEntitlementScreen() {
                 }
             } finally {
                 if (isMounted) {
-                    setIsLoadingData(false);
                 }
             }
         };
@@ -245,13 +242,7 @@ export default function InsuranceDaysEntitlementScreen() {
         setShowDetailedBreakdown(false);
     };
 
-    const formattedResult = useMemo(() => {
-        if (!result) {
-            return '۰';
-        }
-
-        return formatNumber(result.totalDays);
-    }, [result]);
+    const formattedResult = result ? formatNumber(result.totalDays) : '۰';
 
     return (
         <ThemedView style={styles.container}>
@@ -271,10 +262,10 @@ export default function InsuranceDaysEntitlementScreen() {
                             <View style={styles.headerRow}>
                                 <View style={styles.headerText}>
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
-                                        محاسبه مجموع کل روزهای بیمه استحقاقی
+                                        محاسبه تعداد روزهای بیمه استحقاقی
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        بازه زمانی و ساعات کاری روزانه را انتخاب کنید تا تعداد روزهای بیمه استحقاقی محاسبه شود.
+                                        محاسبه تعداد روزهای بیمه موضوع مفاد مواد ۳۹ و ۱۴۸ قانون کار
                                     </ThemedText>
                                 </View>
                             </View>

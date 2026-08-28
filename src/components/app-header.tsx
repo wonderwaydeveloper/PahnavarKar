@@ -50,7 +50,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
       case 'housing-allowance':
         return { title: 'حق مسکن ماهیانه' };
       case 'monthly-allowance':
-        return { title: 'بن ماهیانه' };
+        return { title: 'بن کارگری ماهیانه' };
       case 'minimum-bonus':
         return { title: 'حداقل عیدی و پاداش استحقاقی' };
       case 'maximum-bonus':
@@ -66,7 +66,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
       case 'insurance-days-entitlement':
         return { title: 'تعداد روزهای بیمه استحقاقی' };
       case 'unused-leave-entitlement':
-        return { title: 'تعداد روزهای مرخصی استفاده نشده' };
+        return { title: 'تعداد روزهای مرخصی ذخیره شده کارگر' };
       case 'unused-leave-wage':
         return { title: 'مزد مرخصی استفاده نشده' };
       case 'end-of-service-years':

@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { toJalaali } from 'jalaali-js';
+import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Snackbar } from 'react-native-paper';
@@ -23,7 +23,7 @@ export default function UnusedLeaveEntitlementScreen() {
 
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
-    const defaultEndDate = `${currentPersianYear}/12/29`;
+    const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
@@ -224,10 +224,10 @@ export default function UnusedLeaveEntitlementScreen() {
                             <View style={styles.headerRow}>
                                 <View style={styles.headerText}>
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
-                                        محاسبه تعداد روزهای مرخصی استفاده نشده
+                                        تعداد روزهای مرخصی ذخیره شده کارگر
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        برای محاسبه تعداد روزهای مرخصی استفاده نشده، بازهٔ زمانی کارکرد را انتخاب نمایید.
+                                        محاسبه تعداد روزهای مرخصی ذخیره شده برای کارگر براساس ماده ۶۴ قانون کار
                                     </ThemedText>
                                 </View>
                             </View>

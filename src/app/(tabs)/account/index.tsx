@@ -30,6 +30,16 @@ const profileFields = [
     { key: 'status', label: 'وضعیت حساب', value: 'فعال', type: 'chip' },
 ];
 
+function runDebouncedAction(lastPressRef: { current: number }, callback: () => void) {
+    const now = Date.now();
+    if (now - lastPressRef.current < 500) {
+        return;
+    }
+
+    lastPressRef.current = now;
+    callback();
+}
+
 export default function AccountScreen() {
     const theme = useTheme();
     const router = useRouter();
@@ -38,23 +48,13 @@ export default function AccountScreen() {
     const [snackbarVisible, setSnackbarVisible] = useState(false);
     const appVersion = appConfig.expo?.version ?? '1.0.0';
 
-    const handleDebouncedAction = (callback: () => void) => {
-        const now = Date.now();
-        if (now - lastPressRef.current < 500) {
-            return;
-        }
-
-        lastPressRef.current = now;
-        callback();
-    };
-
     const handleUnavailableAction = (key: string) => {
         if (key === 'about-us' || key === 'app-info') {
-            handleDebouncedAction(() => router.push(`/(tabs)/account/${key}` as any));
+            runDebouncedAction(lastPressRef, () => router.push(`/(tabs)/account/${key}` as any));
             return;
         }
 
-        handleDebouncedAction(() => setSnackbarVisible(true));
+        runDebouncedAction(lastPressRef, () => setSnackbarVisible(true));
     };
 
     return (
@@ -122,7 +122,7 @@ export default function AccountScreen() {
                     <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text }]}>اطلاعات برنامه</ThemedText>
 
                     <Pressable
-                        onPress={() => handleDebouncedAction(() => router.push('/(tabs)/account/app-info' as any))}
+                        onPress={() => runDebouncedAction(lastPressRef, () => router.push('/(tabs)/account/app-info' as any))}
                         style={({ pressed }) => [
                             styles.appInfoListItem,
                             {

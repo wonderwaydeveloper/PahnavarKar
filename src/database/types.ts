@@ -50,9 +50,9 @@ export interface SeedPeriodRecord {
     'مبلغ_حداقل_مزد_روزانه_مصوب_شورای_عالی_کار'?: number | null;
     'مبلغ_جمعه_کاری_یک_روز'?: number | null;
     'نوبت_کاری_ماهیانه'?: {
-        'صبح وعصر  10%'?: number | null;
-        'صبح وعصر وشب  15%'?: number | null;
-        'صبح  وشب یا عصر وشب   22.5%'?: number | null;
+        'صبح وعصر 10%'?: number | null;
+        'صبح و عصر و شب 15%'?: number | null;
+        'صبح  و شب یا عصر و شب 22.5%'?: number | null;
     } | null;
     'پایه_سنواتی_جاری'?: number | null;
     'درصد_افزايش'?: number | null;

@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { toJalaali } from 'jalaali-js';
+import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Checkbox, Snackbar } from 'react-native-paper';
@@ -28,7 +28,7 @@ export default function SpousalAllowanceScreen() {
 
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
-    const defaultEndDate = `${currentPersianYear}/12/29`;
+    const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
@@ -258,7 +258,7 @@ export default function SpousalAllowanceScreen() {
                                         محاسبه حق تاهل استحقاقی
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        برای محاسبهٔ حق تأهل استحقاقی، بازهٔ زمانی موردنظر را انتخاب کنید.
+                                        محاسبه حق تاهل براساس تصریح مصوبات شورای عالی کار از سال ۱۴۰۳
                                     </ThemedText>
                                 </View>
                             </View>

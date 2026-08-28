@@ -7,6 +7,30 @@ export async function initDatabase() {
     return initializeSchema();
 }
 
+export async function getDatabaseUserVersion(): Promise<number> {
+    return runWithDatabaseLock(async (database) => {
+        const statement = await database.prepareAsync('PRAGMA user_version;');
+
+        try {
+            const result = await statement.executeAsync<{ user_version: number }>([]);
+            const row = await result.getFirstAsync();
+            return Number(row?.user_version ?? 0);
+        } finally {
+            await statement.finalizeAsync();
+        }
+    });
+}
+
+export async function setDatabaseUserVersion(version: number): Promise<void> {
+    if (!Number.isInteger(version) || version < 0) {
+        throw new Error('Invalid database user version.');
+    }
+
+    await runWithDatabaseLock(async (database) => {
+        await database.execAsync(`PRAGMA user_version = ${version};`);
+    });
+}
+
 export async function clearDatabase() {
     return runWithDatabaseLock(async (database) => {
         await database.execAsync('DROP TABLE IF EXISTS periods; DROP TABLE IF EXISTS years;');
@@ -24,9 +48,9 @@ export async function seedDatabase(data: SeedData) {
         let transactionStarted = false;
 
         try {
-            await recreateDatabaseTables(database);
             await database.execAsync('BEGIN IMMEDIATE;');
             transactionStarted = true;
+            await recreateDatabaseTables(database);
 
             yearStatement = await database.prepareAsync(`
                 INSERT INTO years (
@@ -69,9 +93,6 @@ export async function seedDatabase(data: SeedData) {
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             `);
 
-            await database.execAsync('DELETE FROM periods;');
-            await database.execAsync('DELETE FROM years;');
-
             for (const yearRecord of data.data) {
                 const rawYearValue = yearRecord['سال_كاركرد'];
                 const numericYearValue = Number(rawYearValue);
@@ -110,9 +131,9 @@ export async function seedDatabase(data: SeedData) {
                             period['پایه_سنواتی_گذشته'] ?? null,
                             period['پایه_سنوات_تجمیعی'] ?? null,
                             period['مبلغ_جمعه_کاری_یک_روز'] ?? null,
-                            period['نوبت_کاری_ماهیانه']?.['صبح وعصر  10%'] ?? null,
-                            period['نوبت_کاری_ماهیانه']?.['صبح وعصر وشب  15%'] ?? null,
-                            period['نوبت_کاری_ماهیانه']?.['صبح  وشب یا عصر وشب   22.5%'] ?? null,
+                            period['نوبت_کاری_ماهیانه']?.['صبح وعصر 10%'] ?? null,
+                            period['نوبت_کاری_ماهیانه']?.['صبح و عصر و شب 15%'] ?? null,
+                            period['نوبت_کاری_ماهیانه']?.['صبح  و شب یا عصر و شب 22.5%'] ?? null,
                             period['پایه_سنواتی_جاری'] ?? null,
                             period['مبلغ_اضافه_كاری_یک_ساعت'] ?? null,
                             period['مبلغ_شب_کاری_یک_ساعت'] ?? null,
@@ -160,13 +181,16 @@ export async function fetchYears(): Promise<YearRecord[]> {
             FROM years
             ORDER BY year ASC;
         `);
-        const result = await statement.executeAsync<YearRecord>([]);
-        const rows = await result.getAllAsync() as YearRecord[];
-        await statement.finalizeAsync();
-        return rows.map((year) => ({
-            ...year,
-            year: Math.trunc(Number(year.year)),
-        }));
+        try {
+            const result = await statement.executeAsync<YearRecord>([]);
+            const rows = await result.getAllAsync() as YearRecord[];
+            return rows.map((year) => ({
+                ...year,
+                year: Math.trunc(Number(year.year)),
+            }));
+        } finally {
+            await statement.finalizeAsync();
+        }
     });
 }
 
@@ -178,9 +202,11 @@ export async function fetchPeriodsByYearId(yearId: number): Promise<PeriodRecord
             WHERE year_id = ?
             ORDER BY period_index ASC;
         `);
-        const result = await statement.executeAsync<PeriodRecord>([yearId]);
-        const rows = await result.getAllAsync() as PeriodRecord[];
-        await statement.finalizeAsync();
-        return rows;
+        try {
+            const result = await statement.executeAsync<PeriodRecord>([yearId]);
+            return await result.getAllAsync() as PeriodRecord[];
+        } finally {
+            await statement.finalizeAsync();
+        }
     });
 }

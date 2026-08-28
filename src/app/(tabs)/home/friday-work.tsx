@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { toJalaali } from 'jalaali-js';
+import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Button, Card, Snackbar } from 'react-native-paper';
@@ -12,6 +12,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
 import {
+    calculateAvailableFridaysByYear,
     calculateFridayWorkFromPeriodData,
     parseDateInput,
     type FridayWorkCalculationResult,
@@ -28,11 +29,11 @@ export default function FridayWorkScreen() {
 
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
-    const defaultEndDate = `${currentPersianYear}/12/29`;
+    const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
-    const [fridayWorkDays, setFridayWorkDays] = useState('۱');
+    const [fridayWorkDaysByYear, setFridayWorkDaysByYear] = useState<Record<number, string>>({});
     const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | null>(null);
     const [pickerVisible, setPickerVisible] = useState(false);
     const [periodBuckets, setPeriodBuckets] = useState<SalaryPeriodBucket[]>([]);
@@ -98,15 +99,9 @@ export default function FridayWorkScreen() {
     const latinDigits = '0123456789';
 
     const normalizeDigits = (value: string) => value.replace(/[۰-۹]/g, (digit) => latinDigits[persianDigits.indexOf(digit)]);
-    const toPersianDigits = (value: string) => value.replace(/\d/g, (digit) => persianDigits[Number(digit)]);
+    const toPersianDigits = (value: string | number) => String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
     const filterFridayWorkDaysInput = (value: string) => value.replace(/[^0-9۰-۹]/g, '');
     const formatCurrency = (value: number) => `${new Intl.NumberFormat('fa-IR').format(value)} ریال`;
-
-    const changeFridayWorkDays = (amount: number) => {
-        const currentValue = Number(normalizeDigits(filterFridayWorkDaysInput(fridayWorkDays))) || 0;
-        const nextValue = Math.max(1, currentValue + amount);
-        setFridayWorkDays(toPersianDigits(String(nextValue)));
-    };
 
     const formatDisplayedDate = (value: string) => {
         const parsed = parseDateInput(value);
@@ -162,22 +157,69 @@ export default function FridayWorkScreen() {
         }
     };
 
+    const selectedYears = (() => {
+        const parsedStartDate = parseDateInput(startDate);
+        const parsedEndDate = parseDateInput(endDate);
+        if (!parsedStartDate || !parsedEndDate || compareDates(startDate, endDate) > 0) {
+            return [];
+        }
+
+        return Array.from(
+            { length: parsedEndDate.year - parsedStartDate.year + 1 },
+            (_, index) => parsedStartDate.year + index,
+        );
+    })();
+    const availableFridaysByYear = (() => {
+        const parsedStartDate = parseDateInput(startDate);
+        const parsedEndDate = parseDateInput(endDate);
+        if (!parsedStartDate || !parsedEndDate) {
+            return {};
+        }
+
+        return calculateAvailableFridaysByYear(parsedStartDate, parsedEndDate);
+    })();
+
+    const updateFridayWorkDays = (year: number, value: string) => {
+        setFridayWorkDaysByYear((currentValues) => ({
+            ...currentValues,
+            [year]: filterFridayWorkDaysInput(value),
+        }));
+    };
+
+    const changeFridayWorkDays = (year: number, amount: number) => {
+        const currentValue = Number(normalizeDigits(
+            fridayWorkDaysByYear[year] ?? String(availableFridaysByYear[year] ?? 0),
+        )) || 0;
+        const available = availableFridaysByYear[year] ?? 0;
+        const nextValue = Math.min(available, Math.max(0, currentValue + amount));
+
+        setFridayWorkDaysByYear((currentValues) => ({
+            ...currentValues,
+            [year]: toPersianDigits(String(nextValue)),
+        }));
+    };
+
+    const validateFridayWorkDays = (year: number) => {
+        const value = Number(normalizeDigits((fridayWorkDaysByYear[year] ?? '').trim()));
+        const available = availableFridaysByYear[year] ?? 0;
+
+        if (Number.isInteger(value) && value > available) {
+            setFridayWorkDaysByYear((currentValues) => ({
+                ...currentValues,
+                [year]: toPersianDigits(String(available)),
+            }));
+            setSnackbarMessage(`تعداد جمعه کاری وارده در سال ${toPersianDigits(year)} بیش تر از تعداد جمعه کاری موجود است`);
+            setSnackbarVisible(true);
+        }
+    };
+
     const handleCalculate = () => {
         const parsedStart = parseDateInput(startDate);
         const parsedEnd = parseDateInput(endDate);
-        const normalizedFridayWorkDays = normalizeDigits(fridayWorkDays.trim());
-        const parsedFridayWorkDays = Number(normalizedFridayWorkDays);
 
         if (!parsedStart || !parsedEnd || compareDates(startDate, endDate) > 0) {
             setResult(null);
             setSnackbarMessage('بازهٔ زمانی واردشده معتبر نیست.');
-            setSnackbarVisible(true);
-            return;
-        }
-
-        if (!/^\d+$/.test(normalizedFridayWorkDays) || !Number.isInteger(parsedFridayWorkDays) || parsedFridayWorkDays <= 0) {
-            setResult(null);
-            setSnackbarMessage('تعداد جمعه کاری باید یک عدد صحیح بزرگ‌تر از صفر باشد.');
             setSnackbarVisible(true);
             return;
         }
@@ -187,12 +229,31 @@ export default function FridayWorkScreen() {
             return;
         }
 
-        const calculation = calculateFridayWorkFromPeriodData(
-            parsedStart,
-            parsedEnd,
-            periodBuckets,
-            parsedFridayWorkDays,
-        );
+        const parsedFridayWorkDaysByYear: Record<number, number> = {};
+        for (const year of selectedYears) {
+            const displayedValue = fridayWorkDaysByYear[year] ?? toPersianDigits(availableFridaysByYear[year] ?? 0);
+            const normalizedValue = normalizeDigits(displayedValue.trim());
+            const value = Number(normalizedValue);
+            const available = availableFridaysByYear[year] ?? 0;
+
+            if (!/^\d+$/.test(normalizedValue) || !Number.isInteger(value) || value < 0) {
+                setResult(null);
+                setSnackbarMessage(`تعداد جمعه کاری سال ${toPersianDigits(year)} باید یک عدد صحیح صفر یا بزرگ‌تر باشد.`);
+                setSnackbarVisible(true);
+                return;
+            }
+
+            if (value > available) {
+                setResult(null);
+                setSnackbarMessage(`تعداد جمعه کاری وارده در سال ${toPersianDigits(year)} بیش تر از تعداد جمعه کاری موجود است`);
+                setSnackbarVisible(true);
+                return;
+            }
+
+            parsedFridayWorkDaysByYear[year] = value;
+        }
+
+        const calculation = calculateFridayWorkFromPeriodData(parsedStart, parsedEnd, periodBuckets, parsedFridayWorkDaysByYear);
 
         if (calculation.breakdown.length === 0) {
             setResult(null);
@@ -208,7 +269,9 @@ export default function FridayWorkScreen() {
     const handleReset = () => {
         setStartDate(defaultStartDate);
         setEndDate(defaultEndDate);
-        setFridayWorkDays('۱');
+        setFridayWorkDaysByYear(
+            Object.fromEntries(selectedYears.map((year) => [year, toPersianDigits(String(availableFridaysByYear[year] ?? 0))])),
+        );
         setResult(null);
         setShowDetailedBreakdown(false);
     };
@@ -216,10 +279,7 @@ export default function FridayWorkScreen() {
     const formattedResult = useMemo(() => (
         result ? toPersianDigits(formatCurrency(result.totalAmount)) : '۰ ریال'
     ), [result]);
-    const totalFridaysInRange = useMemo(
-        () => result?.breakdown.reduce((sum, item) => sum + item.fridaysInPeriod, 0) ?? 0,
-        [result],
-    );
+    const totalFridaysInRange = Object.values(availableFridaysByYear).reduce((sum, value) => sum + value, 0);
 
     return (
         <ThemedView style={styles.container}>
@@ -233,13 +293,13 @@ export default function FridayWorkScreen() {
                             <View style={styles.headerRow}>
                                 <View style={styles.headerText}>
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>محاسبه جمعه کاری</ThemedText>
-                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>برای محاسبه جمعه کاری، بازهٔ زمانی و تعداد جمعه کاری کارگر را وارد نمایید.</ThemedText>
+                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>محاسبه مزد جمعه‌کاری‌های انجام‌شده براساس ماده ۶۲ قانون کار</ThemedText>
                                 </View>
                             </View>
 
                             <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                 <ThemedText type="small" style={[styles.formulaLabel, { color: theme.textSecondary }]}>فرمول محاسبه</ThemedText>
-                                <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>تعداد جمعه کاری کارگر × مبلغ جمعه کاری یک روز در همان سال</ThemedText>
+                                <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>تعداد جمعه کاری کارگر در هر سال × مبلغ جمعه کاری یک روز در دوره‌های همان سال</ThemedText>
                             </View>
 
                             <View style={styles.metricsRow}>
@@ -256,44 +316,62 @@ export default function FridayWorkScreen() {
                                 ))}
                             </View>
 
-                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تعداد جمعه کاری کارگر</ThemedText>
-                                <View style={[styles.stepper, { backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}>
-                                    <Pressable
-                                        onPress={() => changeFridayWorkDays(-1)}
-                                        disabled={Number(normalizeDigits(fridayWorkDays)) <= 1}
-                                        style={({ pressed }) => [
-                                            styles.stepperButton,
-                                            { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant },
-                                            Number(normalizeDigits(fridayWorkDays)) <= 1 && styles.stepperButtonDisabled,
-                                        ]}
-                                        accessibilityRole="button"
-                                        accessibilityLabel="کاهش تعداد جمعه کاری"
-                                    >
-                                        <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
-                                    </Pressable>
-                                    <TextInput
-                                        value={fridayWorkDays}
-                                        onChangeText={(value) => setFridayWorkDays(filterFridayWorkDaysInput(value))}
-                                        keyboardType="number-pad"
-                                        placeholder="۱"
-                                        placeholderTextColor={theme.textMuted}
-                                        style={[styles.textInput, { color: theme.text, direction: 'ltr' }]}
-                                        textAlign="center"
-                                        accessibilityLabel="تعداد جمعه کاری کارگر"
-                                    />
-                                    <Pressable
-                                        onPress={() => changeFridayWorkDays(1)}
-                                        style={({ pressed }) => [
-                                            styles.stepperButton,
-                                            { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant },
-                                        ]}
-                                        accessibilityRole="button"
-                                        accessibilityLabel="افزایش تعداد جمعه کاری"
-                                    >
-                                        <MaterialCommunityIcons name="plus" size={20} color={theme.primary} />
-                                    </Pressable>
-                                </View>
+                            <View style={styles.yearFieldsGroup}>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تعداد جمعه کاری کارگر در هر سال</ThemedText>
+                                {selectedYears.map((year) => {
+                                    const availableFridays = availableFridaysByYear[year] ?? 0;
+                                    return (
+                                        <View key={year} style={[styles.yearField, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                            <View style={styles.yearFieldHeader}>
+                                                <ThemedText type="smallBold" style={{ color: theme.text }}>
+                                                    تعداد جمعه کاری کارگر در سال {toPersianDigits(year)}
+                                                </ThemedText>
+                                                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                                                    موجود: {toPersianDigits(availableFridays)} جمعه
+                                                </ThemedText>
+                                            </View>
+                                            <View style={[styles.stepper, { backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}>
+                                                <Pressable
+                                                    onPress={() => changeFridayWorkDays(year, -1)}
+                                                    disabled={Number(normalizeDigits(fridayWorkDaysByYear[year] ?? String(availableFridays))) <= 0}
+                                                    style={({ pressed }) => [
+                                                        styles.stepperButton,
+                                                        { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant },
+                                                        Number(normalizeDigits(fridayWorkDaysByYear[year] ?? String(availableFridays))) <= 0 && styles.stepperButtonDisabled,
+                                                    ]}
+                                                    accessibilityRole="button"
+                                                    accessibilityLabel={`کاهش تعداد جمعه کاری سال ${year}`}
+                                                >
+                                                    <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
+                                                </Pressable>
+                                                <TextInput
+                                                    value={fridayWorkDaysByYear[year] ?? toPersianDigits(availableFridays)}
+                                                    onChangeText={(value) => updateFridayWorkDays(year, value)}
+                                                    onBlur={() => validateFridayWorkDays(year)}
+                                                    keyboardType="number-pad"
+                                                    placeholder={toPersianDigits(availableFridays)}
+                                                    placeholderTextColor={theme.textMuted}
+                                                    style={[styles.textInput, { color: theme.text, direction: 'ltr' }]}
+                                                    textAlign="center"
+                                                    accessibilityLabel={`تعداد جمعه کاری کارگر در سال ${year}`}
+                                                />
+                                                <Pressable
+                                                    onPress={() => changeFridayWorkDays(year, 1)}
+                                                    disabled={Number(normalizeDigits(fridayWorkDaysByYear[year] ?? String(availableFridays))) >= availableFridays}
+                                                    style={({ pressed }) => [
+                                                        styles.stepperButton,
+                                                        { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant },
+                                                        Number(normalizeDigits(fridayWorkDaysByYear[year] ?? String(availableFridays))) >= availableFridays && styles.stepperButtonDisabled,
+                                                    ]}
+                                                    accessibilityRole="button"
+                                                    accessibilityLabel={`افزایش تعداد جمعه کاری سال ${year}`}
+                                                >
+                                                    <MaterialCommunityIcons name="plus" size={20} color={theme.primary} />
+                                                </Pressable>
+                                            </View>
+                                        </View>
+                                    );
+                                })}
                             </View>
 
                             <View style={styles.actionsGroup}>
@@ -366,6 +444,9 @@ const styles = StyleSheet.create({
     formulaValue: { lineHeight: 20, fontSize: 12 },
     metricsRow: { flexDirection: 'row', gap: Spacing.two },
     metricBox: { flex: 1, borderRadius: 14, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, gap: Spacing.one },
+    yearFieldsGroup: { gap: Spacing.two },
+    yearField: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two, gap: Spacing.one },
+    yearFieldHeader: { gap: Spacing.half },
     sectionLabel: { fontSize: 11 },
     dateInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.one, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth },
     stepper: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.one, gap: Spacing.one },

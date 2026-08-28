@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { toJalaali } from 'jalaali-js';
+import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Snackbar } from 'react-native-paper';
@@ -28,7 +28,7 @@ export default function NightShiftEntitlementScreen() {
 
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
-    const defaultEndDate = `${currentPersianYear}/12/29`;
+    const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
@@ -245,7 +245,7 @@ export default function NightShiftEntitlementScreen() {
                                         محاسبه شب کاری استحقاقی
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        بازه زمانی را انتخاب کنید تا شب کاری استحقاقی محاسبه شود.
+                                        محاسبه فوق‌العاده شب‌کاری براساس شرح ماده ۵۸ قانون کار
                                     </ThemedText>
                                 </View>
                             </View>

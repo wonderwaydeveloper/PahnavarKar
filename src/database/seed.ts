@@ -1,10 +1,30 @@
-import { initDatabase, seedDatabase } from './db';
+import { getDatabaseUserVersion, initDatabase, seedDatabase, setDatabaseUserVersion } from './db';
 import type { SeedData } from './types';
 
+const seedVersion = 1;
+let seedPromise: Promise<void> | null = null;
+
 export async function seedFromJsonAsset() {
-    await initDatabase();
+    if (seedPromise) {
+        return seedPromise;
+    }
 
-    const data = require('../../assets/data-source/calculator-data.json') as SeedData;
+    seedPromise = (async () => {
+        await initDatabase();
 
-    await seedDatabase(data);
+        if (await getDatabaseUserVersion() >= seedVersion) {
+            return;
+        }
+
+        const data = require('../../assets/data-source/calculator-data.json') as SeedData;
+        await seedDatabase(data);
+        await setDatabaseUserVersion(seedVersion);
+    })();
+
+    try {
+        await seedPromise;
+    } catch (error) {
+        seedPromise = null;
+        throw error;
+    }
 }

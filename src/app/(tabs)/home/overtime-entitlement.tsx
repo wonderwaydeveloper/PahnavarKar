@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { toJalaali } from 'jalaali-js';
+import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Snackbar } from 'react-native-paper';
@@ -29,7 +29,7 @@ export default function OvertimeEntitlementScreen() {
 
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
-    const defaultEndDate = `${currentPersianYear}/12/29`;
+    const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
@@ -141,12 +141,12 @@ export default function OvertimeEntitlementScreen() {
         return hours + minutes / 60;
     };
 
-    const formatDecimalHours = (value: number) => {
+    const formatTotalOvertimeHours = (value: number) => {
         const totalMinutes = Math.round(value * 60);
         const hours = Math.floor(totalMinutes / 60);
         const minutes = totalMinutes % 60;
 
-        return `${toPersianDigits(String(hours))}:${toPersianDigits(String(minutes).padStart(2, '0'))}`;
+        return `${toPersianDigits(String(hours))} ساعت و ${toPersianDigits(String(minutes))} دقیقه`;
     };
 
     const compareDates = (left: string, right: string) => {
@@ -287,7 +287,7 @@ export default function OvertimeEntitlementScreen() {
                                         محاسبه اضافه کاری استحقاقی
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        برای محاسبه مبلغ اضافه کاری استحقاقی ، بازه زمانی و تعداد ساعات اضافه کاری روزانه مورد نظر را انتخاب کنید.
+                                        محاسبه فوق‌العاده اضافه‌کاری براساس شرح ماده ۵۹ قانون کار
                                     </ThemedText>
                                 </View>
                             </View>
@@ -444,10 +444,10 @@ export default function OvertimeEntitlementScreen() {
                                                             </View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    تعداد ساعات اضافه کاری روزانه
+                                                                    مجموع ساعات اضافه‌کاری دوره
                                                                 </ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
-                                                                    {formatDecimalHours(item.dailyOvertimeHours)}
+                                                                    {formatTotalOvertimeHours(item.totalOvertimeHours)}
                                                                 </ThemedText>
                                                             </View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>

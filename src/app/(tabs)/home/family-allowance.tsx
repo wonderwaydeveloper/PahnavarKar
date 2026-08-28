@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { toJalaali } from 'jalaali-js';
+import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Checkbox, Menu, Snackbar } from 'react-native-paper';
@@ -30,7 +30,7 @@ export default function FamilyAllowanceScreen() {
 
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
-    const defaultEndDate = `${currentPersianYear}/12/29`;
+    const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
@@ -79,7 +79,7 @@ export default function FamilyAllowanceScreen() {
                     setPeriodBuckets(buckets);
                     setAvailableYears(years.map((year) => year.year));
                 }
-            } catch (error) {
+            } catch {
                 if (isMounted) {
                     setSnackbarMessage('خطا در بارگذاری داده‌ها. لطفاً دوباره تلاش کنید.');
                     setSnackbarVisible(true);
@@ -246,7 +246,7 @@ export default function FamilyAllowanceScreen() {
                                         محاسبه حق عائله مندی
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        بازه‌ی زمانی و تعداد فرزندان واجد شرایط را انتخاب کنید تا مبلغ عائله‌مندی محاسبه شود.
+                                        محاسبه حق عائله مندی براساس بند۲ماده ۸۶قانون تامین اجتماعی
                                     </ThemedText>
                                 </View>
                             </View>

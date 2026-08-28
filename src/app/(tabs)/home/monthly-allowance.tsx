@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { toJalaali } from 'jalaali-js';
+import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Checkbox, Snackbar } from 'react-native-paper';
@@ -30,7 +30,7 @@ export default function MonthlyAllowanceScreen() {
 
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
-    const defaultEndDate = `${currentPersianYear}/12/29`;
+    const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
@@ -260,12 +260,10 @@ export default function MonthlyAllowanceScreen() {
                             <View style={styles.headerRow}>
                                 <View style={styles.headerText}>
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
-                                        محاسبه بن ماهیانه
+                                        بن کارگری ماهیانه
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        {shouldShowMaritalStatus
-                                            ? 'برای محاسبهٔ بن ماهیانه، بازهٔ زمانی مورد نظر و وضعیت تأهل را انتخاب کنید.'
-                                            : 'برای محاسبهٔ بن ماهیانه، بازهٔ زمانی موردنظر را انتخاب کنید.'}
+                                        محاسبه بن کارگری مصوبه شورای عالی کار به تناسب بازه زمانی انتخابی
                                     </ThemedText>
                                 </View>
                             </View>

@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { toJalaali } from 'jalaali-js';
+import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Snackbar } from 'react-native-paper';
@@ -71,19 +71,21 @@ function BreakdownItem({ item }: { item: SeniorityEntitlementBreakdownItem }) {
         <View style={[styles.breakdownItem, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={[styles.breakdownHeader, { borderBottomColor: theme.border }]}>
                 <ThemedText type="smallBold" style={[styles.breakdownTitle, { color: theme.text }]}>
-                    جزئیات محاسبه پایه سنوات
+                    سال {toPersianDigits(item.year)}، دوره {toPersianDigits(item.periodIndex)}
                 </ThemedText>
                 <ThemedText type="small" style={[styles.breakdownSubtitle, { color: theme.textSecondary }]}>
-                    بازه زمانی {formatDate(item.eligibleFrom)} تا {formatDate(item.eligibleTo)} | سال {toPersianDigits(item.year)} | رکورد داده {toPersianDigits(item.periodIndex)}
+                    از {formatDate(item.eligibleFrom)} تا {formatDate(item.eligibleTo)}
                 </ThemedText>
             </View>
             <View style={styles.detailGrid}>
                 <DetailValue label="از تاریخ" value={formatDate(item.eligibleFrom)} />
                 <DetailValue label="تا تاریخ" value={formatDate(item.eligibleTo)} />
+                <DetailValue label="تعداد روزهای این دوره" value={`${toPersianDigits(item.daysCovered)} روز`} />
                 <DetailValue label="پایه سنوات جاری" value={formatCurrency(item.seniorityBase)} />
+                <DetailValue label="پایه سنوات استحقاقی روزانه" value={formatCurrency(item.dailyEntitlement)} />
                 <DetailValue label="درصد افزایش" value={item.percentIncrease === null ? '-' : toPersianDigits(item.percentIncrease)} />
                 <View style={[styles.detailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
-                    <ThemedText type="small" style={{ color: theme.textSecondary }}>پایه سنوات استحقاقی</ThemedText>
+                    <ThemedText type="small" style={{ color: theme.textSecondary }}>مبلغ استحقاق این دوره</ThemedText>
                     <ThemedText type="smallBold" style={{ color: theme.primary }}>{formatCurrency(item.amount)}</ThemedText>
                 </View>
             </View>
@@ -99,7 +101,7 @@ export default function SeniorityEntitlementScreen() {
         return toJalaali(today.getFullYear(), today.getMonth() + 1, today.getDate());
     }, []);
     const defaultStartDate = `${currentDate.jy}/01/01`;
-    const defaultEndDate = `${currentDate.jy}/12/29`;
+    const defaultEndDate = `${currentDate.jy}/12/${jalaaliMonthLength(currentDate.jy, 12)}`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
@@ -184,19 +186,36 @@ export default function SeniorityEntitlementScreen() {
             return;
         }
 
+        const missingYears = [];
+        for (let year = parsedStart.year; year <= parsedEnd.year; year += 1) {
+            const bucket = periodBuckets.find((item) => item.year === year);
+            if (!bucket || bucket.periods.length === 0) {
+                missingYears.push(year);
+            }
+        }
+
+        if (missingYears.length > 0) {
+            setResult(null);
+            setSnackbarMessage(`برای سال‌های ${missingYears.map((year) => toPersianDigits(year)).join('، ')} داده‌ای برای محاسبه موجود نیست.`);
+            setSnackbarVisible(true);
+            return;
+        }
+
         const calculation = calculateSeniorityEntitlementFromPeriodData(
             parsedStart,
             parsedEnd,
             periodBuckets,
             settlementStatus,
         );
+        if (calculation.breakdown.length === 0 || calculation.breakdown.every((item) => item.amount <= 0)) {
+            setResult(null);
+            setSnackbarMessage('هنوز پایه سنوات استحقاقی ایجاد نشده است');
+            setSnackbarVisible(true);
+            return;
+        }
+
         setResult(calculation);
         setShowDetails(false);
-
-        if (calculation.breakdown.length === 0) {
-            setSnackbarMessage('برای این بازه پایه سنوات استحقاقی وجود ندارد.');
-            setSnackbarVisible(true);
-        }
     };
 
     const handleReset = () => {
@@ -208,14 +227,7 @@ export default function SeniorityEntitlementScreen() {
     };
 
     const parsedStartDate = parseDateInput(startDate);
-    const parsedEndDate = parseDateInput(endDate);
     const showSettlementStatus = parsedStartDate !== null && parsedStartDate.year < 1392;
-    const showFinalYearAmount = parsedStartDate !== null
-        && (parsedStartDate.month !== 1 || parsedStartDate.day !== 1)
-        && parsedEndDate !== null;
-    const finalYearBreakdown = showFinalYearAmount && parsedEndDate
-        ? (result?.breakdown ?? []).filter((item) => item.year === parsedEndDate.year)
-        : [];
 
     return (
         <ThemedView style={styles.container}>
@@ -227,8 +239,8 @@ export default function SeniorityEntitlementScreen() {
                     <Card elevation={1} style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                         <Card.Content style={styles.cardContent}>
                             <View style={styles.headerText}>
-                                <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>پایه سنوات استحقاقی</ThemedText>
-                                <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>محاسبه بر اساس سابقه کار، تاریخ سالگرد استخدام و داده‌های سالانه.</ThemedText>
+                                <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>محاسبه پایه سنوات استحقاقی</ThemedText>
+                                <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>محاسبه پایه سنوات استحقاقی براساس درصد افزایش سایر سطوح مزدی و سابقه کار کارگر</ThemedText>
                             </View>
 
                             <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
@@ -279,21 +291,6 @@ export default function SeniorityEntitlementScreen() {
                                             <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                                 <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>مبلغ نهایی پایه سنوات استحقاقی</ThemedText>
                                                 <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>{formatCurrency(result.totalAmount)}</ThemedText>
-                                                {showFinalYearAmount && finalYearBreakdown.length > 0 ? (
-                                                    <View style={[styles.finalYearSummary, { borderTopColor: theme.border }]}>
-                                                        <ThemedText type="smallBold" style={{ color: theme.text }}>مبالغ سال آخر بر اساس بازه زمانی</ThemedText>
-                                                        {finalYearBreakdown.map((item, index) => (
-                                                            <View key={`${item.year}-${item.periodIndex}-${index}`} style={[styles.finalYearAmountRow, { borderColor: theme.border }]}>
-                                                                <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                                                                    {formatDate(item.eligibleFrom)} تا {formatDate(item.eligibleTo)}
-                                                                </ThemedText>
-                                                                <ThemedText type="smallBold" style={{ color: theme.primary }}>
-                                                                    {formatCurrency(item.amount)}
-                                                                </ThemedText>
-                                                            </View>
-                                                        ))}
-                                                    </View>
-                                                ) : null}
                                             </View>
                                         </View>
                                         <View style={styles.breakdownHeaderRow}>
@@ -371,8 +368,6 @@ const styles = StyleSheet.create({
     summaryBoxContent: { width: '100%', alignItems: 'center', gap: Spacing.one, padding: Spacing.two, borderRadius: 12, borderWidth: 1 },
     summaryLabel: { fontSize: 11 },
     amountValue: { fontSize: 18 },
-    finalYearSummary: { alignItems: 'stretch', gap: Spacing.one, width: '100%', paddingTop: Spacing.one, marginTop: Spacing.one, borderTopWidth: StyleSheet.hairlineWidth },
-    finalYearAmountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.one, paddingHorizontal: Spacing.two, borderWidth: StyleSheet.hairlineWidth, borderRadius: 8 },
     breakdownHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.one, paddingVertical: Spacing.one, gap: Spacing.one },
     detailsButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
     detailsButtonLabel: { fontSize: 11 },
