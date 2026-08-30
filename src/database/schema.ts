@@ -36,6 +36,8 @@ const expectedPeriodColumns = [
     'marital_allowance',
 ];
 const expectedHolidayColumns = ['id', 'year_id', 'month', 'day', 'holiday_date'];
+const expectedJobGroupColumns = ['id', 'group_number', 'sort_order'];
+const expectedSeniorityBaseColumns = ['id', 'year_id', 'period_id', 'job_group_id', 'base_value'];
 
 export async function initializeSchema() {
     return runWithDatabaseLock(async (database) => {
@@ -45,6 +47,8 @@ export async function initializeSchema() {
 }
 
 export async function recreateDatabaseTables(database: SQLiteDatabase) {
+    await database.execAsync('DROP TABLE IF EXISTS seniority_base_by_group;');
+    await database.execAsync('DROP TABLE IF EXISTS job_groups;');
     await database.execAsync('DROP TABLE IF EXISTS official_holidays;');
     await database.execAsync('DROP TABLE IF EXISTS periods;');
     await database.execAsync('DROP TABLE IF EXISTS years;');
@@ -90,7 +94,7 @@ async function createTables(database: SQLiteDatabase) {
         min_wage_decree_reference TEXT,
         marital_allowance REAL,
         FOREIGN KEY(year_id) REFERENCES years(id) ON DELETE CASCADE
-    );`);
+    );`)
 
     await database.execAsync(`CREATE TABLE IF NOT EXISTS official_holidays (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,18 +105,40 @@ async function createTables(database: SQLiteDatabase) {
         UNIQUE(year_id, month, day),
         FOREIGN KEY(year_id) REFERENCES years(id) ON DELETE CASCADE
     );`);
+
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS job_groups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        group_number INTEGER NOT NULL UNIQUE,
+        sort_order INTEGER NOT NULL DEFAULT 0
+    );`);
+
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS seniority_base_by_group (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        year_id INTEGER NOT NULL,
+        period_id INTEGER NOT NULL,
+        job_group_id INTEGER NOT NULL,
+        base_value REAL NOT NULL,
+        UNIQUE(year_id, period_id, job_group_id),
+        FOREIGN KEY(year_id) REFERENCES years(id) ON DELETE CASCADE,
+        FOREIGN KEY(period_id) REFERENCES periods(id) ON DELETE CASCADE,
+        FOREIGN KEY(job_group_id) REFERENCES job_groups(id) ON DELETE CASCADE
+    );`);
 }
 
 async function ensureCompatibleSchema(database: SQLiteDatabase) {
     const yearColumns = await getTableColumns(database, 'years');
     const periodColumns = await getTableColumns(database, 'periods');
     const holidayColumns = await getTableColumns(database, 'official_holidays');
+    const jobGroupColumns = await getTableColumns(database, 'job_groups');
+    const seniorityBaseColumns = await getTableColumns(database, 'seniority_base_by_group');
 
     const hasExpectedYearColumns = expectedYearColumns.every((column) => yearColumns.includes(column));
     const hasExpectedPeriodColumns = expectedPeriodColumns.every((column) => periodColumns.includes(column));
     const hasExpectedHolidayColumns = expectedHolidayColumns.every((column) => holidayColumns.includes(column));
+    const hasExpectedJobGroupColumns = expectedJobGroupColumns.every((column) => jobGroupColumns.includes(column));
+    const hasExpectedSeniorityBaseColumns = expectedSeniorityBaseColumns.every((column) => seniorityBaseColumns.includes(column));
 
-    if (!hasExpectedYearColumns || !hasExpectedPeriodColumns || !hasExpectedHolidayColumns) {
+    if (!hasExpectedYearColumns || !hasExpectedPeriodColumns || !hasExpectedHolidayColumns || !hasExpectedJobGroupColumns || !hasExpectedSeniorityBaseColumns) {
         await recreateDatabaseTables(database);
     }
 }

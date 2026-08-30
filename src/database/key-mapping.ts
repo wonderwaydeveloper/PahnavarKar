@@ -34,3 +34,42 @@ export const periodKeyTranslations = {
     متاهل: 'married',
 };
 
+// نگاشت مربوط به گروه‌های شغلی استخراج‌شده از فایل seniority-classification.json
+export const jobGroupKeyTranslations = {
+    group: 'group_number',
+    sort_order: 'sort_order',
+};
+
+// نگاشت مربوط به پایه سالانه‌ی سنوات بر اساس گروه شغلی و دوره
+export const seniorityBaseByGroupKeyTranslations = {
+    year: 'year',
+    year_id: 'year_id',
+    period_index: 'period_index',
+    period_id: 'period_id',
+    group_number: 'group_number',
+    job_group_id: 'job_group_id',
+    base_value: 'base_value',
+};
+
+export function translateObjectKeys<T extends Record<string, unknown>>(
+    source: T,
+    translations: Record<string, string>,
+): Record<string, unknown> {
+    const translated: Record<string, unknown> = {};
+
+    for (const [sourceKey, value] of Object.entries(source)) {
+        const targetKey = translations[sourceKey] ?? sourceKey;
+        translated[targetKey] = value;
+    }
+
+    return translated;
+}
+
+export function normalizeJobGroups<T extends Record<string, unknown>>(groups: T[]) {
+    return groups.map((group) => translateObjectKeys(group, jobGroupKeyTranslations));
+}
+
+export function normalizeSeniorityBaseByGroup<T extends Record<string, unknown>>(items: T[]) {
+    return items.map((item) => translateObjectKeys(item, seniorityBaseByGroupKeyTranslations));
+}
+

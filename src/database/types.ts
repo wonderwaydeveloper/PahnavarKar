@@ -7,6 +7,20 @@ export interface YearRecord {
     period_count: number;
 }
 
+export interface JobGroupRecord {
+    id: number;
+    group_number: number;
+    sort_order: number;
+}
+
+export interface SeniorityBaseByGroupRecord {
+    id: number;
+    year_id: number;
+    period_id: number;
+    job_group_id: number;
+    base_value: number;
+}
+
 export interface OfficialHolidayRecord {
     id: number;
     year_id: number;
@@ -49,6 +63,21 @@ export interface PeriodRecord {
     formula_increase?: string | null;
     min_wage_decree_reference?: string | null;
     marital_allowance?: number | null;
+}
+
+export interface SeedJobGroupRecord {
+    group_number: number;
+    sort_order?: number;
+}
+
+export interface SeedSeniorityBaseByGroupRecord {
+    year_id?: number;
+    year?: number;
+    period_id?: number;
+    period_index?: number;
+    job_group_id?: number;
+    group_number?: number;
+    base_value: number;
 }
 
 export interface SeedPeriodRecord {
@@ -95,4 +124,7 @@ export interface SeedYearRecord {
 export interface SeedData {
     data: SeedYearRecord[];
     officialHolidays?: OfficialHolidayData;
+    jobGroups?: SeedJobGroupRecord[];
+    seniorityBaseByGroup?: SeedSeniorityBaseByGroupRecord[];
+    yearMeta?: Record<number, { periodCount?: number; percentIncrease?: number | null; periodMonthCounts?: (number | null)[] | null }>;
 }

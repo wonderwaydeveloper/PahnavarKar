@@ -12,10 +12,11 @@ import { ThemedView } from '@/components/themed-view';
 import { YearSelectorCard } from '@/components/ui/exploer';
 import { WebBadge } from '@/components/web-badge';
 import { Radius, Spacing } from '@/constants/theme';
-import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
+import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import type { PeriodRecord, YearRecord } from '@/database/types';
-import { periodUiLabels } from '@/database/ui/labels';
+import { jobGroupUiLabels, periodUiLabels } from '@/database/ui/labels';
 import { useTheme } from '@/hooks/use-theme';
+import { calculatePeriodDateRange } from '@/utils/period-date-calculator';
 
 type PeriodDetailRow =
   | { kind: 'row'; label: string; value: number | string | null | undefined; currency?: boolean }
@@ -32,7 +33,11 @@ interface PeriodCardProps {
   isWide: boolean;
   periodsLength: number;
   periodKey: string;
+  jobGroups: { id: number; group_number: number; sort_order: number }[];
+  seniorityBaseByPeriod: Record<number, Record<number, number>>;
   onToggle: (periodKey: string) => void;
+  year: number;
+  periodMonthCounts: (number | null)[];
 }
 
 function PeriodCardLocal({
@@ -42,14 +47,33 @@ function PeriodCardLocal({
   isWide,
   periodsLength,
   periodKey,
+  jobGroups,
+  seniorityBaseByPeriod,
   onToggle,
+  year,
+  periodMonthCounts,
 }: PeriodCardProps) {
   const theme = useTheme();
+  const [seniorityGroupExpanded, setSeniorityGroupExpanded] = useState(false);
 
   const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
 
   const toPersianDigits = (value: string) =>
     value.replace(/\d/g, (digit) => persianDigits[Number(digit)]);
+
+  // محاسبه‌ی بازه‌ی تاریخی دوره
+  const periodDateRange = useMemo(() => {
+    try {
+      const validMonthCounts = periodMonthCounts.filter(
+        (m): m is number => typeof m === 'number' && m > 0
+      );
+      if (validMonthCounts.length === 0) return null;
+
+      return calculatePeriodDateRange(year, index + 1, validMonthCounts);
+    } catch {
+      return null;
+    }
+  }, [year, index, periodMonthCounts]);
 
   const formatCurrency = (value: number | null | undefined) => {
     if (value == null) {
@@ -78,6 +102,8 @@ function PeriodCardLocal({
     fontFamily: isTitle || isValue ? 'Vazirmatn-Bold' : 'Vazirmatn-Medium',
   });
 
+  const periodSeniorityEntries = seniorityBaseByPeriod[period.id] ?? {};
+
   const getPeriodDetailRows = (periodItem: PeriodRecord): PeriodDetailRow[] => [
     { kind: 'row', label: periodUiLabels.month_count, value: periodItem.month_count },
     { kind: 'row', label: periodUiLabels.days_in_year, value: periodItem.days_in_year },
@@ -97,6 +123,17 @@ function PeriodCardLocal({
       ],
     },
     { kind: 'row', label: periodUiLabels.seniority_base, value: periodItem.seniority_base, currency: true },
+    {
+      kind: 'group',
+      title: periodUiLabels.seniority_base_by_group,
+      items: jobGroups
+        .map((group) => ({
+          label: `${jobGroupUiLabels.group_label} ${group.group_number}`,
+          value: periodSeniorityEntries[group.group_number] ?? null,
+          currency: true,
+        }))
+        .filter((item) => item.value != null),
+    },
     { kind: 'row', label: periodUiLabels.overtime_per_hour, value: periodItem.overtime_per_hour, currency: true },
     { kind: 'row', label: periodUiLabels.night_work_per_hour, value: periodItem.night_work_per_hour, currency: true },
     {
@@ -142,6 +179,9 @@ function PeriodCardLocal({
     detailIndex: number,
   ) => {
     if (item.kind === 'group') {
+      const isSeniorityGroupPanel = item.title === periodUiLabels.seniority_base_by_group;
+      const shouldShowGroupDetails = !isSeniorityGroupPanel || seniorityGroupExpanded;
+
       return (
         <View
           key={item.title}
@@ -164,9 +204,38 @@ function PeriodCardLocal({
             >
               {item.title}
             </ThemedText>
+
+            {isSeniorityGroupPanel ? (
+              <Pressable
+                onPress={() => setSeniorityGroupExpanded((value) => !value)}
+                style={({ pressed }) => [
+                  styles.nestedToggleButton,
+                  {
+                    backgroundColor: pressed ? theme.primaryContainer : theme.primary,
+                  },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name={seniorityGroupExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color={theme.surface}
+                />
+                <ThemedText style={[styles.nestedToggleLabel, { color: theme.surface }]}>
+                  {seniorityGroupExpanded ? 'عدم نمایش' : 'نمایش جزئیات'}
+                </ThemedText>
+              </Pressable>
+            ) : null}
           </View>
 
-          {item.items.map((subItem, subIndex) => (
+          {isSeniorityGroupPanel && !shouldShowGroupDetails ? (
+            <View style={[styles.detailItemStack, { paddingVertical: Spacing.two }]}>
+              <ThemedText type="small" themeColor="textSecondary" style={[styles.detailRowLabel, getCompactTextStyle('تعداد گروه‌ها', false, true)]}>
+                {`${item.items.length} گروه شغلی`}
+              </ThemedText>
+            </View>
+          ) : null}
+
+          {shouldShowGroupDetails ? item.items.map((subItem, subIndex) => (
             <View
               key={`${item.title}-${subItem.label}`}
               style={[
@@ -192,7 +261,7 @@ function PeriodCardLocal({
                 {subItem.value}
               </ThemedText>
             </View>
-          ))}
+          )) : null}
         </View>
       );
     }
@@ -281,9 +350,11 @@ function PeriodCardLocal({
               دوره دستمزد
             </ThemedText>
             <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-              {periodsLength === 1
-                ? 'تمام داده‌های حقوقی برای این دوره'
-                : `داده‌های حقوقی برای دوره شماره ${new Intl.NumberFormat('fa-IR').format(index + 1)}`}
+              {periodDateRange && (
+                <ThemedText type="smallBold" style={{ color: theme.primary }}>
+                  {periodDateRange.displayText}
+                </ThemedText>
+              )}
             </ThemedText>
           </View>
         </View>
@@ -353,8 +424,10 @@ export default function YearlyInfoScreen() {
 
   // State management
   const [years, setYears] = useState<YearRecord[]>([]);
+  const [jobGroups, setJobGroups] = useState<{ id: number; group_number: number; sort_order: number }[]>([]);
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const [periods, setPeriods] = useState<PeriodRecord[]>([]);
+  const [seniorityBaseByPeriod, setSeniorityBaseByPeriod] = useState<Record<number, Record<number, number>>>({});
   const [loading, setLoading] = useState(true);
   const [loadingPeriods, setLoadingPeriods] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -378,17 +451,35 @@ export default function YearlyInfoScreen() {
     try {
       if (!year) {
         setPeriods([]);
+        setSeniorityBaseByPeriod({});
         return;
       }
 
       const yearPeriods = await fetchPeriodsByYearId(year.id);
+      const seniorityByPeriod: Record<number, Record<number, number>> = {};
+
+      for (const period of yearPeriods) {
+        const rows = await fetchSeniorityBaseByGroup(period.id);
+        const groupMap: Record<number, number> = {};
+
+        for (const row of rows) {
+          const matchedGroup = jobGroups.find((group) => group.id === row.job_group_id);
+          const groupNumber = matchedGroup?.group_number ?? row.job_group_id;
+          groupMap[groupNumber] = Number(row.base_value);
+        }
+
+        seniorityByPeriod[period.id] = groupMap;
+      }
+
       setPeriods(yearPeriods);
+      setSeniorityBaseByPeriod(seniorityByPeriod);
       setError(null);
     } catch (err) {
       const errorMsg = String(err);
       setError(errorMsg);
       setShowError(true);
       setPeriods([]);
+      setSeniorityBaseByPeriod({});
     } finally {
       if (showLoading) {
         setLoadingPeriods(false);
@@ -401,9 +492,13 @@ export default function YearlyInfoScreen() {
     async function loadDatabase() {
       try {
         await seedFromJsonAsset();
-        const yearRows = await fetchYears();
+        const [yearRows, groupRows] = await Promise.all([
+          fetchYears(),
+          fetchJobGroups(),
+        ]);
         const sortedYearRows = [...yearRows].sort((a, b) => b.year - a.year);
         setYears(yearRows);
+        setJobGroups(groupRows);
         const latestYear = sortedYearRows[0] ?? null;
         setSelectedYearId(latestYear?.id ?? null);
         setError(null);
@@ -472,6 +567,9 @@ export default function YearlyInfoScreen() {
     const periodKey = period.id?.toString() ?? `${index}-${period.month_count ?? 'x'}`;
     const isExpanded = expandedPeriods[periodKey] ?? false;
 
+    // محاسبه‌ی month_count برای تمام دوره‌های این سال
+    const periodMonthCounts = periods.map((p) => p.month_count);
+
     return (
       <PeriodCardLocal
         key={periodKey}
@@ -481,7 +579,11 @@ export default function YearlyInfoScreen() {
         isWide={isWide}
         periodsLength={periods.length}
         periodKey={periodKey}
+        jobGroups={jobGroups}
+        seniorityBaseByPeriod={seniorityBaseByPeriod}
         onToggle={togglePeriodExpanded}
+        year={selectedYear?.year ?? 1400}
+        periodMonthCounts={periodMonthCounts}
       />
     );
   };
@@ -742,6 +844,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     fontFamily: 'Vazirmatn-Bold',
+  },
+  nestedToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.one,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+    marginTop: Spacing.one,
+  },
+  nestedToggleLabel: {
+    fontFamily: 'Vazirmatn-Bold',
+    fontSize: 11,
+    lineHeight: 16,
   },
   formulaValue: {
     direction: 'ltr',

@@ -2,6 +2,13 @@ export const yearUiLabels = {
     period_count: 'تعداد دوره‌ها',
 };
 
+export const jobGroupUiLabels = {
+    group_number: 'شماره گروه',
+    group_label: 'گروه شغلی',
+    seniority_base_by_group: 'پایه سنوات بر اساس گروه شغلی',
+    seniority_base_value: 'مبلغ پایه سنوات',
+};
+
 export const periodUiLabels = {
     days_in_year: 'تعداد روزهای سال',
     fridays_in_year: 'تعداد جمعه‌های سال',
@@ -30,9 +37,12 @@ export const periodUiLabels = {
     min_wage_decree_reference: 'شماره و تاریخ بخشنامه حداقل مزد',
     marital_allowance: 'حق تاهل',
     seniority_base: 'پایه سنوات جاری',
+    seniority_base_by_group: 'پایه سنوات بر اساس گروه شغلی',
+    group_number: 'شماره گروه',
 };
 
 export const uiLabels = {
     ...yearUiLabels,
+    ...jobGroupUiLabels,
     ...periodUiLabels,
 };

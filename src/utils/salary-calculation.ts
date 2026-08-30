@@ -69,6 +69,33 @@ export interface FridayWorkCalculationResult {
     breakdown: FridayWorkCalculationBreakdownItem[];
 }
 
+export interface OfficialHolidayWorkBreakdownItem {
+    year: number;
+    periodIndex: number;
+    daysCovered: number;
+    overtimeRate: number | null;
+    amount: number;
+}
+
+export interface OfficialHolidayWorkCalculationResult {
+    totalAmount: number;
+    breakdown: OfficialHolidayWorkBreakdownItem[];
+}
+
+export interface IllegalForeignWorkerPenaltyBreakdownItem {
+    year: number;
+    periodIndex: number;
+    daysCovered: number;
+    workerCount: number;
+    dailyMinimumWage: number;
+    amount: number;
+}
+
+export interface IllegalForeignWorkerPenaltyCalculationResult {
+    totalAmount: number;
+    breakdown: IllegalForeignWorkerPenaltyBreakdownItem[];
+}
+
 export interface SalaryPeriodBucket {
     year: number;
     periods: {
@@ -1051,6 +1078,219 @@ export function calculateSuspensionWageFromPeriodData(
                 dailyWage,
                 amount: Math.round(amount),
             });
+
+            monthOffset = periodEndMonth;
+        }
+    }
+
+    return {
+        totalAmount: breakdown.reduce((sum, item) => sum + item.amount, 0),
+        breakdown,
+    };
+}
+
+export function calculateOfficialHolidayWorkFromPeriodData(
+    startDate: ParsedDateInput,
+    endDate: ParsedDateInput,
+    periodBuckets: SalaryPeriodBucket[],
+    officialHolidayDates: string[],
+): OfficialHolidayWorkCalculationResult {
+    if (compareParsedDates(startDate, endDate) > 0) {
+        return { totalAmount: 0, breakdown: [] };
+    }
+
+    const breakdown: OfficialHolidayWorkBreakdownItem[] = [];
+    const holidaySet = new Set(officialHolidayDates);
+
+    for (const bucket of [...periodBuckets].sort((left, right) => left.year - right.year)) {
+        const sortedPeriods = [...bucket.periods].sort((left, right) => left.period_index - right.period_index);
+        let monthOffset = 0;
+
+        for (const period of sortedPeriods) {
+            const periodLength = Number(period.month_count ?? 0);
+            if (!Number.isFinite(periodLength) || periodLength <= 0) {
+                continue;
+            }
+
+            const periodStartMonth = monthOffset + 1;
+            const periodEndMonth = monthOffset + periodLength;
+            let daysCovered = 0;
+            const overtimeRate = Number(period.overtime_per_hour ?? 0);
+
+            for (let monthIndex = periodStartMonth; monthIndex <= periodEndMonth; monthIndex += 1) {
+                const calendarYear = bucket.year + Math.floor((monthIndex - 1) / 12);
+                const calendarMonth = ((monthIndex - 1) % 12) + 1;
+                const monthDays = jalaaliMonthLength(calendarYear, calendarMonth);
+
+                for (let day = 1; day <= monthDays; day += 1) {
+                    const date = { year: calendarYear, month: calendarMonth, day };
+
+                    if (compareParsedDates(date, startDate) < 0 || compareParsedDates(date, endDate) > 0) {
+                        continue;
+                    }
+
+                    const dateKey = `${date.year}/${String(date.month).padStart(2, '0')}/${String(date.day).padStart(2, '0')}`;
+                    if (holidaySet.has(dateKey)) {
+                        daysCovered += 1;
+                    }
+                }
+            }
+
+            if (daysCovered > 0 && overtimeRate > 0) {
+                breakdown.push({
+                    year: bucket.year,
+                    periodIndex: period.period_index,
+                    daysCovered,
+                    overtimeRate,
+                    amount: Math.round(daysCovered * 7.33 * overtimeRate),
+                });
+            }
+
+            monthOffset = periodEndMonth;
+        }
+    }
+
+    return {
+        totalAmount: breakdown.reduce((sum, item) => sum + item.amount, 0),
+        breakdown,
+    };
+}
+
+export function calculateArticle87WorkPermitFee(squareMeters: number): number {
+    if (!Number.isFinite(squareMeters) || squareMeters < 0) {
+        return 0;
+    }
+
+    return Math.round(squareMeters * 55000);
+}
+
+export interface SocialSecurityPremiumCeilingBreakdownItem {
+    year: number;
+    periodIndex: number;
+    daysCovered: number;
+    dailyMinimumWage: number;
+    amount: number;
+}
+
+export interface SocialSecurityPremiumCeilingCalculationResult {
+    totalAmount: number;
+    breakdown: SocialSecurityPremiumCeilingBreakdownItem[];
+}
+
+export function calculateSocialSecurityPremiumCeiling(dailyMinimumWage: number, monthDays: number): number {
+    if (!Number.isFinite(dailyMinimumWage) || dailyMinimumWage <= 0 || !Number.isFinite(monthDays) || monthDays <= 0) {
+        return 0;
+    }
+
+    return Math.round(7 * dailyMinimumWage * monthDays);
+}
+
+export function calculateSocialSecurityPremiumCeilingFromPeriodData(
+    startDate: ParsedDateInput,
+    endDate: ParsedDateInput,
+    periodBuckets: SalaryPeriodBucket[],
+): SocialSecurityPremiumCeilingCalculationResult {
+    if (compareParsedDates(startDate, endDate) > 0) {
+        return { totalAmount: 0, breakdown: [] };
+    }
+
+    const breakdown: SocialSecurityPremiumCeilingBreakdownItem[] = [];
+
+    for (const bucket of [...periodBuckets].sort((left, right) => left.year - right.year)) {
+        const sortedPeriods = [...bucket.periods].sort((left, right) => left.period_index - right.period_index);
+        let monthOffset = 0;
+
+        for (const period of sortedPeriods) {
+            const periodLength = Number(period.month_count ?? 0);
+            if (!Number.isFinite(periodLength) || periodLength <= 0) {
+                continue;
+            }
+
+            const periodStartMonth = monthOffset + 1;
+            const periodEndMonth = monthOffset + periodLength;
+            let daysCovered = 0;
+            const dailyMinimumWage = Number(period.daily_minimum_wage ?? 0);
+
+            for (let monthIndex = periodStartMonth; monthIndex <= periodEndMonth; monthIndex += 1) {
+                const calendarYear = bucket.year + Math.floor((monthIndex - 1) / 12);
+                const calendarMonth = ((monthIndex - 1) % 12) + 1;
+                const monthOverlapDays = getOverlapDaysForMonth(startDate, endDate, calendarYear, calendarMonth);
+
+                if (monthOverlapDays > 0) {
+                    daysCovered += monthOverlapDays;
+                }
+            }
+
+            if (daysCovered > 0 && dailyMinimumWage > 0) {
+                breakdown.push({
+                    year: bucket.year,
+                    periodIndex: period.period_index,
+                    daysCovered,
+                    dailyMinimumWage,
+                    amount: Math.round(daysCovered * 7 * dailyMinimumWage),
+                });
+            }
+
+            monthOffset = periodEndMonth;
+        }
+    }
+
+    return {
+        totalAmount: breakdown.reduce((sum, item) => sum + item.amount, 0),
+        breakdown,
+    };
+}
+
+export function calculateIllegalForeignWorkerPenaltyFromPeriodData(
+    startDate: ParsedDateInput,
+    endDate: ParsedDateInput,
+    periodBuckets: SalaryPeriodBucket[],
+    workerCount: number,
+): IllegalForeignWorkerPenaltyCalculationResult {
+    if (compareParsedDates(startDate, endDate) > 0 || !Number.isFinite(workerCount) || workerCount <= 0) {
+        return { totalAmount: 0, breakdown: [] };
+    }
+
+    const breakdown: IllegalForeignWorkerPenaltyBreakdownItem[] = [];
+
+    for (const bucket of [...periodBuckets].sort((left, right) => left.year - right.year)) {
+        const sortedPeriods = [...bucket.periods].sort((left, right) => left.period_index - right.period_index);
+        let monthOffset = 0;
+
+        for (const period of sortedPeriods) {
+            const periodLength = Number(period.month_count ?? 0);
+            if (!Number.isFinite(periodLength) || periodLength <= 0) {
+                continue;
+            }
+
+            const periodStartMonth = monthOffset + 1;
+            const periodEndMonth = monthOffset + periodLength;
+            let daysCovered = 0;
+            const dailyMinimumWage = Number(period.daily_minimum_wage ?? 0);
+
+            for (let monthIndex = periodStartMonth; monthIndex <= periodEndMonth; monthIndex += 1) {
+                const calendarYear = bucket.year + Math.floor((monthIndex - 1) / 12);
+                const calendarMonth = ((monthIndex - 1) % 12) + 1;
+                const monthStart = { year: calendarYear, month: calendarMonth, day: 1 };
+                const monthEnd = { year: calendarYear, month: calendarMonth, day: jalaaliMonthLength(calendarYear, calendarMonth) };
+                const overlapStart = getLaterDate(startDate, monthStart);
+                const overlapEnd = getEarlierDate(endDate, monthEnd);
+
+                if (compareParsedDates(overlapStart, overlapEnd) <= 0) {
+                    daysCovered += Math.round(toDayNumber(overlapEnd) - toDayNumber(overlapStart) + 1);
+                }
+            }
+
+            if (daysCovered > 0 && dailyMinimumWage > 0) {
+                breakdown.push({
+                    year: bucket.year,
+                    periodIndex: period.period_index,
+                    daysCovered,
+                    workerCount,
+                    dailyMinimumWage,
+                    amount: Math.round(daysCovered * dailyMinimumWage * 5 * workerCount),
+                });
+            }
 
             monthOffset = periodEndMonth;
         }

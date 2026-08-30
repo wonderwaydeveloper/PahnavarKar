@@ -195,6 +195,38 @@ export default function HomeTabScreen() {
             detail: 'تعیین ساعات کارکرد کارگر نوجوان طبق ماده ۸۰ قانون کار',
             onPress: () => router.push('/home/young-worker-work-hours' as any),
         },
+        {
+            key: 'official-holiday-work',
+            title: 'مبلغ تعطیل کاری استحقاقی',
+            icon: 'calendar-star' as const,
+            accent: '#f97316',
+            detail: 'محاسبه مبلغ تعطیل‌کاری استحقاقی بر اساس تعداد روزهای تعطیل رسمی و مبلغ اضافه‌کاری هر ساعت',
+            onPress: () => router.push('/home/official-holiday-work'),
+        },
+        {
+            key: 'illegal-foreign-worker-penalty',
+            title: 'مبلغ جریمه به‌کارگیری اتباع بیگانه غیرمجاز',
+            icon: 'account-alert-outline' as const,
+            accent: '#dc2626',
+            detail: 'محاسبه جریمه به‌کارگیری اتباع بیگانه غیرمجاز بر اساس تعداد کارگران، روزهای بازه و حداقل مزد همان سال',
+            onPress: () => router.push('/home/illegal-foreign-worker-penalty'),
+        },
+        {
+            key: 'article-87',
+            title: 'مبلغ اعمال ماده ۸۷ قانون کار',
+            icon: 'file-document-edit-outline' as const,
+            accent: '#0ea5e9',
+            detail: 'محاسبه مبلغ اعمال ماده ۸۷ قانون کار برای صدور پروانه کسب یا بهره‌برداری بر اساس متراژ زیربنا',
+            onPress: () => router.push('/home/article-87'),
+        },
+        {
+            key: 'social-security-premium-ceiling',
+            title: 'سقف حق بیمه تامین اجتماعی',
+            icon: 'shield-check-outline' as const,
+            accent: '#10b981',
+            detail: 'محاسبه سقف حق بیمه براساس حداقل مزد مصوب شورای عالی کار و تعداد روزهای ماه انتخابی',
+            onPress: () => router.push('/home/social-security-premium-ceiling'),
+        },
     ];
 
     return (

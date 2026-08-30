@@ -33,7 +33,7 @@ export async function setDatabaseUserVersion(version: number): Promise<void> {
 
 export async function clearDatabase() {
     return runWithDatabaseLock(async (database) => {
-        await database.execAsync('DROP TABLE IF EXISTS official_holidays; DROP TABLE IF EXISTS periods; DROP TABLE IF EXISTS years;');
+        await database.execAsync('DROP TABLE IF EXISTS seniority_base_by_group; DROP TABLE IF EXISTS job_groups; DROP TABLE IF EXISTS official_holidays; DROP TABLE IF EXISTS periods; DROP TABLE IF EXISTS years;');
     });
 }
 
@@ -46,6 +46,8 @@ export async function seedDatabase(data: SeedData) {
         let yearStatement: Awaited<ReturnType<SQLiteDatabase['prepareAsync']>> | null = null;
         let periodStatement: Awaited<ReturnType<SQLiteDatabase['prepareAsync']>> | null = null;
         let holidayStatement: Awaited<ReturnType<SQLiteDatabase['prepareAsync']>> | null = null;
+        let jobGroupStatement: Awaited<ReturnType<SQLiteDatabase['prepareAsync']>> | null = null;
+        let seniorityBaseStatement: Awaited<ReturnType<SQLiteDatabase['prepareAsync']>> | null = null;
         let transactionStarted = false;
 
         try {
@@ -92,7 +94,7 @@ export async function seedDatabase(data: SeedData) {
                     min_wage_decree_reference,
                     marital_allowance
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-            `);
+            `)
 
             holidayStatement = await database.prepareAsync(`
                 INSERT INTO official_holidays (
@@ -103,7 +105,47 @@ export async function seedDatabase(data: SeedData) {
                 ) VALUES (?, ?, ?, ?);
             `);
 
+            jobGroupStatement = await database.prepareAsync(`
+                INSERT INTO job_groups (
+                    group_number,
+                    sort_order
+                ) VALUES (?, ?);
+            `);
+
+            seniorityBaseStatement = await database.prepareAsync(`
+                INSERT INTO seniority_base_by_group (
+                    year_id,
+                    period_id,
+                    job_group_id,
+                    base_value
+                ) VALUES (?, ?, ?, ?);
+            `);
+
             const yearIds = new Map<number, number>();
+            const periodIds = new Map<string, number>();
+            const defaultJobGroups = Array.from({ length: 20 }, (_, index) => ({
+                group_number: index + 1,
+                sort_order: index + 1,
+            }));
+
+            const jobGroups = Array.isArray(data.jobGroups) && data.jobGroups.length > 0
+                ? data.jobGroups
+                : defaultJobGroups;
+            const jobGroupIds = new Map<number, number>();
+
+            for (const [index, jobGroup] of jobGroups.entries()) {
+                const rawGroupNumber = Number(jobGroup.group_number ?? index + 1);
+                if (!Number.isFinite(rawGroupNumber)) {
+                    continue;
+                }
+
+                const result = await jobGroupStatement.executeAsync([
+                    rawGroupNumber,
+                    Number(jobGroup.sort_order ?? index + 1),
+                ]);
+
+                jobGroupIds.set(rawGroupNumber, Number(result.lastInsertRowId));
+            }
 
             for (const yearRecord of data.data) {
                 const rawYearValue = yearRecord['سال_كاركرد'];
@@ -129,11 +171,13 @@ export async function seedDatabase(data: SeedData) {
                         const monthlyHousingSingle = period['مسکن_ماهیانه']?.مجرد ?? null;
                         const monthlyHousingMarried = period['مسکن_ماهیانه']?.متاهل ?? null;
                         const formulaIncrease = period['فرمول_افزایش_مزدی'] ?? null;
+                        const periodMonthCounts = data.yearMeta?.[normalizedYear]?.periodMonthCounts ?? null;
+                        const overriddenMonthCount = Array.isArray(periodMonthCounts) ? periodMonthCounts[index] ?? null : null;
 
-                        await periodStatement.executeAsync([
+                        const periodResult = await periodStatement.executeAsync([
                             yearId,
                             index + 1,
-                            period['تعداد_ماه_های_کارکرد_سال'] ?? null,
+                            overriddenMonthCount ?? period['تعداد_ماه_های_کارکرد_سال'] ?? null,
                             period['تعداد_روزهای_سال'] ?? null,
                             period['تعداد_جمعه_های_سال'] ?? null,
                             period['تعداد_تعطيلات_رسمی_سال'] ?? null,
@@ -161,7 +205,38 @@ export async function seedDatabase(data: SeedData) {
                             period['شماره_و_تاریخ_بخش_نامه_حداقل_مزد'] ?? null,
                             period['حق_تاهل'] ?? null,
                         ]);
+
+                        const periodId = Number(periodResult.lastInsertRowId);
+                        periodIds.set(`${normalizedYear}:${index + 1}`, periodId);
                     }
+                }
+            }
+
+            if (Array.isArray(data.seniorityBaseByGroup) && data.seniorityBaseByGroup.length > 0) {
+                for (const record of data.seniorityBaseByGroup) {
+                    const normalizedYear = Number(record.year ?? record.year_id ?? NaN);
+                    const periodIndex = Number(record.period_index ?? NaN);
+                    const groupNumber = Number(record.group_number ?? record.job_group_id ?? NaN);
+                    const baseValue = Number(record.base_value ?? NaN);
+
+                    if (!Number.isFinite(normalizedYear) || !Number.isFinite(periodIndex) || !Number.isFinite(groupNumber) || !Number.isFinite(baseValue)) {
+                        continue;
+                    }
+
+                    const yearId = yearIds.get(normalizedYear);
+                    const periodId = yearId ? periodIds.get(`${normalizedYear}:${periodIndex}`) : undefined;
+                    const jobGroupId = jobGroupIds.get(groupNumber);
+
+                    if (yearId === undefined || periodId === undefined || jobGroupId === undefined) {
+                        continue;
+                    }
+
+                    await seniorityBaseStatement.executeAsync([
+                        yearId,
+                        periodId,
+                        jobGroupId,
+                        baseValue,
+                    ]);
                 }
             }
 
@@ -200,6 +275,12 @@ export async function seedDatabase(data: SeedData) {
             if (holidayStatement) {
                 await holidayStatement.finalizeAsync();
             }
+            if (jobGroupStatement) {
+                await jobGroupStatement.finalizeAsync();
+            }
+            if (seniorityBaseStatement) {
+                await seniorityBaseStatement.finalizeAsync();
+            }
         }
     });
 }
@@ -235,6 +316,41 @@ export async function fetchPeriodsByYearId(yearId: number): Promise<PeriodRecord
         try {
             const result = await statement.executeAsync<PeriodRecord>([yearId]);
             return await result.getAllAsync() as PeriodRecord[];
+        } finally {
+            await statement.finalizeAsync();
+        }
+    });
+}
+
+export async function fetchJobGroups(): Promise<{ id: number; group_number: number; sort_order: number }[]> {
+    return runWithDatabaseLock(async (database) => {
+        const statement = await database.prepareAsync(`
+            SELECT id, group_number, sort_order
+            FROM job_groups
+            ORDER BY sort_order ASC;
+        `);
+
+        try {
+            const result = await statement.executeAsync<{ id: number; group_number: number; sort_order: number }>([]);
+            return await result.getAllAsync() as { id: number; group_number: number; sort_order: number }[];
+        } finally {
+            await statement.finalizeAsync();
+        }
+    });
+}
+
+export async function fetchSeniorityBaseByGroup(periodId: number): Promise<{ id: number; year_id: number; period_id: number; job_group_id: number; base_value: number }[]> {
+    return runWithDatabaseLock(async (database) => {
+        const statement = await database.prepareAsync(`
+            SELECT id, year_id, period_id, job_group_id, base_value
+            FROM seniority_base_by_group
+            WHERE period_id = ?
+            ORDER BY job_group_id ASC;
+        `);
+
+        try {
+            const result = await statement.executeAsync<{ id: number; year_id: number; period_id: number; job_group_id: number; base_value: number }>([periodId]);
+            return await result.getAllAsync() as { id: number; year_id: number; period_id: number; job_group_id: number; base_value: number }[];
         } finally {
             await statement.finalizeAsync();
         }

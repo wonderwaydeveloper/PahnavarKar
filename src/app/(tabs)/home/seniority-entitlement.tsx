@@ -201,11 +201,15 @@ export default function SeniorityEntitlementScreen() {
             return;
         }
 
+        const resolveGenericSeniorityBase = (bucket: SalaryPeriodBucket, period: SalaryPeriodBucket['periods'][number]) =>
+            Number(period.seniority_base ?? 0);
+
         const calculation = calculateSeniorityEntitlementFromPeriodData(
             parsedStart,
             parsedEnd,
             periodBuckets,
             settlementStatus,
+            resolveGenericSeniorityBase,
         );
         if (calculation.breakdown.length === 0 || calculation.breakdown.every((item) => item.amount <= 0)) {
             setResult(null);
