@@ -43,10 +43,6 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
         return { title: 'اطلاعات سال کارکرد' };
       case 'base-salary':
         return { title: 'حقوق پایه' };
-      case 'seniority-entitlement':
-        return { title: 'پایه سنوات استحقاقی' };
-      case 'job-group-seniority-entitlement':
-        return { title: 'پایه سنوات استحقاقی در طرح طبقه‌بندی مشاغل' };
       case 'family-allowance':
         return { title: 'حق عائله مندی' };
       case 'housing-allowance':
@@ -101,7 +97,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
   const router = useRouter();
   const actualRouteName = normalizeRoute(pathname || route?.name);
   const { title } = getHeaderConfig(actualRouteName);
-  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'seniority-entitlement', 'job-group-seniority-entitlement', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unused-leave-entitlement', 'unused-leave-wage', 'end-of-service-years', 'friday-work', 'official-holiday-work', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'suspension-wage', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours'].includes(actualRouteName);
+  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unused-leave-entitlement', 'unused-leave-wage', 'end-of-service-years', 'friday-work', 'official-holiday-work', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'suspension-wage', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours'].includes(actualRouteName);
 
   const { width } = useWindowDimensions();
   const titleFontSize = width >= 420 ? 18 : 16;

@@ -15,7 +15,6 @@ import {
     calculateSuspensionWageFromPeriodData,
     parseDateInput,
     type SalaryPeriodBucket,
-    type SeniorityEntitlementSettlementStatus,
     type SuspensionWageCalculationResult,
 } from '@/utils/salary-calculation';
 
@@ -40,7 +39,6 @@ export default function SuspensionWageScreen() {
     const [employmentStart, setEmploymentStart] = useState(`${currentYear - 1}/01/01`);
     const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
     const [maritalStatus, setMaritalStatus] = useState<MaritalStatus>('single');
-    const [settlementStatus, setSettlementStatus] = useState<SeniorityEntitlementSettlementStatus>('unsettled');
     const [childrenCount, setChildrenCount] = useState(0);
     const [childrenMenuVisible, setChildrenMenuVisible] = useState(false);
     const [periodBuckets, setPeriodBuckets] = useState<SalaryPeriodBucket[]>([]);
@@ -133,8 +131,6 @@ export default function SuspensionWageScreen() {
                 period.marital_allowance != null
             )));
     })();
-    const showSettlementStatus = (parseDateInput(employmentStart)?.year ?? 1392) < 1392;
-
     const openPicker = (target: PickerTarget) => setPickerTarget(target);
     const getDateValue = (target: PickerTarget) => target === 'suspensionStart' ? suspensionStart : target === 'suspensionEnd' ? suspensionEnd : employmentStart;
     const handleDateSelect = (value: string) => {
@@ -175,7 +171,7 @@ export default function SuspensionWageScreen() {
             return;
         }
 
-        const calculation = calculateSuspensionWageFromPeriodData(start, end, employment, periodBuckets, maritalStatus, childrenCount, settlementStatus);
+        const calculation = calculateSuspensionWageFromPeriodData(start, end, employment, periodBuckets, maritalStatus, childrenCount);
         if (calculation.breakdown.length === 0) {
             setResult(null);
             setSnackbarMessage('برای بازهٔ انتخاب‌شده مبلغ قابل محاسبه‌ای وجود ندارد.');
@@ -191,7 +187,6 @@ export default function SuspensionWageScreen() {
         setSuspensionEnd(defaultSuspensionEnd);
         setEmploymentStart(`${currentYear - 1}/01/01`);
         setMaritalStatus('single');
-        setSettlementStatus('unsettled');
         setChildrenCount(0);
         setResult(null);
         setShowDetails(false);
@@ -252,19 +247,6 @@ export default function SuspensionWageScreen() {
                                     {CHILDREN_OPTIONS.map((count) => <Menu.Item key={count} title={`${toPersianDigits(count)} فرزند`} onPress={() => { setChildrenCount(count); setChildrenMenuVisible(false); }} />)}
                                 </Menu>
                             </View>
-
-                            {showSettlementStatus ? (
-                                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>وضعیت تصفیه حساب در سال ۱۳۹۱</ThemedText>
-                                    <View style={styles.optionsRow}>
-                                        {([['unsettled', 'تصفیه نکرده'], ['settled', 'تصفیه کرده']] as const).map(([value, label]) => (
-                                            <Pressable key={value} onPress={() => setSettlementStatus(value)} style={[styles.optionButton, { backgroundColor: settlementStatus === value ? theme.primary : theme.surface, borderColor: settlementStatus === value ? theme.primary : theme.border }]}>
-                                                <ThemedText type="smallBold" style={{ color: settlementStatus === value ? theme.surface : theme.text }}>{label}</ThemedText>
-                                            </Pressable>
-                                        ))}
-                                    </View>
-                                </View>
-                            ) : null}
 
                             <View style={styles.actionsGroup}>
                                 <Button mode="contained" onPress={handleCalculate} icon="pause-circle-outline" buttonColor={theme.primary} textColor={theme.surface} style={styles.actionButton} labelStyle={styles.actionLabel} loading={isLoadingData} disabled={isLoadingData}>محاسبه</Button>

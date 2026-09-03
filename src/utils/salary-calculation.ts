@@ -299,25 +299,6 @@ export interface ParsedDateInput {
     day: number;
 }
 
-export type SeniorityEntitlementSettlementStatus = 'settled' | 'unsettled';
-
-export interface SeniorityEntitlementBreakdownItem {
-    year: number;
-    periodIndex: number;
-    eligibleFrom: ParsedDateInput;
-    eligibleTo: ParsedDateInput;
-    daysCovered: number;
-    seniorityBase: number;
-    dailyEntitlement: number;
-    percentIncrease: number | null;
-    amount: number;
-}
-
-export interface SeniorityEntitlementCalculationResult {
-    totalAmount: number;
-    breakdown: SeniorityEntitlementBreakdownItem[];
-}
-
 const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
 const latinDigits = '0123456789';
 
@@ -512,204 +493,6 @@ function getLaterDate(left: ParsedDateInput, right: ParsedDateInput): ParsedDate
 
 function getEarlierDate(left: ParsedDateInput, right: ParsedDateInput): ParsedDateInput {
     return compareParsedDates(left, right) <= 0 ? left : right;
-}
-
-export function calculateSeniorityEntitlementFromPeriodData(
-    startDate: ParsedDateInput,
-    endDate: ParsedDateInput,
-    periodBuckets: SalaryPeriodBucket[],
-    settlementStatus: SeniorityEntitlementSettlementStatus,
-): SeniorityEntitlementCalculationResult {
-    if (compareParsedDates(startDate, endDate) > 0) {
-        return { totalAmount: 0, breakdown: [] };
-    }
-
-    const breakdown: SeniorityEntitlementBreakdownItem[] = [];
-    let previousAmount = 0;
-    const settledBefore1392 = startDate.year < 1392 && settlementStatus === 'settled';
-    const firstAnniversary = settledBefore1392
-        ? getAnniversaryDate(startDate, 1392)
-        : getAnniversaryDate(startDate, startDate.year + 1);
-    const firstEntitlementYearEnd = {
-        year: firstAnniversary.year,
-        month: 12,
-        day: jalaaliMonthLength(firstAnniversary.year, 12),
-    };
-
-    const appendBreakdown = (
-        year: number,
-        period: SalaryPeriodBucket['periods'][number] | null,
-        eligibleFrom: ParsedDateInput,
-        eligibleTo: ParsedDateInput,
-        dailyEntitlement: number,
-    ) => {
-        if (!period || compareParsedDates(eligibleFrom, eligibleTo) > 0) {
-            return;
-        }
-
-        const rawPercentIncrease = Number(period.percent_increase);
-        const daysCovered = Math.round(toDayNumber(eligibleTo) - toDayNumber(eligibleFrom) + 1);
-        breakdown.push({
-            year,
-            periodIndex: period.period_index,
-            eligibleFrom,
-            eligibleTo,
-            daysCovered,
-            seniorityBase: Number(period.seniority_base ?? 0),
-            dailyEntitlement,
-            percentIncrease: Number.isFinite(rawPercentIncrease) ? rawPercentIncrease : null,
-            amount: Math.round(dailyEntitlement * daysCovered),
-        });
-    };
-
-    const appendRangeBreakdowns = (
-        bucket: SalaryPeriodBucket | undefined,
-        rangeStart: ParsedDateInput,
-        rangeEnd: ParsedDateInput,
-        amountForPeriod: (period: SalaryPeriodBucket['periods'][number]) => number,
-    ) => {
-        if (!bucket) return;
-
-        for (const segment of getPeriodSegments(bucket)) {
-            const segmentStart = getLaterDate(rangeStart, segment.start);
-            const segmentEnd = getEarlierDate(rangeEnd, segment.end);
-            appendBreakdown(
-                bucket.year,
-                segment.period,
-                segmentStart,
-                segmentEnd,
-                amountForPeriod(segment.period),
-            );
-        }
-    };
-
-    const findPeriodForDate = (bucket: SalaryPeriodBucket | undefined, date: ParsedDateInput) =>
-        bucket
-            ? getPeriodSegments(bucket).find((segment) => (
-                compareParsedDates(date, segment.start) >= 0 &&
-                compareParsedDates(date, segment.end) <= 0
-            ))?.period ?? null
-            : null;
-
-    const appendAcrossYears = (
-        rangeStart: ParsedDateInput,
-        rangeEnd: ParsedDateInput,
-        amountForPeriod: (period: SalaryPeriodBucket['periods'][number]) => number,
-    ) => {
-        for (let year = rangeStart.year; year <= rangeEnd.year; year += 1) {
-            const yearStart = { year, month: 1, day: 1 };
-            const yearEnd = { year, month: 12, day: jalaaliMonthLength(year, 12) };
-            const bucket = periodBuckets.find((item) => item.year === year);
-            const currentRangeEnd = getEarlierDate(rangeEnd, yearEnd);
-
-            appendRangeBreakdowns(
-                bucket,
-                getLaterDate(rangeStart, yearStart),
-                currentRangeEnd,
-                amountForPeriod,
-            );
-        }
-    };
-
-    if (!settledBefore1392) {
-        const beforeAnniversaryEnd = compareParsedDates(endDate, firstAnniversary) < 0
-            ? endDate
-            : getPreviousDate(firstAnniversary);
-
-        appendAcrossYears(
-            startDate,
-            beforeAnniversaryEnd,
-            () => 0,
-        );
-    } else {
-        const firstEntitlementYearStart = { year: 1392, month: 1, day: 1 };
-        const firstEntitlementYearBucket = periodBuckets.find((item) => item.year === 1392);
-        const beforeAnniversaryEnd = getPreviousDate(firstAnniversary);
-        const beforeAnniversaryStart = getLaterDate(startDate, firstEntitlementYearStart);
-        const beforeAnniversaryPeriod = findPeriodForDate(firstEntitlementYearBucket, beforeAnniversaryStart);
-
-        appendBreakdown(
-            1392,
-            beforeAnniversaryPeriod,
-            beforeAnniversaryStart,
-            getEarlierDate(endDate, beforeAnniversaryEnd),
-            0,
-        );
-    }
-
-    if (compareParsedDates(endDate, firstAnniversary) < 0) {
-        return { totalAmount: 0, breakdown };
-    }
-
-    const firstEntitlementBucket = periodBuckets.find((item) => item.year === firstAnniversary.year);
-    const firstEntitlementEnd = compareParsedDates(endDate, firstEntitlementYearEnd) < 0
-        ? endDate
-        : firstEntitlementYearEnd;
-    appendRangeBreakdowns(
-        firstEntitlementBucket,
-        firstAnniversary,
-        firstEntitlementEnd,
-        (period) => Number(period.seniority_base ?? 0),
-    );
-    const firstEntitlementSegments = firstEntitlementBucket
-        ? getPeriodSegments(firstEntitlementBucket).filter((segment) => compareParsedDates(segment.end, firstAnniversary) >= 0)
-        : [];
-    if (firstEntitlementSegments.length > 0) {
-        previousAmount = Number(firstEntitlementSegments[firstEntitlementSegments.length - 1].period.seniority_base ?? 0);
-    }
-
-    if (endDate.year <= firstAnniversary.year) {
-        return {
-            totalAmount: breakdown.reduce((sum, item) => sum + item.amount, 0),
-            breakdown,
-        };
-    }
-
-    for (let year = firstAnniversary.year + 1; year <= endDate.year; year += 1) {
-        const bucket = periodBuckets.find((item) => item.year === year);
-        const anniversary = getAnniversaryDate(startDate, year);
-        const yearStart = { year, month: 1, day: 1 };
-        const yearEnd = { year, month: 12, day: jalaaliMonthLength(year, 12) };
-        const beforeEnd = compareParsedDates(endDate, anniversary) < 0 ? endDate : getPreviousDate(anniversary);
-        const priorYearAmount = previousAmount;
-        let latestBeforeAmount: number | null = null;
-
-        appendRangeBreakdowns(
-            bucket,
-            yearStart,
-            beforeEnd,
-            (period) => {
-                const percentIncrease = Number(period.percent_increase);
-                latestBeforeAmount = priorYearAmount * (Number.isFinite(percentIncrease) ? percentIncrease : 1);
-                return latestBeforeAmount;
-            },
-        );
-
-        if (compareParsedDates(endDate, anniversary) < 0) {
-            previousAmount = latestBeforeAmount ?? priorYearAmount;
-            break;
-        }
-
-        const afterEnd = compareParsedDates(endDate, yearEnd) < 0 ? endDate : yearEnd;
-        let latestAfterAmount: number | null = null;
-        appendRangeBreakdowns(
-            bucket,
-            anniversary,
-            afterEnd,
-            (period) => {
-                const percentIncrease = Number(period.percent_increase);
-                const amountBeforeAnniversary = priorYearAmount * (Number.isFinite(percentIncrease) ? percentIncrease : 1);
-                latestAfterAmount = amountBeforeAnniversary + Number(period.seniority_base ?? 0);
-                return latestAfterAmount;
-            },
-        );
-        previousAmount = latestAfterAmount ?? latestBeforeAmount ?? priorYearAmount;
-    }
-
-    return {
-        totalAmount: breakdown.reduce((sum, item) => sum + item.amount, 0),
-        breakdown,
-    };
 }
 
 function toDayNumber(date: ParsedDateInput): number {
@@ -967,7 +750,6 @@ export function calculateSuspensionWageFromPeriodData(
     periodBuckets: SalaryPeriodBucket[],
     maritalStatus: 'single' | 'married',
     numberOfChildren: number,
-    settlementStatus: SeniorityEntitlementSettlementStatus = 'unsettled',
 ): SuspensionWageCalculationResult {
     if (
         compareParsedDates(suspensionStartDate, suspensionEndDate) > 0 ||
@@ -978,12 +760,6 @@ export function calculateSuspensionWageFromPeriodData(
         return { totalAmount: 0, breakdown: [] };
     }
 
-    const seniorityResult = calculateSeniorityEntitlementFromPeriodData(
-        employmentStartDate,
-        suspensionEndDate,
-        periodBuckets,
-        settlementStatus,
-    );
     const breakdown: SuspensionWageCalculationBreakdownItem[] = [];
 
     for (const bucket of [...periodBuckets].sort((left, right) => left.year - right.year)) {
@@ -1010,15 +786,8 @@ export function calculateSuspensionWageFromPeriodData(
                 continue;
             }
 
-            const seniorityItem = seniorityResult.breakdown
-                .filter((item) => (
-                    item.amount > 0 &&
-                    compareParsedDates(item.eligibleFrom, overlapStart) <= 0 &&
-                    compareParsedDates(item.eligibleTo, overlapStart) >= 0
-                ))
-                .at(-1);
             const dailyMinimumWage = Number(period.daily_minimum_wage ?? 0);
-            const dailySeniority = seniorityItem?.dailyEntitlement ?? 0;
+            const dailySeniority = 0;
             const monthlyHousingAllowance = maritalStatus === 'married'
                 ? Number(period.monthly_housing_married ?? 0)
                 : Number(period.monthly_housing_single ?? 0);
