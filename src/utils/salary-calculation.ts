@@ -104,6 +104,7 @@ export interface SalaryPeriodBucket {
         daily_minimum_wage: number | null;
         percent_increase?: number | null;
         seniority_base?: number | null;
+        seniority_base_by_group?: Record<number, number>;
         friday_work_per_day?: number | null;
         overtime_per_hour?: number | null;
         night_work_per_hour?: number | null;
@@ -113,11 +114,166 @@ export interface SalaryPeriodBucket {
         monthly_housing_single?: number | null;
         monthly_housing_married?: number | null;
         marital_allowance?: number | null;
-        seniority_base_cumulative?: number | null;
         monthly_shift_work_morning_evening_10?: number | null;
         monthly_shift_work_morning_evening_night_15?: number | null;
         monthly_shift_work_morning_night_or_evening_night_225?: number | null;
     }[];
+}
+
+export interface EntitledSeniorityCalculationBreakdownItem {
+    year: number;
+    periodIndex: number;
+    startDate: ParsedDateInput;
+    endDate: ParsedDateInput;
+    daysCovered: number;
+    phase: 'before-anniversary' | 'after-anniversary';
+    entitlement: number;
+    currentBase: number;
+    previousEntitlement: number;
+}
+
+export interface EntitledSeniorityCalculationResult {
+    totalAmount: number;
+    finalEntitlement: number;
+    breakdown: EntitledSeniorityCalculationBreakdownItem[];
+}
+
+export type EntitledSeniorityWorkshopType = 'classified' | 'unclassified';
+
+export function calculateEntitledSeniorityFromPeriodData(
+    employmentStartDate: ParsedDateInput,
+    endDate: ParsedDateInput,
+    periodBuckets: SalaryPeriodBucket[],
+    workshopType: EntitledSeniorityWorkshopType,
+    jobGroupNumber?: number,
+    settledThrough1391 = false,
+): EntitledSeniorityCalculationResult {
+    if (compareParsedDates(employmentStartDate, endDate) > 0) {
+        return { totalAmount: 0, finalEntitlement: 0, breakdown: [] };
+    }
+
+    const sortedBuckets = [...periodBuckets].sort((left, right) => left.year - right.year);
+    const appliesSettlementPath = settledThrough1391 && employmentStartDate.year <= 1391;
+    const firstCalculationYear = appliesSettlementPath ? 1392 : employmentStartDate.year;
+    const calculationStartDate = appliesSettlementPath
+        ? { year: 1392, month: 1, day: 1 }
+        : employmentStartDate;
+    const breakdown: EntitledSeniorityCalculationBreakdownItem[] = [];
+    let previousEntitlement = 0;
+    const firstEntitlementYear = appliesSettlementPath ? 1392 : employmentStartDate.year + 1;
+
+    for (const bucket of sortedBuckets) {
+        if (bucket.year < firstCalculationYear || bucket.year > endDate.year) {
+            continue;
+        }
+
+        const sortedPeriods = [...bucket.periods].sort((left, right) => left.period_index - right.period_index);
+        let monthOffset = 0;
+        const previousEntitlementAtYearStart = previousEntitlement;
+        let entitlementAtYearEnd = previousEntitlement;
+        const anniversaryYear = bucket.year;
+        const settledEmploymentAfterStartOf1391 = compareParsedDates(employmentStartDate, { year: 1391, month: 1, day: 1 }) > 0;
+        const anniversaryDate = {
+            year: anniversaryYear,
+            month: appliesSettlementPath && bucket.year === 1392 && !settledEmploymentAfterStartOf1391 ? 1 : employmentStartDate.month,
+            day: appliesSettlementPath && bucket.year === 1392 && !settledEmploymentAfterStartOf1391
+                ? 1
+                : Math.min(employmentStartDate.day, jalaaliMonthLength(anniversaryYear, employmentStartDate.month)),
+        };
+
+        for (const period of sortedPeriods) {
+            const periodLength = Number(period.month_count ?? 0);
+            if (!Number.isFinite(periodLength) || periodLength <= 0) {
+                continue;
+            }
+
+            const periodStartMonth = monthOffset + 1;
+            const periodEndMonth = monthOffset + periodLength;
+            const periodStart = { year: bucket.year, month: periodStartMonth, day: 1 };
+            const periodEnd = { year: bucket.year, month: periodEndMonth, day: jalaaliMonthLength(bucket.year, periodEndMonth) };
+            const overlapStart = getLaterDate(calculationStartDate, periodStart);
+            const overlapEnd = getEarlierDate(endDate, periodEnd);
+
+            if (compareParsedDates(overlapStart, overlapEnd) > 0) {
+                monthOffset = periodEndMonth;
+                continue;
+            }
+
+            const currentBase = workshopType === 'classified'
+                ? Number(period.seniority_base_by_group?.[jobGroupNumber ?? -1] ?? 0)
+                : Number(period.seniority_base ?? 0);
+            const isBeforeAnniversary = compareParsedDates(overlapEnd, anniversaryDate) < 0;
+            const hasReachedFirstAnniversary = bucket.year >= firstEntitlementYear;
+
+            if (!hasReachedFirstAnniversary && !appliesSettlementPath) {
+                const daysCovered = Math.round(toDayNumber(overlapEnd) - toDayNumber(overlapStart) + 1);
+                if (daysCovered > 0) {
+                    breakdown.push({
+                        year: bucket.year,
+                        periodIndex: period.period_index,
+                        startDate: overlapStart,
+                        endDate: overlapEnd,
+                        daysCovered,
+                        phase: 'before-anniversary',
+                        entitlement: 0,
+                        currentBase,
+                        previousEntitlement,
+                    });
+                }
+                monthOffset = periodEndMonth;
+                continue;
+            }
+
+            const annualIncrease = Number(period.percent_increase ?? 1);
+            const beforeEntitlement = bucket.year > firstEntitlementYear
+                ? previousEntitlementAtYearStart * annualIncrease
+                : 0;
+            const afterEntitlement = bucket.year === firstEntitlementYear
+                ? currentBase
+                : currentBase + beforeEntitlement;
+
+            const addSegment = (segmentStart: ParsedDateInput, segmentEnd: ParsedDateInput, phase: 'before-anniversary' | 'after-anniversary', entitlement: number) => {
+                const daysCovered = Math.round(toDayNumber(segmentEnd) - toDayNumber(segmentStart) + 1);
+                if (daysCovered > 0) {
+                    breakdown.push({
+                        year: bucket.year,
+                        periodIndex: period.period_index,
+                        startDate: segmentStart,
+                        endDate: segmentEnd,
+                        daysCovered,
+                        phase,
+                        entitlement,
+                        currentBase,
+                        previousEntitlement,
+                    });
+                }
+            };
+
+            if (isBeforeAnniversary) {
+                addSegment(overlapStart, overlapEnd, 'before-anniversary', beforeEntitlement);
+            } else if (bucket.year >= firstEntitlementYear && compareParsedDates(overlapStart, anniversaryDate) < 0) {
+                addSegment(overlapStart, getPreviousDate(anniversaryDate), 'before-anniversary', beforeEntitlement);
+                addSegment(anniversaryDate, overlapEnd, 'after-anniversary', afterEntitlement);
+            } else {
+                addSegment(overlapStart, overlapEnd, 'after-anniversary', afterEntitlement);
+            }
+
+            if (compareParsedDates(overlapEnd, anniversaryDate) >= 0) {
+                entitlementAtYearEnd = afterEntitlement;
+            }
+
+            monthOffset = periodEndMonth;
+        }
+
+        previousEntitlement = entitlementAtYearEnd;
+    }
+
+    const finalEntitlement = breakdown.at(-1)?.entitlement ?? previousEntitlement;
+    return {
+        totalAmount: Math.round(finalEntitlement),
+        finalEntitlement: Math.round(finalEntitlement),
+        breakdown,
+    };
 }
 
 export interface FamilyAllowanceCalculationBreakdownItem {

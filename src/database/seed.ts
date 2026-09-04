@@ -2,7 +2,7 @@ import { isValidJalaaliDate, toGregorian } from 'jalaali-js';
 import { getDatabaseUserVersion, initDatabase, seedDatabase, setDatabaseUserVersion } from './db';
 import type { OfficialHolidayData, SeedData, SeedJobGroupRecord, SeedSeniorityBaseByGroupRecord } from './types';
 
-const seedVersion = 10;
+const seedVersion = 11;
 let seedPromise: Promise<void> | null = null;
 
 function loadSeniorityClassificationData(): Pick<SeedData, 'jobGroups' | 'seniorityBaseByGroup' | 'yearMeta'> {

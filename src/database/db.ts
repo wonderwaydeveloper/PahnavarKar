@@ -74,8 +74,6 @@ export async function seedDatabase(data: SeedData) {
                     total_work_hours_year,
                     daily_minimum_wage,
                     percent_increase,
-                    seniority_base_previous,
-                    seniority_base_cumulative,
                     friday_work_per_day,
                     monthly_shift_work_morning_evening_10,
                     monthly_shift_work_morning_evening_night_15,
@@ -93,7 +91,7 @@ export async function seedDatabase(data: SeedData) {
                     formula_increase,
                     min_wage_decree_reference,
                     marital_allowance
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             `)
 
             holidayStatement = await database.prepareAsync(`
@@ -185,8 +183,6 @@ export async function seedDatabase(data: SeedData) {
                             period['تعداد_ساعات_کارکرد_موظفی_کارگر_در_سال'] ?? null,
                             period['مبلغ_حداقل_مزد_روزانه_مصوب_شورای_عالی_کار'] ?? null,
                             period['درصد_افزايش'] ?? null,
-                            period['پایه_سنواتی_گذشته'] ?? null,
-                            period['پایه_سنوات_تجمیعی'] ?? null,
                             period['مبلغ_جمعه_کاری_یک_روز'] ?? null,
                             period['نوبت_کاری_ماهیانه']?.['صبح وعصر 10%'] ?? null,
                             period['نوبت_کاری_ماهیانه']?.['صبح و عصر و شب 15%'] ?? null,

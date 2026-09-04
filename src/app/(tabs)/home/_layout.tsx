@@ -26,6 +26,7 @@ export default function HomeLayout() {
             <Stack.Screen name="unused-leave-entitlement" options={{ title: 'تعداد روزهای مرخصی ذخیره شده کارگر' }} />
             <Stack.Screen name="unused-leave-wage" options={{ title: 'مزد مرخصی استفاده نشده' }} />
             <Stack.Screen name="end-of-service-years" options={{ title: 'سنوات پایان کار' }} />
+            <Stack.Screen name="entitled-seniority" options={{ title: 'پایه سنوات استحقاقی' }} />
             <Stack.Screen name="friday-work" options={{ title: 'جمعه کاری' }} />
             <Stack.Screen name="official-holiday-work" options={{ title: 'مبلغ تعطیل کاری استحقاقی' }} />
             <Stack.Screen name="illegal-foreign-worker-penalty" options={{ title: 'مبلغ جریمه به‌کارگیری اتباع بیگانه غیرمجاز' }} />

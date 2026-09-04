@@ -44,6 +44,14 @@ export default function HomeTabScreen() {
             onPress: () => router.push('/home/base-salary'),
         },
         {
+            key: 'entitled-seniority',
+            title: 'پایه سنوات استحقاقی',
+            icon: 'cash-plus' as const,
+            accent: '#0d9488',
+            detail: 'محاسبه پایه سنوات بر اساس تاریخ استخدام، تصفیه حساب تا پایان ۱۳۹۱ و طرح طبقه‌بندی مشاغل',
+            onPress: () => router.push('/home/entitled-seniority' as any),
+        },
+        {
             key: 'housing-allowance',
             title: 'حق مسکن ماهیانه',
             icon: 'home-city' as const,

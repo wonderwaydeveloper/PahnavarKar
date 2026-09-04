@@ -55,8 +55,6 @@ export interface PeriodRecord {
     monthly_housing_single: number | null;
     monthly_housing_married: number | null;
     percent_increase: number | null;
-    seniority_base_previous: number | null;
-    seniority_base_cumulative: number | null;
     child_allowance: number | null;
     min_monthly_bonus: number | null;
     max_monthly_bonus: number | null;
@@ -96,8 +94,6 @@ export interface SeedPeriodRecord {
     } | null;
     'پایه_سنواتی_جاری'?: number | null;
     'درصد_افزايش'?: number | null;
-    'پایه_سنواتی_گذشته'?: number | null;
-    'پایه_سنوات_تجمیعی'?: number | null;
     'مبلغ_اضافه_كاری_یک_ساعت'?: number | null;
     'مبلغ_شب_کاری_یک_ساعت'?: number | null;
     'بن_ماهیانه'?: {

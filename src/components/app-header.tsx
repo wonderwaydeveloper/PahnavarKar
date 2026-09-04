@@ -69,6 +69,8 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
         return { title: 'مزد مرخصی استفاده نشده' };
       case 'end-of-service-years':
         return { title: 'سنوات پایان کار' };
+      case 'entitled-seniority':
+        return { title: 'پایه سنوات استحقاقی' };
       case 'friday-work':
         return { title: 'جمعه کاری' };
       case 'official-holiday-work':
@@ -97,7 +99,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
   const router = useRouter();
   const actualRouteName = normalizeRoute(pathname || route?.name);
   const { title } = getHeaderConfig(actualRouteName);
-  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unused-leave-entitlement', 'unused-leave-wage', 'end-of-service-years', 'friday-work', 'official-holiday-work', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'suspension-wage', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours'].includes(actualRouteName);
+  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unused-leave-entitlement', 'unused-leave-wage', 'end-of-service-years', 'entitled-seniority', 'friday-work', 'official-holiday-work', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'suspension-wage', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours'].includes(actualRouteName);
 
   const { width } = useWindowDimensions();
   const titleFontSize = width >= 420 ? 18 : 16;

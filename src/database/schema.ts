@@ -15,8 +15,6 @@ const expectedPeriodColumns = [
     'total_work_hours_year',
     'daily_minimum_wage',
     'percent_increase',
-    'seniority_base_previous',
-    'seniority_base_cumulative',
     'friday_work_per_day',
     'monthly_shift_work_morning_evening_10',
     'monthly_shift_work_morning_evening_night_15',
@@ -74,8 +72,6 @@ async function createTables(database: SQLiteDatabase) {
         total_work_hours_year REAL,
         daily_minimum_wage REAL,
         percent_increase REAL,
-        seniority_base_previous REAL,
-        seniority_base_cumulative REAL,
         friday_work_per_day REAL,
         monthly_shift_work_morning_evening_10 REAL,
         monthly_shift_work_morning_evening_night_15 REAL,
@@ -132,15 +128,20 @@ async function ensureCompatibleSchema(database: SQLiteDatabase) {
     const jobGroupColumns = await getTableColumns(database, 'job_groups');
     const seniorityBaseColumns = await getTableColumns(database, 'seniority_base_by_group');
 
-    const hasExpectedYearColumns = expectedYearColumns.every((column) => yearColumns.includes(column));
-    const hasExpectedPeriodColumns = expectedPeriodColumns.every((column) => periodColumns.includes(column));
-    const hasExpectedHolidayColumns = expectedHolidayColumns.every((column) => holidayColumns.includes(column));
-    const hasExpectedJobGroupColumns = expectedJobGroupColumns.every((column) => jobGroupColumns.includes(column));
-    const hasExpectedSeniorityBaseColumns = expectedSeniorityBaseColumns.every((column) => seniorityBaseColumns.includes(column));
+    const hasExpectedYearColumns = hasExactColumns(yearColumns, expectedYearColumns);
+    const hasExpectedPeriodColumns = hasExactColumns(periodColumns, expectedPeriodColumns);
+    const hasExpectedHolidayColumns = hasExactColumns(holidayColumns, expectedHolidayColumns);
+    const hasExpectedJobGroupColumns = hasExactColumns(jobGroupColumns, expectedJobGroupColumns);
+    const hasExpectedSeniorityBaseColumns = hasExactColumns(seniorityBaseColumns, expectedSeniorityBaseColumns);
 
     if (!hasExpectedYearColumns || !hasExpectedPeriodColumns || !hasExpectedHolidayColumns || !hasExpectedJobGroupColumns || !hasExpectedSeniorityBaseColumns) {
         await recreateDatabaseTables(database);
     }
+}
+
+function hasExactColumns(actualColumns: string[], expectedColumns: string[]): boolean {
+    return actualColumns.length === expectedColumns.length
+        && expectedColumns.every((column) => actualColumns.includes(column));
 }
 
 async function getTableColumns(database: SQLiteDatabase, tableName: string): Promise<string[]> {
