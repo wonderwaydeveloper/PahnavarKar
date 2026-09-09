@@ -40,7 +40,7 @@ export function YearSelectorCard({
                 انتخاب سال کارکرد
               </ThemedText>
               <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                برای مشاهده و تغییر داده‌های هر سال، سال کارکرد که می‌خواهید را انتخاب کنید.
+                سال موردنظر را برای مشاهده اطلاعات جامع مزدی انتخاب کنید.
               </ThemedText>
             </View>
           </View>
@@ -80,9 +80,9 @@ export function YearSelectorCard({
               },
             ]}
           >
-            <MaterialCommunityIcons name="pencil" size={18} color={theme.surface} />
+            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.surface} />
             <ThemedText style={[styles.buttonLabel, { color: theme.surface }]}>
-              تغییر سال
+              انتخاب سال
             </ThemedText>
           </Pressable>
         </Card.Content>
@@ -94,8 +94,8 @@ export function YearSelectorCard({
             <View style={styles.yearPickerHandle} />
             <View style={styles.yearPickerHeader}>
               <View style={styles.yearPickerHeaderTextBlock}>
-                <ThemedText type="smallBold" style={styles.yearPickerTitle}>تغییر سال</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">برای تغییر سال، گزینه موردنظر را انتخاب کنید</ThemedText>
+                <ThemedText type="smallBold" style={styles.yearPickerTitle}>انتخاب سال</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">سال موردنظر را انتخاب کنید</ThemedText>
               </View>
               <Pressable onPress={onClose}>
                 <MaterialCommunityIcons name="close" size={20} color={theme.textSecondary} />

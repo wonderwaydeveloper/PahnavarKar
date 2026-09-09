@@ -11,7 +11,7 @@ export default function HomeLayout() {
             })}
         >
             <Stack.Screen name="index" options={{ title: 'خانه' }} />
-            <Stack.Screen name="yearly-info" options={{ title: 'اطلاعات سال کارکرد' }} />
+            <Stack.Screen name="yearly-info" options={{ title: 'اطلاعات جامع مزدی از سال ۱۳۶۹ تاکنون' }} />
             <Stack.Screen name="base-salary" options={{ title: 'حقوق پایه' }} />
             <Stack.Screen name="family-allowance" options={{ title: 'حق عائله مندی' }} />
             <Stack.Screen name="housing-allowance" options={{ title: 'حق مسکن ماهیانه' }} />
@@ -23,8 +23,10 @@ export default function HomeLayout() {
             <Stack.Screen name="overtime-entitlement" options={{ title: 'اضافه کاری استحقاقی' }} />
             <Stack.Screen name="night-shift-entitlement" options={{ title: 'شب کاری استحقاقی' }} />
             <Stack.Screen name="insurance-days-entitlement" options={{ title: 'تعیین تعداد روزهای بیمه استحقاقی' }} />
-            <Stack.Screen name="unused-leave-entitlement" options={{ title: 'تعداد روزهای مرخصی ذخیره شده کارگر' }} />
-            <Stack.Screen name="unused-leave-wage" options={{ title: 'مزد مرخصی استفاده نشده' }} />
+            <Stack.Screen name="unemployment-insurance-entitlement" options={{ title: 'مدت زمان پرداخت مقرری بیمه بیکاری' }} />
+            <Stack.Screen name="unemployment-insurance-allowance" options={{ title: 'مبلغ مقرری بیمه بیکاری' }} />
+            <Stack.Screen name="unused-leave-entitlement" options={{ title: 'میزان مرخصی ذخیره شده کارگر' }} />
+            <Stack.Screen name="unused-leave-wage" options={{ title: 'مزد مرخصی ذخیره شده کارگر' }} />
             <Stack.Screen name="end-of-service-years" options={{ title: 'سنوات پایان کار' }} />
             <Stack.Screen name="entitled-seniority" options={{ title: 'پایه سنوات استحقاقی' }} />
             <Stack.Screen name="friday-work" options={{ title: 'جمعه کاری' }} />

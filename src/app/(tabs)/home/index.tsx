@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useRef } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useRef, useState, type ComponentProps } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -20,16 +20,35 @@ function runDebouncedAction(lastPressRef: { current: number }, callback: () => v
     callback();
 }
 
+type DebouncedPressableProps = Omit<ComponentProps<typeof Pressable>, 'onPress'> & {
+    onPress?: () => void;
+};
+
+function DebouncedPressable({ onPress, ...props }: DebouncedPressableProps) {
+    const lastPressRef = useRef(0);
+
+    return <Pressable {...props} onPress={() => runDebouncedAction(lastPressRef, () => onPress?.())} />;
+}
+
+function normalizeSearchText(value: string) {
+    return value
+        .trim()
+        .toLocaleLowerCase('fa-IR')
+        .replace(/ي/g, 'ی')
+        .replace(/ى/g, 'ی')
+        .replace(/ك/g, 'ک');
+}
+
 export default function HomeTabScreen() {
     const theme = useTheme();
     const insets = useSafeAreaInsets();
     const router = useRouter();
-    const lastPressRef = useRef(0);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const actions = [
         {
             key: 'yearly-info',
-            title: 'اطلاعات سال کارکرد',
+            title: 'اطلاعات جامع مزدی از سال ۱۳۶۹ تاکنون',
             icon: 'calendar-range' as const,
             accent: '#4f46e5',
             detail: 'جزئیاتی جامع از مصوبات شورای عالی کار از سال ۱۳۶۹ تاکنون',
@@ -125,18 +144,18 @@ export default function HomeTabScreen() {
         },
         {
             key: 'unused-leave-entitlement',
-            title: 'تعداد روزهای مرخصی ذخیره شده کارگر',
+            title: 'میزان مرخصی ذخیره شده کارگر',
             icon: 'calendar-clock' as const,
             accent: '#e11d48',
-            detail: 'محاسبه تعداد روزهای مرخصی ذخیره شده برای کارگر براساس ماده ۶۴ قانون کار',
+            detail: 'محاسبه تعداد مرخصی ذخیره شده کارگر براساس مواد ۶۴ و ۶۹ قانون کار',
             onPress: () => router.push('/home/unused-leave-entitlement'),
         },
         {
             key: 'unused-leave-wage',
-            title: 'مزد مرخصی استفاده نشده',
+            title: 'مزد مرخصی ذخیره شده کارگر',
             icon: 'cash-clock' as const,
             accent: '#0891b2',
-            detail: 'محاسبه مزد مرخصی استفاده نشده بر اساس آخرین ماه کارکرد',
+            detail: 'محاسبه مزد مرخصی ذخیره شده کارگر بر اساس آخرین ماه کارکرد',
             onPress: () => router.push('/home/unused-leave-wage'),
         },
         {
@@ -146,6 +165,22 @@ export default function HomeTabScreen() {
             accent: '#22c55e',
             detail: 'محاسبه تعداد روزهای بیمه موضوع مفاد مواد ۳۹ و ۱۴۸ قانون کار',
             onPress: () => router.push('/home/insurance-days-entitlement'),
+        },
+        {
+            key: 'unemployment-insurance-entitlement',
+            title: 'مدت زمان پرداخت مقرری بیمه بیکاری',
+            icon: 'briefcase-account' as const,
+            accent: '#0284c7',
+            detail: 'محاسبه مدت زمان استحقاق دریافت مقرری بیمه بیکاری براساس ماده ۷ قانون بیمه بیکاری',
+            onPress: () => router.push('/home/unemployment-insurance-entitlement' as any),
+        },
+        {
+            key: 'unemployment-insurance-allowance',
+            title: 'مبلغ مقرری بیمه بیکاری',
+            icon: 'cash-clock' as const,
+            accent: '#0f766e',
+            detail: 'محاسبه مقرری بیمه بیکاری براساس بند ب ماده ۷ قانون بیمه بیکاری',
+            onPress: () => router.push('/home/unemployment-insurance-allowance' as any),
         },
         {
             key: 'end-of-service-years',
@@ -229,6 +264,64 @@ export default function HomeTabScreen() {
         },
     ];
 
+    const normalizedSearchQuery = normalizeSearchText(searchQuery);
+    const filteredActions = normalizedSearchQuery
+        ? actions.filter((action) => normalizeSearchText(`${action.title} ${action.detail}`).includes(normalizedSearchQuery))
+        : actions;
+    const wageActionKeys = new Set([
+        'yearly-info',
+        'base-salary',
+        'entitled-seniority',
+        'housing-allowance',
+        'monthly-allowance',
+        'spousal-allowance',
+        'family-allowance',
+        'unemployment-insurance-allowance',
+        'overtime-entitlement',
+        'night-shift-entitlement',
+        'monthly-shift-work',
+        'minimum-bonus',
+        'maximum-bonus',
+        'end-of-service-years',
+        'unused-leave-wage',
+        'official-holiday-work',
+        'suspension-wage',
+    ]);
+    const wageActions = filteredActions.filter((action) => wageActionKeys.has(action.key));
+    const nonWageActions = filteredActions.filter((action) => !wageActionKeys.has(action.key));
+
+    const renderActionList = (actionList: typeof actions) => (
+        <View style={[styles.listCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            {actionList.map((action, index) => (
+                <DebouncedPressable
+                    key={action.key}
+                    onPress={action.onPress}
+                    style={({ pressed }) => [
+                        styles.listItem,
+                        index === 0 && styles.firstListItem,
+                        index === actionList.length - 1 && styles.lastListItem,
+                        { opacity: pressed ? 0.88 : 1, borderTopColor: theme.border },
+                    ]}
+                >
+                    <View style={[styles.itemIcon, { backgroundColor: `${action.accent}1A` }]}>
+                        <MaterialCommunityIcons name={action.icon} size={22} color={action.accent} />
+                    </View>
+
+                    <View style={styles.itemTextWrap}>
+                        <ThemedText type="smallBold" style={[styles.itemTitle, { color: theme.text }]}>
+                            {action.title}
+                        </ThemedText>
+                        <ThemedText type="small" style={[styles.itemDetail, { color: theme.textSecondary }]}>
+                            {action.detail}
+                        </ThemedText>
+                    </View>
+
+                    <MaterialCommunityIcons name="chevron-left" size={18} color={theme.textSecondary} />
+                </DebouncedPressable>
+            ))}
+        </View>
+    );
+
     return (
         <ThemedView style={styles.container}>
             <ScrollView
@@ -241,37 +334,53 @@ export default function HomeTabScreen() {
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.sectionWrap}>
-                    <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text }]}>ابزارها</ThemedText>
-
-                    <View style={[styles.listCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                        {actions.map((action, index) => (
+                    <View style={[styles.searchBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                        <MaterialCommunityIcons name="magnify" size={21} color={theme.textSecondary} />
+                        <TextInput
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            placeholder="جست‌وجوی ابزارها"
+                            placeholderTextColor={theme.textMuted}
+                            style={[styles.searchInput, { color: theme.text }]}
+                            returnKeyType="search"
+                            accessibilityLabel="جست‌وجوی ابزارها"
+                        />
+                        {searchQuery.length > 0 ? (
                             <Pressable
-                                key={action.key}
-                                onPress={() => runDebouncedAction(lastPressRef, action.onPress)}
-                                style={({ pressed }) => [
-                                    styles.listItem,
-                                    index === 0 && styles.firstListItem,
-                                    index === actions.length - 1 && styles.lastListItem,
-                                    { opacity: pressed ? 0.88 : 1, borderTopColor: theme.border },
-                                ]}
+                                onPress={() => setSearchQuery('')}
+                                accessibilityRole="button"
+                                accessibilityLabel="پاک‌کردن جست‌وجو"
+                                hitSlop={8}
                             >
-                                <View style={[styles.itemIcon, { backgroundColor: `${action.accent}1A` }]}>
-                                    <MaterialCommunityIcons name={action.icon} size={22} color={action.accent} />
-                                </View>
-
-                                <View style={styles.itemTextWrap}>
-                                    <ThemedText type="smallBold" style={[styles.itemTitle, { color: theme.text }]}>
-                                        {action.title}
-                                    </ThemedText>
-                                    <ThemedText type="small" style={[styles.itemDetail, { color: theme.textSecondary }]}>
-                                        {action.detail}
-                                    </ThemedText>
-                                </View>
-
-                                <MaterialCommunityIcons name="chevron-left" size={18} color={theme.textSecondary} />
+                                <MaterialCommunityIcons name="close-circle" size={19} color={theme.textSecondary} />
                             </Pressable>
-                        ))}
+                        ) : null}
                     </View>
+
+                    {filteredActions.length > 0 ? (
+                        <>
+                            {wageActions.length > 0 ? (
+                                <View style={styles.categorySection}>
+                                    <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text }]}>ویترین اقلام مزدی</ThemedText>
+                                    {renderActionList(wageActions)}
+                                </View>
+                            ) : null}
+                            {nonWageActions.length > 0 ? (
+                                <View style={styles.categorySection}>
+                                    <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text }]}>ویترین اقلام غیر مزدی</ThemedText>
+                                    {renderActionList(nonWageActions)}
+                                </View>
+                            ) : null}
+                        </>
+                    ) : (
+                        <View style={[styles.listCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                            <View style={styles.emptyState}>
+                                <MaterialCommunityIcons name="text-search" size={28} color={theme.textMuted} />
+                                <ThemedText type="smallBold" style={{ color: theme.text }}>ابزاری پیدا نشد</ThemedText>
+                                <ThemedText type="small" style={{ color: theme.textSecondary }}>عبارت دیگری را جست‌وجو کنید.</ThemedText>
+                            </View>
+                        </View>
+                    )}
                 </View>
 
                 {Platform.OS === 'web' && <WebBadge />}
@@ -292,8 +401,29 @@ const styles = StyleSheet.create({
     sectionWrap: {
         gap: Spacing.one,
     },
+    categorySection: {
+        gap: Spacing.one,
+        marginTop: Spacing.three - Spacing.one,
+    },
     sectionTitle: {
         marginHorizontal: Spacing.one,
+    },
+    searchBox: {
+        minHeight: 48,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.two,
+        paddingHorizontal: Spacing.two,
+        borderRadius: 12,
+        borderWidth: StyleSheet.hairlineWidth,
+    },
+    searchInput: {
+        flex: 1,
+        minHeight: 44,
+        paddingVertical: 0,
+        fontFamily: 'Vazirmatn-Regular',
+        fontSize: 14,
+        textAlign: 'right',
     },
     listCard: {
         borderRadius: 20,
@@ -332,5 +462,12 @@ const styles = StyleSheet.create({
     itemDetail: {
         fontSize: 11,
         lineHeight: 15,
+    },
+    emptyState: {
+        minHeight: 150,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: Spacing.one,
+        padding: Spacing.four,
     },
 });

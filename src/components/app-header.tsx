@@ -40,7 +40,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
       case 'app-info':
         return { title: 'اطلاعات برنامه' };
       case 'yearly-info':
-        return { title: 'اطلاعات سال کارکرد' };
+        return { title: 'اطلاعات جامع مزدی از سال ۱۳۶۹ تاکنون' };
       case 'base-salary':
         return { title: 'حقوق پایه' };
       case 'family-allowance':
@@ -63,10 +63,14 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
         return { title: 'شب کاری استحقاقی' };
       case 'insurance-days-entitlement':
         return { title: 'تعداد روزهای بیمه استحقاقی' };
+      case 'unemployment-insurance-entitlement':
+        return { title: 'مدت زمان پرداخت مقرری بیمه بیکاری' };
+      case 'unemployment-insurance-allowance':
+        return { title: 'مبلغ مقرری بیمه بیکاری' };
       case 'unused-leave-entitlement':
-        return { title: 'تعداد روزهای مرخصی ذخیره شده کارگر' };
+        return { title: 'میزان مرخصی ذخیره شده کارگر' };
       case 'unused-leave-wage':
-        return { title: 'مزد مرخصی استفاده نشده' };
+        return { title: 'مزد مرخصی ذخیره شده کارگر' };
       case 'end-of-service-years':
         return { title: 'سنوات پایان کار' };
       case 'entitled-seniority':
@@ -99,7 +103,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
   const router = useRouter();
   const actualRouteName = normalizeRoute(pathname || route?.name);
   const { title } = getHeaderConfig(actualRouteName);
-  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unused-leave-entitlement', 'unused-leave-wage', 'end-of-service-years', 'entitled-seniority', 'friday-work', 'official-holiday-work', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'suspension-wage', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours'].includes(actualRouteName);
+  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unemployment-insurance-entitlement', 'unemployment-insurance-allowance', 'unused-leave-entitlement', 'unused-leave-wage', 'end-of-service-years', 'entitled-seniority', 'friday-work', 'official-holiday-work', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'suspension-wage', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours'].includes(actualRouteName);
 
   const { width } = useWindowDimensions();
   const titleFontSize = width >= 420 ? 18 : 16;

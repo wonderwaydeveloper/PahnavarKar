@@ -419,8 +419,10 @@ export type UnusedLeaveWageMaritalStatus = 'single' | 'married';
 
 export interface UnusedLeaveWageCalculationResult {
     unusedLeaveDays: number;
+    calendarDaysInLastMonth: number;
     dailyWage: number;
     dailyMinimumWage: number;
+    dailySeniority: number;
     dailyHousingAllowance: number;
     dailyChildAllowance: number;
     dailyMonthlyAllowance: number;
@@ -515,12 +517,71 @@ export function calculateUnusedLeaveMonths(
         return null;
     }
 
-    const monthDiff = (endDate.year - startDate.year) * 12 + (endDate.month - startDate.month);
-    if (startDate.day === 1) {
-        return monthDiff + 1;
+    const isCalendarYearStart = startDate.month === 1 && startDate.day === 1;
+    const isCalendarYearEnd = endDate.month === 12 && endDate.day === jalaaliMonthLength(endDate.year, 12);
+
+    if (isCalendarYearStart && isCalendarYearEnd) {
+        return (endDate.year - startDate.year + 1) * 12;
     }
 
-    return Math.max(0, monthDiff - (endDate.day < startDate.day ? 1 : 0));
+    let completeYears = endDate.year - startDate.year;
+    let anniversaryDate = {
+        year: startDate.year + completeYears,
+        month: startDate.month,
+        day: Math.min(startDate.day, jalaaliMonthLength(startDate.year + completeYears, startDate.month)),
+    };
+
+    if (compareParsedDates(anniversaryDate, endDate) > 0) {
+        completeYears -= 1;
+        anniversaryDate = {
+            year: startDate.year + completeYears,
+            month: startDate.month,
+            day: Math.min(startDate.day, jalaaliMonthLength(startDate.year + completeYears, startDate.month)),
+        };
+    }
+
+    const partialStartDate = completeYears > 0 ? anniversaryDate : startDate;
+    let completeMonths = (endDate.year - partialStartDate.year) * 12
+        + endDate.month
+        - partialStartDate.month;
+    let monthAnniversary = {
+        year: partialStartDate.year + Math.floor((partialStartDate.month - 1 + completeMonths) / 12),
+        month: ((partialStartDate.month - 1 + completeMonths) % 12) + 1,
+        day: partialStartDate.day,
+    };
+    monthAnniversary.day = Math.min(
+        monthAnniversary.day,
+        jalaaliMonthLength(monthAnniversary.year, monthAnniversary.month),
+    );
+
+    if (compareParsedDates(monthAnniversary, endDate) > 0) {
+        completeMonths -= 1;
+        monthAnniversary = {
+            year: partialStartDate.year + Math.floor((partialStartDate.month - 1 + completeMonths) / 12),
+            month: ((partialStartDate.month - 1 + completeMonths) % 12) + 1,
+            day: Math.min(
+                partialStartDate.day,
+                jalaaliMonthLength(
+                    partialStartDate.year + Math.floor((partialStartDate.month - 1 + completeMonths) / 12),
+                    ((partialStartDate.month - 1 + completeMonths) % 12) + 1,
+                ),
+            ),
+        };
+    }
+
+    const endsAtMonthEnd = endDate.day === jalaaliMonthLength(endDate.year, endDate.month);
+    if (partialStartDate.day === 1 && endsAtMonthEnd) {
+        return completeYears * 12 + Math.max(0, completeMonths + 1);
+    }
+
+    const monthAnniversaryGregorian = toGregorian(monthAnniversary.year, monthAnniversary.month, monthAnniversary.day);
+    const endGregorian = toGregorian(endDate.year, endDate.month, endDate.day);
+    const monthAnniversaryDayNumber = Date.UTC(monthAnniversaryGregorian.gy, monthAnniversaryGregorian.gm - 1, monthAnniversaryGregorian.gd);
+    const endDayNumber = Date.UTC(endGregorian.gy, endGregorian.gm - 1, endGregorian.gd);
+    const remainingDays = Math.max(0, (endDayNumber - monthAnniversaryDayNumber) / 86400000);
+    const averageDaysPerMonth = 365 / 12;
+
+    return completeYears * 12 + Math.max(0, completeMonths) + remainingDays / averageDaysPerMonth;
 }
 
 export function calculateUnusedLeaveDays(totalMonthsWorked: number): number {
@@ -529,12 +590,104 @@ export function calculateUnusedLeaveDays(totalMonthsWorked: number): number {
     }
 
     if (totalMonthsWorked <= 12) {
-        return totalMonthsWorked * 2.5;
+        if (totalMonthsWorked === 12) {
+            return 26;
+        }
+
+        return totalMonthsWorked * 2.17;
     }
 
-    const fullYears = Math.floor(totalMonthsWorked / 12);
-    const remainingMonths = totalMonthsWorked % 12;
-    return fullYears * 9 + remainingMonths * (9 / 12);
+    const fullYears = totalMonthsWorked > 12 ? Math.floor(totalMonthsWorked / 12) : 0;
+    const remainingMonths = totalMonthsWorked > 12 ? totalMonthsWorked % 12 : totalMonthsWorked;
+    return fullYears * 9 + remainingMonths * 2.17;
+}
+
+export interface UnusedLeaveEntitlementBreakdownItem {
+    segmentIndex: number;
+    monthsWorked: number;
+    entitlementDays: number;
+    usedLeaveDays: number;
+    savedLeaveDays: number;
+    excessUsedDays: number;
+    carryBefore: number;
+    carryAfter: number;
+    isPartial: boolean;
+}
+
+export interface UnusedLeaveEntitlementCalculationResult {
+    totalEntitlementDays: number;
+    totalUsedLeaveDays: number;
+    totalSavedLeaveDays: number;
+    breakdown: UnusedLeaveEntitlementBreakdownItem[];
+}
+
+export function calculateUnusedLeaveEntitlement(
+    startDate: ParsedDateInput,
+    endDate: ParsedDateInput,
+    usedLeaveDaysBySegment: number[] = [],
+    initialSavedLeaveDays = 0,
+): UnusedLeaveEntitlementCalculationResult | null {
+    const totalMonthsWorked = calculateUnusedLeaveMonths(startDate, endDate);
+    if (totalMonthsWorked === null) {
+        return null;
+    }
+
+    const fullYears = totalMonthsWorked > 12 ? Math.floor(totalMonthsWorked / 12) : 0;
+    const remainingMonths = totalMonthsWorked > 12 ? totalMonthsWorked % 12 : totalMonthsWorked;
+    const segmentCount = fullYears + (remainingMonths > 0 ? 1 : 0);
+    const breakdown: UnusedLeaveEntitlementBreakdownItem[] = [];
+    const normalizedInitialSavedLeaveDays = Number.isFinite(initialSavedLeaveDays)
+        ? Math.max(0, initialSavedLeaveDays)
+        : 0;
+    let carryAfter = normalizedInitialSavedLeaveDays;
+
+    for (let index = 0; index < segmentCount; index += 1) {
+        const isPartial = index >= fullYears;
+        const monthsWorked = isPartial ? remainingMonths : 12;
+        const entitlementDays = isPartial
+            ? monthsWorked === 12
+                ? 26
+                : monthsWorked * 2.17
+            : 9;
+        const usedLeaveDays = Math.max(0, Number(usedLeaveDaysBySegment[index] ?? 0));
+        const carryBefore = carryAfter;
+        let savedLeaveDays = 0;
+        let excessUsedDays = 0;
+
+        if (!isPartial) {
+            const fullYearEntitlementCap = 26;
+            savedLeaveDays = usedLeaveDays <= 17
+                ? 9
+                : Math.min(fullYearEntitlementCap, Math.max(0, fullYearEntitlementCap - usedLeaveDays));
+            carryAfter += savedLeaveDays;
+        } else if (usedLeaveDays <= entitlementDays) {
+            savedLeaveDays = Math.max(0, entitlementDays - usedLeaveDays);
+            carryAfter += savedLeaveDays;
+        } else {
+            excessUsedDays = usedLeaveDays - entitlementDays;
+            carryAfter = Math.max(0, carryAfter - excessUsedDays);
+            savedLeaveDays = 0;
+        }
+
+        breakdown.push({
+            segmentIndex: index + 1,
+            monthsWorked,
+            entitlementDays,
+            usedLeaveDays,
+            savedLeaveDays,
+            excessUsedDays,
+            carryBefore,
+            carryAfter,
+            isPartial,
+        });
+    }
+
+    return {
+        totalEntitlementDays: breakdown.reduce((sum, item) => sum + item.entitlementDays, 0),
+        totalUsedLeaveDays: breakdown.reduce((sum, item) => sum + item.usedLeaveDays, 0),
+        totalSavedLeaveDays: carryAfter,
+        breakdown,
+    };
 }
 
 export function calculateUnusedLeaveWageFromPeriodData(
@@ -543,12 +696,16 @@ export function calculateUnusedLeaveWageFromPeriodData(
     periodBuckets: SalaryPeriodBucket[],
     maritalStatus: UnusedLeaveWageMaritalStatus = 'single',
     childrenCount = 1,
+    dailySeniority = 0,
+    unusedLeaveDaysOverride?: number,
 ): UnusedLeaveWageCalculationResult | null {
     const totalMonthsWorked = calculateUnusedLeaveMonths(startDate, endDate);
     if (totalMonthsWorked === null) {
         return null;
     }
-    const unusedLeaveDays = calculateUnusedLeaveDays(totalMonthsWorked);
+    const unusedLeaveDays = Number.isFinite(unusedLeaveDaysOverride)
+        ? Math.max(0, unusedLeaveDaysOverride as number)
+        : calculateUnusedLeaveDays(totalMonthsWorked);
 
     const bucket = periodBuckets.find((item) => item.year === endDate.year);
     if (!bucket) {
@@ -571,24 +728,27 @@ export function calculateUnusedLeaveWageFromPeriodData(
     }
 
     const dailyMinimumWage = Number(period.daily_minimum_wage ?? 0);
+    const calendarDaysInLastMonth = jalaaliMonthLength(endDate.year, endDate.month);
     const monthlyHousingAllowance = maritalStatus === 'married'
         ? Number(period.monthly_housing_married ?? 0)
         : Number(period.monthly_housing_single ?? 0);
     const monthlyAllowance = maritalStatus === 'married'
         ? Number(period.monthly_married_allowance ?? 0)
         : Number(period.monthly_single_allowance ?? 0);
-    const childAllowance = Number(period.child_allowance ?? 0) * Math.max(1, Math.trunc(childrenCount));
-    const maritalAllowance = Number(period.marital_allowance ?? 0);
-    const dailyHousingAllowance = monthlyHousingAllowance / 30;
-    const dailyChildAllowance = childAllowance / 30;
-    const dailyMonthlyAllowance = monthlyAllowance / 30;
-    const dailyMaritalAllowance = maritalAllowance / 30;
-    const dailyWage = dailyMinimumWage + dailyHousingAllowance + dailyChildAllowance + dailyMonthlyAllowance + dailyMaritalAllowance;
+    const childAllowance = Number(period.child_allowance ?? 0) * Math.max(0, Math.trunc(childrenCount));
+    const maritalAllowance = maritalStatus === 'married' ? Number(period.marital_allowance ?? 0) : 0;
+    const dailyHousingAllowance = monthlyHousingAllowance / calendarDaysInLastMonth;
+    const dailyChildAllowance = childAllowance / calendarDaysInLastMonth;
+    const dailyMonthlyAllowance = monthlyAllowance / calendarDaysInLastMonth;
+    const dailyMaritalAllowance = maritalAllowance / calendarDaysInLastMonth;
+    const dailyWage = dailyMinimumWage + dailySeniority + dailyHousingAllowance + dailyChildAllowance + dailyMonthlyAllowance + dailyMaritalAllowance;
 
     return {
         unusedLeaveDays,
+        calendarDaysInLastMonth,
         dailyWage,
         dailyMinimumWage,
+        dailySeniority,
         dailyHousingAllowance,
         dailyChildAllowance,
         dailyMonthlyAllowance,
@@ -2085,5 +2245,117 @@ export function calculateMonthlyShiftWorkFromPeriodData(
     return {
         totalAmount: breakdown.reduce((sum, item) => sum + item.amount, 0),
         breakdown,
+    };
+}
+
+export type UnemploymentInsuranceMaritalStatus = 'single' | 'married';
+
+export interface UnemploymentInsuranceEntitlementResult {
+    insuranceMonths: number;
+    usedMonths: number;
+    maritalStatus: UnemploymentInsuranceMaritalStatus;
+    legalEntitlementMonths: number;
+    remainingEntitlementMonths: number;
+}
+
+export function calculateUnemploymentInsuranceEntitlement(
+    insuranceMonths: number,
+    usedMonths: number,
+    maritalStatus: UnemploymentInsuranceMaritalStatus,
+): UnemploymentInsuranceEntitlementResult {
+    const normalizedInsuranceMonths = Number.isFinite(insuranceMonths)
+        ? Math.max(0, Math.trunc(insuranceMonths))
+        : 0;
+    const normalizedUsedMonths = Number.isFinite(usedMonths)
+        ? Math.max(0, Math.trunc(usedMonths))
+        : 0;
+
+    let legalEntitlementMonths = 0;
+
+    if (normalizedInsuranceMonths >= 6 && normalizedInsuranceMonths <= 24) {
+        legalEntitlementMonths = maritalStatus === 'married' ? 12 : 6;
+    } else if (normalizedInsuranceMonths <= 120 && normalizedInsuranceMonths >= 25) {
+        legalEntitlementMonths = maritalStatus === 'married' ? 18 : 12;
+    } else if (normalizedInsuranceMonths <= 180 && normalizedInsuranceMonths >= 121) {
+        legalEntitlementMonths = maritalStatus === 'married' ? 26 : 18;
+    } else if (normalizedInsuranceMonths <= 240 && normalizedInsuranceMonths >= 181) {
+        legalEntitlementMonths = maritalStatus === 'married' ? 36 : 26;
+    } else if (normalizedInsuranceMonths >= 241) {
+        legalEntitlementMonths = maritalStatus === 'married' ? 50 : 36;
+    }
+
+    return {
+        insuranceMonths: normalizedInsuranceMonths,
+        usedMonths: normalizedUsedMonths,
+        maritalStatus,
+        legalEntitlementMonths,
+        remainingEntitlementMonths: Math.max(0, legalEntitlementMonths - normalizedUsedMonths),
+    };
+}
+
+export interface UnemploymentInsuranceAllowanceCalculationResult {
+    eligible: boolean;
+    employmentStartDate: ParsedDateInput;
+    unemploymentStartDate: ParsedDateInput;
+    totalWagesLast90Days: number;
+    dailyMinimumWage: number;
+    dependentsCount: number;
+    averageDailyWage: number;
+    dailyBaseAmount: number;
+    familyShare: number;
+    initialDailyAmount: number;
+    dailyCeiling: number;
+    finalDailyAmount: number;
+    monthlyAmount: number;
+}
+
+function addJalaaliMonths(date: ParsedDateInput, months: number): ParsedDateInput {
+    const totalMonths = date.year * 12 + (date.month - 1) + months;
+    const year = Math.floor(totalMonths / 12);
+    const month = (totalMonths % 12) + 1;
+
+    return {
+        year,
+        month,
+        day: Math.min(date.day, jalaaliMonthLength(year, month)),
+    };
+}
+
+export function calculateUnemploymentInsuranceAllowance(
+    employmentStartDate: ParsedDateInput,
+    unemploymentStartDate: ParsedDateInput,
+    totalWagesLast90Days: number,
+    dailyMinimumWage: number,
+    dependentsCount: number,
+): UnemploymentInsuranceAllowanceCalculationResult {
+    const normalizedWages = Number.isFinite(totalWagesLast90Days) ? Math.max(0, totalWagesLast90Days) : 0;
+    const normalizedMinimumWage = Number.isFinite(dailyMinimumWage) ? Math.max(0, dailyMinimumWage) : 0;
+    const normalizedDependents = Number.isFinite(dependentsCount)
+        ? Math.min(4, Math.max(0, Math.trunc(dependentsCount)))
+        : 0;
+    const eligible = compareParsedDates(unemploymentStartDate, addJalaaliMonths(employmentStartDate, 6)) >= 0;
+    const averageDailyWage = normalizedWages / 90;
+    const dailyBaseAmount = averageDailyWage * 0.55;
+    const familyShare = normalizedDependents * 0.1 * normalizedMinimumWage;
+    const initialDailyAmount = dailyBaseAmount + familyShare;
+    const dailyCeiling = averageDailyWage * 0.8;
+    const finalDailyAmount = eligible
+        ? Math.max(normalizedMinimumWage, Math.min(initialDailyAmount, dailyCeiling))
+        : 0;
+
+    return {
+        eligible,
+        employmentStartDate,
+        unemploymentStartDate,
+        totalWagesLast90Days: normalizedWages,
+        dailyMinimumWage: normalizedMinimumWage,
+        dependentsCount: normalizedDependents,
+        averageDailyWage,
+        dailyBaseAmount,
+        familyShare,
+        initialDailyAmount,
+        dailyCeiling,
+        finalDailyAmount,
+        monthlyAmount: finalDailyAmount * 30,
     };
 }

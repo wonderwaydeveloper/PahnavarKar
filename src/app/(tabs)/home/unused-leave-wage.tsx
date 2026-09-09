@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,18 +9,22 @@ import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
-import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
+import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
 import {
+    calculateEntitledSeniorityFromPeriodData,
+    calculateUnusedLeaveEntitlement,
+    calculateUnusedLeaveMonths,
     calculateUnusedLeaveWageFromPeriodData,
     parseDateInput,
+    type EntitledSeniorityWorkshopType,
     type SalaryPeriodBucket,
     type UnusedLeaveWageCalculationResult,
     type UnusedLeaveWageMaritalStatus,
 } from '@/utils/salary-calculation';
 
-type PickerTarget = 'start' | 'end';
-const CHILDREN_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
+type PickerTarget = 'start' | 'end' | 'employment';
+const CHILDREN_OPTIONS = Array.from({ length: 13 }, (_, index) => index);
 
 export default function UnusedLeaveWageScreen() {
     const theme = useTheme();
@@ -32,12 +36,21 @@ export default function UnusedLeaveWageScreen() {
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
     const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
+    const defaultEmploymentDate = `${currentPersianYear - 1}/01/01`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
+    const [employmentDate, setEmploymentDate] = useState(defaultEmploymentDate);
+    const [workshopType, setWorkshopType] = useState<EntitledSeniorityWorkshopType>('unclassified');
+    const [settledThrough1391, setSettledThrough1391] = useState(false);
+    const [jobGroups, setJobGroups] = useState<{ id: number; group_number: number; sort_order: number }[]>([]);
+    const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
+    const [groupMenuVisible, setGroupMenuVisible] = useState(false);
     const [maritalStatus, setMaritalStatus] = useState<UnusedLeaveWageMaritalStatus>('single');
-    const [childrenCount, setChildrenCount] = useState(1);
+    const [childrenCount, setChildrenCount] = useState(0);
     const [childrenMenuVisible, setChildrenMenuVisible] = useState(false);
+    const [usedLeaveDaysBySegment, setUsedLeaveDaysBySegment] = useState<Record<number, string>>({});
+    const [initialSavedLeaveDays, setInitialSavedLeaveDays] = useState('۰');
     const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
     const [periodBuckets, setPeriodBuckets] = useState<SalaryPeriodBucket[]>([]);
     const [availableYears, setAvailableYears] = useState<number[]>([]);
@@ -52,30 +65,40 @@ export default function UnusedLeaveWageScreen() {
         const loadData = async () => {
             try {
                 await seedFromJsonAsset();
-                const years = await fetchYears();
+                const [years, groups] = await Promise.all([fetchYears(), fetchJobGroups()]);
                 const buckets: SalaryPeriodBucket[] = [];
 
                 for (const year of years) {
                     const periods = await fetchPeriodsByYearId(year.id);
                     if (periods.length === 0) continue;
+                    const mappedPeriods = await Promise.all(periods.map(async (period) => ({
+                        period_index: period.period_index,
+                        month_count: period.month_count,
+                        daily_minimum_wage: period.daily_minimum_wage,
+                        seniority_base: period.seniority_base,
+                        seniority_base_by_group: Object.fromEntries(
+                            (await fetchSeniorityBaseByGroup(period.id)).map((row) => {
+                                const group = groups.find((item) => item.id === row.job_group_id);
+                                return [group?.group_number ?? row.job_group_id, Number(row.base_value)];
+                            }),
+                        ),
+                        monthly_housing_single: period.monthly_housing_single,
+                        monthly_housing_married: period.monthly_housing_married,
+                        monthly_single_allowance: period.monthly_single_allowance,
+                        monthly_married_allowance: period.monthly_married_allowance,
+                        child_allowance: period.child_allowance,
+                        marital_allowance: period.marital_allowance,
+                    })));
                     buckets.push({
                         year: year.year,
-                        periods: periods.map((period) => ({
-                            period_index: period.period_index,
-                            month_count: period.month_count,
-                            daily_minimum_wage: period.daily_minimum_wage,
-                            monthly_housing_single: period.monthly_housing_single,
-                            monthly_housing_married: period.monthly_housing_married,
-                            monthly_single_allowance: period.monthly_single_allowance,
-                            monthly_married_allowance: period.monthly_married_allowance,
-                            child_allowance: period.child_allowance,
-                            marital_allowance: period.marital_allowance,
-                        })),
+                        periods: mappedPeriods,
                     });
                 }
 
                 if (isMounted) {
                     setPeriodBuckets(buckets);
+                    setJobGroups(groups);
+                    setSelectedGroup(groups[0]?.group_number ?? null);
                     setAvailableYears(years.map((year) => year.year));
                 }
             } catch {
@@ -105,28 +128,28 @@ export default function UnusedLeaveWageScreen() {
         if (!parsedLeft || !parsedRight) return 0;
         return parsedLeft.year * 10000 + parsedLeft.month * 100 + parsedLeft.day - (parsedRight.year * 10000 + parsedRight.month * 100 + parsedRight.day);
     };
-    const shouldShowMaritalStatus = useMemo(() => {
+    const canUseSettlementPath = (parseDateInput(employmentDate)?.year ?? 0) <= 1391;
+    const totalMonthsWorked = (() => {
         const parsedStart = parseDateInput(startDate);
         const parsedEnd = parseDateInput(endDate);
+        return parsedStart && parsedEnd ? calculateUnusedLeaveMonths(parsedStart, parsedEnd) : null;
+    })();
+    const fullYears = totalMonthsWorked == null || totalMonthsWorked <= 12 ? 0 : Math.floor(totalMonthsWorked / 12);
+    const remainingMonths = totalMonthsWorked == null ? 0 : totalMonthsWorked > 12 ? totalMonthsWorked % 12 : totalMonthsWorked;
+    const segmentCount = fullYears + (remainingMonths > 0 ? 1 : 0);
 
-        if (!parsedStart || !parsedEnd || periodBuckets.length === 0) {
-            return false;
-        }
-
-        return periodBuckets
-            .filter((bucket) => bucket.year >= parsedStart.year && bucket.year <= parsedEnd.year)
-            .some((bucket) => bucket.periods.some((period) => (
-                (period.monthly_housing_single != null &&
-                    period.monthly_housing_married != null &&
-                    period.monthly_housing_single !== period.monthly_housing_married) ||
-                (period.monthly_single_allowance != null &&
-                    period.monthly_married_allowance != null &&
-                    period.monthly_single_allowance !== period.monthly_married_allowance)
-            )));
-    }, [endDate, periodBuckets, startDate]);
+    const updateUsedLeaveDays = (segmentIndex: number, value: string) => {
+        setUsedLeaveDaysBySegment((current) => ({
+            ...current,
+            [segmentIndex]: value.replace(/[^0-9۰-۹.]/g, ''),
+        }));
+    };
 
     const handleDateSelect = (value: string) => {
-        if (pickerTarget === 'start') {
+        if (pickerTarget === 'employment') {
+            setEmploymentDate(value);
+            if (compareDates(value, endDate) > 0) setEndDate(value);
+        } else if (pickerTarget === 'start') {
             setStartDate(value);
             if (compareDates(value, endDate) > 0) setEndDate(value);
         } else if (pickerTarget === 'end') {
@@ -143,13 +166,56 @@ export default function UnusedLeaveWageScreen() {
     const handleCalculate = () => {
         const start = parseDateInput(startDate);
         const end = parseDateInput(endDate);
-        if (!start || !end) {
+        const employment = parseDateInput(employmentDate);
+        if (!start || !end || !employment || compareDates(employmentDate, endDate) > 0) {
             setResult(null);
-            setSnackbarMessage('تاریخ واردشده معتبر نیست.');
+            setSnackbarMessage('تاریخ‌های واردشده معتبر نیستند.');
             setSnackbarVisible(true);
             return;
         }
-        const calculation = calculateUnusedLeaveWageFromPeriodData(start, end, periodBuckets, maritalStatus, childrenCount);
+        if (workshopType === 'classified' && selectedGroup == null) {
+            setResult(null);
+            setSnackbarMessage('گروه شغلی را انتخاب کنید.');
+            setSnackbarVisible(true);
+            return;
+        }
+
+        const usedLeaveDays = Array.from({ length: segmentCount }, (_, index) =>
+            Number(String(usedLeaveDaysBySegment[index] ?? '0').replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))),
+        );
+        const initialSavedDays = Number(initialSavedLeaveDays.replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))));
+        if (usedLeaveDays.some((value) => !Number.isFinite(value) || value < 0) || !Number.isFinite(initialSavedDays) || initialSavedDays < 0) {
+            setResult(null);
+            setSnackbarMessage('مقادیر مرخصی استفاده‌شده و ذخیره انتقالی باید صفر یا بیشتر باشند.');
+            setSnackbarVisible(true);
+            return;
+        }
+
+        const leaveCalculation = calculateUnusedLeaveEntitlement(start, end, usedLeaveDays, initialSavedDays);
+        if (!leaveCalculation) {
+            setResult(null);
+            setSnackbarMessage('محاسبه میزان مرخصی ذخیره‌شده امکان‌پذیر نیست.');
+            setSnackbarVisible(true);
+            return;
+        }
+
+        const seniority = calculateEntitledSeniorityFromPeriodData(
+            employment,
+            end,
+            periodBuckets,
+            workshopType,
+            selectedGroup ?? undefined,
+            settledThrough1391,
+        );
+        const calculation = calculateUnusedLeaveWageFromPeriodData(
+            start,
+            end,
+            periodBuckets,
+            maritalStatus,
+            childrenCount,
+            seniority.finalEntitlement,
+            leaveCalculation.totalSavedLeaveDays,
+        );
         if (!calculation) {
             setResult(null);
             setSnackbarMessage('برای تاریخ پایان، داده‌ی حقوقی معتبری پیدا نشد.');
@@ -163,8 +229,14 @@ export default function UnusedLeaveWageScreen() {
     const handleReset = () => {
         setStartDate(defaultStartDate);
         setEndDate(defaultEndDate);
+        setEmploymentDate(defaultEmploymentDate);
         setMaritalStatus('single');
-        setChildrenCount(1);
+        setChildrenCount(0);
+        setUsedLeaveDaysBySegment({});
+        setInitialSavedLeaveDays('۰');
+        setWorkshopType('unclassified');
+        setSettledThrough1391(false);
+        setGroupMenuVisible(false);
         setChildrenMenuVisible(false);
         setResult(null);
         setShowDetails(false);
@@ -172,6 +244,7 @@ export default function UnusedLeaveWageScreen() {
 
     const components = result ? [
         ['حداقل مزد روزانه', result.dailyMinimumWage],
+        [workshopType === 'classified' ? 'پایه سنوات استحقاقی روزانه گروه شغلی' : 'پایه سنوات استحقاقی روزانه', result.dailySeniority],
         ['حق مسکن روزانه', result.dailyHousingAllowance],
         ['حق عائله‌مندی روزانه', result.dailyChildAllowance],
         ['بن کارگری روزانه', result.dailyMonthlyAllowance],
@@ -186,13 +259,13 @@ export default function UnusedLeaveWageScreen() {
                         <Card.Content style={styles.cardContent}>
                             <View style={styles.headerRow}>
                                 <View style={styles.headerText}>
-                                    <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>مزد مرخصی استفاده نشده</ThemedText>
-                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>مزد مرخصی بر اساس روزهای مرخصی استفاده نشده و آخرین ماه کارکرد محاسبه می‌شود.</ThemedText>
+                                    <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>مزد مرخصی ذخیره شده کارگر</ThemedText>
+                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>مزد مرخصی بر اساس روزهای مرخصی ذخیره شده و آخرین ماه کارکرد محاسبه می‌شود.</ThemedText>
                                 </View>
                             </View>
                             <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                 <ThemedText type="small" style={[styles.formulaLabel, { color: theme.textSecondary }]}>فرمول محاسبه</ThemedText>
-                                <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>روزهای مرخصی استفاده نشده × (حداقل مزد روزانه + حق مسکن/۳۰ + حق عائله‌مندی/۳۰ + بن کارگری/۳۰ + حق تأهل/۳۰)</ThemedText>
+                                <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>میزان مرخصی ذخیره‌شده کارگر × ((حداقل مزد روزانه مصوب شورای عالی کار در آخرین روز کارکرد + پایه سنوات استحقاقی روزانه در آخرین روز کارکرد) + (مبلغ حق مسکن ماهیانه در آخرین ماه کارکرد ÷ تعداد روزهای آن ماه در تقویم) + (مبلغ حق عائله‌مندی ماهیانه در آخرین ماه کارکرد ÷ تعداد روزهای آن ماه در تقویم) + (مبلغ بن کارگری در آخرین ماه کارکرد ÷ تعداد روزهای آن ماه در تقویم) + (مبلغ حق تأهل ماهیانه در آخرین ماه کارکرد ÷ تعداد روزهای آن ماه در تقویم))</ThemedText>
                             </View>
                             <View style={styles.metricsRow}>
                                 {(['start', 'end'] as const).map((target) => (
@@ -205,17 +278,98 @@ export default function UnusedLeaveWageScreen() {
                                     </View>
                                 ))}
                             </View>
-                            {shouldShowMaritalStatus ? (
-                                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>وضعیت تأهل</ThemedText>
-                                    <View style={styles.statusRow}>
-                                        {([['single', 'مجرد'], ['married', 'متأهل']] as const).map(([value, label]) => {
-                                            const selected = maritalStatus === value;
-                                            return <Pressable key={value} onPress={() => setMaritalStatus(value)} style={[styles.statusButton, { backgroundColor: selected ? theme.primary : theme.surface, borderColor: selected ? theme.primary : theme.border }]}><ThemedText type="smallBold" style={{ color: selected ? theme.surface : theme.text }}>{label}</ThemedText></Pressable>;
-                                        })}
-                                    </View>
+                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>ذخیره مرخصی از سال‌های قبل</ThemedText>
+                                <TextInput
+                                    value={initialSavedLeaveDays}
+                                    onChangeText={(value) => setInitialSavedLeaveDays(value.replace(/[^0-9۰-۹.]/g, ''))}
+                                    keyboardType="decimal-pad"
+                                    inputMode="decimal"
+                                    placeholder="۰"
+                                    placeholderTextColor={theme.textMuted}
+                                    style={[styles.textInput, { color: theme.text, backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}
+                                    textAlign="center"
+                                    accessibilityLabel="ذخیره مرخصی از سال‌های قبل"
+                                />
+                            </View>
+                            {segmentCount > 0 ? (
+                                <View style={[styles.optionSection, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                    <ThemedText type="smallBold" style={[styles.sectionLabel, { color: theme.text }]}>مرخصی استفاده‌شده در هر بخش</ThemedText>
+                                    {Array.from({ length: segmentCount }, (_, index) => {
+                                        const isPartial = index >= fullYears;
+                                        const label = isPartial ? `بازه ناقص (${remainingMonths.toFixed(2)} ماه)` : `سال کامل ${index + 1}`;
+                                        return (
+                                            <View key={index} style={styles.leaveUsageField}>
+                                                <ThemedText type="small" style={{ color: theme.textSecondary }}>{label}</ThemedText>
+                                                <TextInput
+                                                    value={usedLeaveDaysBySegment[index] ?? ''}
+                                                    onChangeText={(value) => updateUsedLeaveDays(index, value)}
+                                                    keyboardType="decimal-pad"
+                                                    inputMode="decimal"
+                                                    placeholder="۰"
+                                                    placeholderTextColor={theme.textMuted}
+                                                    style={[styles.textInput, { color: theme.text, backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}
+                                                    textAlign="center"
+                                                    accessibilityLabel={`مرخصی استفاده‌شده ${label}`}
+                                                />
+                                            </View>
+                                        );
+                                    })}
                                 </View>
                             ) : null}
+                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ شروع کار</ThemedText>
+                                <Pressable onPress={() => setPickerTarget('employment')} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                    <ThemedText type="smallBold" style={[styles.fieldValue, { color: theme.text }]}>{formatDate(employmentDate)}</ThemedText>
+                                    <MaterialCommunityIcons name="calendar-account-outline" size={18} color={theme.primary} />
+                                </Pressable>
+                            </View>
+                            <View style={[styles.optionSection, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>نوع کارگاه</ThemedText>
+                                <View style={styles.statusRow}>
+                                    {([['unclassified', 'فاقد طرح طبقه‌بندی'], ['classified', 'دارای طرح طبقه‌بندی']] as const).map(([value, label]) => (
+                                        <Pressable key={value} onPress={() => setWorkshopType(value)} style={[styles.statusButton, { backgroundColor: workshopType === value ? theme.primary : theme.surface, borderColor: workshopType === value ? theme.primary : theme.border }]}>
+                                            <ThemedText type="smallBold" style={{ color: workshopType === value ? theme.surface : theme.text, textAlign: 'center', fontSize: 13, lineHeight: 19 }}>{label}</ThemedText>
+                                        </Pressable>
+                                    ))}
+                                </View>
+                            </View>
+                            {workshopType === 'classified' ? (
+                                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
+                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>گروه شغلی</ThemedText>
+                                    <Menu
+                                        visible={groupMenuVisible}
+                                        onDismiss={() => setGroupMenuVisible(false)}
+                                        anchor={
+                                            <Pressable onPress={() => setGroupMenuVisible(true)} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                <ThemedText type="smallBold" style={{ color: theme.text }}>{selectedGroup == null ? 'انتخاب گروه' : `گروه ${toPersianDigits(selectedGroup)}`}</ThemedText>
+                                                <MaterialCommunityIcons name="briefcase-outline" size={18} color={theme.primary} />
+                                            </Pressable>
+                                        }
+                                    >
+                                        {jobGroups.map((group) => <Menu.Item key={group.id} title={`گروه ${toPersianDigits(group.group_number)}`} onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }} />)}
+                                    </Menu>
+                                </View>
+                            ) : null}
+                            <Pressable
+                                onPress={() => canUseSettlementPath && setSettledThrough1391((value) => !value)}
+                                style={[styles.settlementRow, { backgroundColor: theme.surfaceVariant, borderColor: theme.border, opacity: canUseSettlementPath ? 1 : 0.55 }]}
+                            >
+                                <MaterialCommunityIcons name={settledThrough1391 ? 'checkbox-marked' : 'checkbox-blank-outline'} size={22} color={settledThrough1391 ? theme.primary : theme.textSecondary} />
+                                <View style={styles.settlementText}>
+                                    <ThemedText type="smallBold" style={[styles.settlementTitle, { color: theme.text }]}>تصفیه حساب تا پایان سال ۱۳۹۱ انجام شده است</ThemedText>
+                                    <ThemedText type="small" style={[styles.settlementDescription, { color: theme.textSecondary }]}>{canUseSettlementPath ? 'محاسبه سنوات از سال ۱۳۹۲ ادامه پیدا می‌کند.' : 'این گزینه برای استخدام‌های سال ۱۳۹۲ و بعد کاربرد ندارد.'}</ThemedText>
+                                </View>
+                            </Pressable>
+                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>وضعیت تأهل</ThemedText>
+                                <View style={styles.statusRow}>
+                                    {([['single', 'مجرد'], ['married', 'متأهل']] as const).map(([value, label]) => {
+                                        const selected = maritalStatus === value;
+                                        return <Pressable key={value} onPress={() => setMaritalStatus(value)} style={[styles.statusButton, { backgroundColor: selected ? theme.primary : theme.surface, borderColor: selected ? theme.primary : theme.border }]}><ThemedText type="smallBold" style={{ color: selected ? theme.surface : theme.text }}>{label}</ThemedText></Pressable>;
+                                    })}
+                                </View>
+                            </View>
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تعداد فرزندان واجد شرایط</ThemedText>
                                 <Menu
@@ -251,15 +405,15 @@ export default function UnusedLeaveWageScreen() {
                                 {result ? <Button mode="outlined" onPress={handleReset} icon="refresh" textColor={theme.primary} style={styles.actionButton} labelStyle={styles.actionLabel}>بازنشانی</Button> : null}
                             </View>
                             {result ? <Card style={[styles.resultCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><Card.Content style={styles.resultContent}>
-                                <View style={[styles.summaryBox, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>مبلغ مزد مرخصی استفاده نشده</ThemedText><ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>{toPersianDigits(formatCurrency(result.unusedLeaveDays * result.dailyWage))}</ThemedText></View>
+                                <View style={[styles.summaryBox, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>مبلغ مزد مرخصی ذخیره شده کارگر</ThemedText><ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>{toPersianDigits(formatCurrency(result.unusedLeaveDays * result.dailyWage))}</ThemedText></View>
                                 <View style={styles.breakdownHeader}><ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.text }]}>جزئیات محاسبه</ThemedText><Pressable onPress={() => setShowDetails((value) => !value)} style={[styles.toggleButton, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="smallBold" style={[styles.toggleButtonLabel, { color: theme.primary }]}>{showDetails ? 'عدم نمایش' : 'نمایش جزئیات'}</ThemedText><MaterialCommunityIcons name={showDetails ? 'chevron-up' : 'chevron-down'} size={18} color={theme.primary} /></Pressable></View>
-                                {showDetails ? <View style={styles.breakdownGrid}><View style={[styles.breakdownItemCard, { backgroundColor: theme.surface, borderColor: theme.border }]}><View style={styles.breakdownItemHeaderRow}><ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>جزئیات مزد روزانه</ThemedText></View><View style={styles.breakdownDetailGrid}><View style={[styles.detailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>روزهای مرخصی استفاده نشده</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{formatNumber(result.unusedLeaveDays)} روز</ThemedText></View><ThemedText type="small" style={[styles.detailDescription, { color: theme.textSecondary }]}>آخرین ماه کارکرد: سال {toPersianDigits(result.year)}، دوره {toPersianDigits(result.periodIndex)}</ThemedText>{components.map(([label, value]) => <View key={label} style={[styles.detailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>{label}</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{formatCurrency(value)}</ThemedText></View>)}<View style={[styles.detailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>مزد روزانه مشمول مرخصی</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{formatCurrency(result.dailyWage)}</ThemedText></View></View></View></View> : null}
+                                {showDetails ? <View style={styles.breakdownGrid}><View style={[styles.breakdownItemCard, { backgroundColor: theme.surface, borderColor: theme.border }]}><View style={styles.breakdownItemHeaderRow}><ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>جزئیات مزد روزانه</ThemedText></View><View style={styles.breakdownDetailGrid}><View style={[styles.detailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>روزهای مرخصی ذخیره شده</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{formatNumber(result.unusedLeaveDays)} روز</ThemedText></View><View style={[styles.detailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>روزهای تقویمی ماه آخر کارکرد</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(result.calendarDaysInLastMonth)} روز</ThemedText></View><ThemedText type="small" style={[styles.detailDescription, { color: theme.textSecondary }]}>آخرین ماه کارکرد: سال {toPersianDigits(result.year)}، دوره {toPersianDigits(result.periodIndex)}</ThemedText>{components.map(([label, value]) => <View key={label} style={[styles.detailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>{label}</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{formatCurrency(value)}</ThemedText></View>)}<View style={[styles.detailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>مزد روزانه مشمول مرخصی</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{formatCurrency(result.dailyWage)}</ThemedText></View></View></View></View> : null}
                             </Card.Content></Card> : null}
                         </Card.Content>
                     </Card>
                 </SafeAreaView>
             </ScrollView>
-            <PersianDatePickerModal visible={pickerTarget !== null} value={pickerTarget === 'start' ? startDate : endDate} title={pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'} onClose={() => setPickerTarget(null)} onSelect={handleDateSelect} availableYears={availableYears} />
+            <PersianDatePickerModal visible={pickerTarget !== null} value={pickerTarget === 'employment' ? employmentDate : pickerTarget === 'start' ? startDate : endDate} title={pickerTarget === 'employment' ? 'انتخاب تاریخ شروع کار' : pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'} onClose={() => setPickerTarget(null)} onSelect={handleDateSelect} availableYears={availableYears} />
             <Snackbar visible={snackbarVisible} onDismiss={() => setSnackbarVisible(false)} duration={3000} style={{ backgroundColor: theme.error, borderRadius: Radius.md }} action={{ label: 'بستن', onPress: () => setSnackbarVisible(false), labelStyle: { color: theme.surface } }}><ThemedText type="small" style={{ color: theme.surface }}>{snackbarMessage}</ThemedText></Snackbar>
         </ThemedView>
     );
@@ -283,8 +437,15 @@ const styles = StyleSheet.create({
     sectionLabel: { fontSize: 11 },
     dateInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, gap: Spacing.one },
     fieldValue: { flex: 1, fontSize: 13 },
+    textInput: { minHeight: 42, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, paddingHorizontal: Spacing.two, fontFamily: 'Vazirmatn-Bold', fontSize: 14 },
     statusRow: { flexDirection: 'row', gap: Spacing.two },
-    statusButton: { flex: 1, alignItems: 'center', paddingVertical: Spacing.two, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
+    statusButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.one, paddingVertical: Spacing.two, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
+    optionSection: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
+    leaveUsageField: { gap: Spacing.one },
+    settlementRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
+    settlementText: { flex: 1, gap: Spacing.one },
+    settlementTitle: { fontSize: 13, lineHeight: 19 },
+    settlementDescription: { fontSize: 11, lineHeight: 20 },
     actionsGroup: { flexDirection: 'row', gap: Spacing.two },
     actionButton: { flex: 1, borderRadius: 12 },
     actionLabel: { fontFamily: 'Vazirmatn-Bold', fontSize: 12 },
