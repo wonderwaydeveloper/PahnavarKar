@@ -75,6 +75,7 @@ export default function UnusedLeaveWageScreen() {
                         period_index: period.period_index,
                         month_count: period.month_count,
                         daily_minimum_wage: period.daily_minimum_wage,
+                        percent_increase: period.percent_increase,
                         seniority_base: period.seniority_base,
                         seniority_base_by_group: Object.fromEntries(
                             (await fetchSeniorityBaseByGroup(period.id)).map((row) => {
@@ -143,6 +144,19 @@ export default function UnusedLeaveWageScreen() {
             ...current,
             [segmentIndex]: value.replace(/[^0-9۰-۹.]/g, ''),
         }));
+    };
+
+    const changeInitialSavedLeaveDays = (delta: number) => {
+        const normalized = initialSavedLeaveDays.replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
+        const currentValue = Number(normalized) || 0;
+        const nextValue = Math.max(0, currentValue + delta);
+        setInitialSavedLeaveDays(toPersianDigits(nextValue.toFixed(2).replace(/\.00$/, '')));
+    };
+
+    const changeUsedLeaveDays = (segmentIndex: number, delta: number) => {
+        const currentValue = Number(String(usedLeaveDaysBySegment[segmentIndex] ?? '0').replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))) || 0;
+        const nextValue = Math.max(0, currentValue + delta);
+        updateUsedLeaveDays(segmentIndex, toPersianDigits(nextValue.toFixed(2).replace(/\.00$/, '')));
     };
 
     const handleDateSelect = (value: string) => {
@@ -279,51 +293,102 @@ export default function UnusedLeaveWageScreen() {
                                 ))}
                             </View>
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>ذخیره مرخصی از سال‌های قبل</ThemedText>
-                                <TextInput
-                                    value={initialSavedLeaveDays}
-                                    onChangeText={(value) => setInitialSavedLeaveDays(value.replace(/[^0-9۰-۹.]/g, ''))}
-                                    keyboardType="decimal-pad"
-                                    inputMode="decimal"
-                                    placeholder="۰"
-                                    placeholderTextColor={theme.textMuted}
-                                    style={[styles.textInput, { color: theme.text, backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}
-                                    textAlign="center"
-                                    accessibilityLabel="ذخیره مرخصی از سال‌های قبل"
-                                />
-                            </View>
-                            {segmentCount > 0 ? (
-                                <View style={[styles.optionSection, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                    <ThemedText type="smallBold" style={[styles.sectionLabel, { color: theme.text }]}>مرخصی استفاده‌شده در هر بخش</ThemedText>
-                                    {Array.from({ length: segmentCount }, (_, index) => {
-                                        const isPartial = index >= fullYears;
-                                        const label = isPartial ? `بازه ناقص (${remainingMonths.toFixed(2)} ماه)` : `سال کامل ${index + 1}`;
-                                        return (
-                                            <View key={index} style={styles.leaveUsageField}>
-                                                <ThemedText type="small" style={{ color: theme.textSecondary }}>{label}</ThemedText>
-                                                <TextInput
-                                                    value={usedLeaveDaysBySegment[index] ?? ''}
-                                                    onChangeText={(value) => updateUsedLeaveDays(index, value)}
-                                                    keyboardType="decimal-pad"
-                                                    inputMode="decimal"
-                                                    placeholder="۰"
-                                                    placeholderTextColor={theme.textMuted}
-                                                    style={[styles.textInput, { color: theme.text, backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}
-                                                    textAlign="center"
-                                                    accessibilityLabel={`مرخصی استفاده‌شده ${label}`}
-                                                />
-                                            </View>
-                                        );
-                                    })}
-                                </View>
-                            ) : null}
-                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ شروع کار</ThemedText>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ شروع به کار در کارگاه</ThemedText>
                                 <Pressable onPress={() => setPickerTarget('employment')} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                     <ThemedText type="smallBold" style={[styles.fieldValue, { color: theme.text }]}>{formatDate(employmentDate)}</ThemedText>
                                     <MaterialCommunityIcons name="calendar-account-outline" size={18} color={theme.primary} />
                                 </Pressable>
                             </View>
+                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>ذخیره مرخصی از سال‌های قبل</ThemedText>
+                                <View style={[styles.stepper, styles.initialSavedStepper, { backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}>
+                                    <Pressable
+                                        onPress={() => changeInitialSavedLeaveDays(-1)}
+                                        disabled={Number(initialSavedLeaveDays.replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))) <= 0}
+                                        style={({ pressed }) => [
+                                            styles.stepperButton,
+                                            { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant },
+                                            Number(initialSavedLeaveDays.replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))) <= 0 && styles.stepperButtonDisabled,
+                                        ]}
+                                        accessibilityRole="button"
+                                        accessibilityLabel="کاهش ذخیره مرخصی سال‌های قبل"
+                                    >
+                                        <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
+                                    </Pressable>
+                                    <TextInput
+                                        value={initialSavedLeaveDays}
+                                        onChangeText={(value) => setInitialSavedLeaveDays(value.replace(/[^0-9۰-۹.]/g, ''))}
+                                        keyboardType="decimal-pad"
+                                        inputMode="decimal"
+                                        placeholder="۰"
+                                        placeholderTextColor={theme.textMuted}
+                                        style={[styles.stepperInput, { color: theme.text }]}
+                                        textAlign="center"
+                                        accessibilityLabel="ذخیره مرخصی از سال‌های قبل"
+                                    />
+                                    <Pressable
+                                        onPress={() => changeInitialSavedLeaveDays(1)}
+                                        style={({ pressed }) => [
+                                            styles.stepperButton,
+                                            { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant },
+                                        ]}
+                                        accessibilityRole="button"
+                                        accessibilityLabel="افزایش ذخیره مرخصی سال‌های قبل"
+                                    >
+                                        <MaterialCommunityIcons name="plus" size={20} color={theme.primary} />
+                                    </Pressable>
+                                </View>
+                            </View>
+                            {segmentCount > 0 ? (
+                                <View style={[styles.usedLeaveBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                    <ThemedText type="smallBold" style={[styles.sectionLabel, { color: theme.text }]}>مرخصی استفاده‌شده در هر بخش</ThemedText>
+                                    {Array.from({ length: segmentCount }, (_, index) => {
+                                        const isPartial = index >= fullYears;
+                                        const label = isPartial ? `بازه ناقص (${remainingMonths.toFixed(2)} ماه)` : `سال کامل ${index + 1}`;
+                                        return (
+                                            <View key={index} style={styles.usedLeaveRow}>
+                                                <ThemedText type="small" style={styles.usedLeaveLabel}>{label}</ThemedText>
+                                                <View style={[styles.stepper, { backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}>
+                                                    <Pressable
+                                                        onPress={() => changeUsedLeaveDays(index, -1)}
+                                                        disabled={Number(String(usedLeaveDaysBySegment[index] ?? '0').replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))) <= 0}
+                                                        style={({ pressed }) => [
+                                                            styles.stepperButton,
+                                                            { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant },
+                                                            Number(String(usedLeaveDaysBySegment[index] ?? '0').replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))) <= 0 && styles.stepperButtonDisabled,
+                                                        ]}
+                                                        accessibilityRole="button"
+                                                        accessibilityLabel="کاهش مرخصی استفاده‌شده"
+                                                    >
+                                                        <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
+                                                    </Pressable>
+                                                    <TextInput
+                                                        value={usedLeaveDaysBySegment[index] ?? ''}
+                                                        onChangeText={(value) => updateUsedLeaveDays(index, value)}
+                                                        keyboardType="decimal-pad"
+                                                        placeholder="۰"
+                                                        placeholderTextColor={theme.textMuted}
+                                                        style={[styles.stepperInput, { color: theme.text }]}
+                                                        textAlign="center"
+                                                        accessibilityLabel="مرخصی استفاده‌شده"
+                                                    />
+                                                    <Pressable
+                                                        onPress={() => changeUsedLeaveDays(index, 1)}
+                                                        style={({ pressed }) => [
+                                                            styles.stepperButton,
+                                                            { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant },
+                                                        ]}
+                                                        accessibilityRole="button"
+                                                        accessibilityLabel="افزایش مرخصی استفاده‌شده"
+                                                    >
+                                                        <MaterialCommunityIcons name="plus" size={20} color={theme.primary} />
+                                                    </Pressable>
+                                                </View>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            ) : null}
                             <View style={[styles.optionSection, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>نوع کارگاه</ThemedText>
                                 <View style={styles.statusRow}>
@@ -413,7 +478,7 @@ export default function UnusedLeaveWageScreen() {
                     </Card>
                 </SafeAreaView>
             </ScrollView>
-            <PersianDatePickerModal visible={pickerTarget !== null} value={pickerTarget === 'employment' ? employmentDate : pickerTarget === 'start' ? startDate : endDate} title={pickerTarget === 'employment' ? 'انتخاب تاریخ شروع کار' : pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'} onClose={() => setPickerTarget(null)} onSelect={handleDateSelect} availableYears={availableYears} />
+            <PersianDatePickerModal visible={pickerTarget !== null} value={pickerTarget === 'employment' ? employmentDate : pickerTarget === 'start' ? startDate : endDate} title={pickerTarget === 'employment' ? 'انتخاب تاریخ شروع به کار در کارگاه' : pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'} onClose={() => setPickerTarget(null)} onSelect={handleDateSelect} availableYears={availableYears} />
             <Snackbar visible={snackbarVisible} onDismiss={() => setSnackbarVisible(false)} duration={3000} style={{ backgroundColor: theme.error, borderRadius: Radius.md }} action={{ label: 'بستن', onPress: () => setSnackbarVisible(false), labelStyle: { color: theme.surface } }}><ThemedText type="small" style={{ color: theme.surface }}>{snackbarMessage}</ThemedText></Snackbar>
         </ThemedView>
     );
@@ -438,6 +503,14 @@ const styles = StyleSheet.create({
     dateInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, gap: Spacing.one },
     fieldValue: { flex: 1, fontSize: 13 },
     textInput: { minHeight: 42, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, paddingHorizontal: Spacing.two, fontFamily: 'Vazirmatn-Bold', fontSize: 14 },
+    usedLeaveBox: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two, gap: Spacing.two },
+    usedLeaveRow: { flexDirection: 'column', alignItems: 'stretch', gap: Spacing.two },
+    usedLeaveLabel: { fontSize: 12, lineHeight: 19 },
+    stepper: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.one, gap: Spacing.one },
+    stepperButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
+    stepperButtonDisabled: { opacity: 0.4 },
+    stepperInput: { flex: 1, minHeight: 42, fontFamily: 'Vazirmatn-Bold', fontSize: 14, paddingVertical: 0 },
+    initialSavedStepper: { width: '100%' },
     statusRow: { flexDirection: 'row', gap: Spacing.two },
     statusButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.one, paddingVertical: Spacing.two, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
     optionSection: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },

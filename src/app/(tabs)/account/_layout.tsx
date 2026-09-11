@@ -10,7 +10,7 @@ export default function AccountLayout() {
                 headerShown: true,
             })}
         >
-            <Stack.Screen name="index" options={{ title: 'حساب کاربری' }} />
+            <Stack.Screen name="index" options={{ title: 'پروفایل' }} />
             <Stack.Screen name="edit-profile" options={{ title: 'ویرایش پروفایل' }} />
             <Stack.Screen name="settings" options={{ title: 'تنظیمات' }} />
             <Stack.Screen name="support" options={{ title: 'پشتیبانی' }} />

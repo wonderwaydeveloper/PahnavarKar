@@ -2,19 +2,21 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Checkbox, Snackbar } from 'react-native-paper';
+import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
-import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
+import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
 import {
     calculateEndOfServiceYearsFromPeriodData,
+    calculateEntitledSeniorityFromPeriodData,
     parseDateInput,
     type EndOfServiceYearsCalculationResult,
+    type EntitledSeniorityWorkshopType,
     type SalaryPeriodBucket,
 } from '@/utils/salary-calculation';
 
@@ -32,14 +34,18 @@ export default function EndOfServiceYearsScreen() {
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
-    const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | null>(null);
+    const [employmentDate, setEmploymentDate] = useState(defaultStartDate);
+    const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | 'employment' | null>(null);
+    const [workshopType, setWorkshopType] = useState<EntitledSeniorityWorkshopType>('unclassified');
+    const [settledThrough1391, setSettledThrough1391] = useState(false);
+    const [jobGroups, setJobGroups] = useState<{ id: number; group_number: number; sort_order: number }[]>([]);
+    const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
+    const [groupMenuVisible, setGroupMenuVisible] = useState(false);
     const [pickerVisible, setPickerVisible] = useState(false);
     const [periodBuckets, setPeriodBuckets] = useState<SalaryPeriodBucket[]>([]);
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [result, setResult] = useState<EndOfServiceYearsCalculationResult | null>(null);
-    const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
-    const [includeDaysCovered, setIncludeDaysCovered] = useState(true);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
 
@@ -51,7 +57,7 @@ export default function EndOfServiceYearsScreen() {
                 setIsLoadingData(true);
                 await seedFromJsonAsset();
 
-                const years = await fetchYears();
+                const [years, groups] = await Promise.all([fetchYears(), fetchJobGroups()]);
                 const buckets: SalaryPeriodBucket[] = [];
 
                 for (const year of years) {
@@ -60,18 +66,30 @@ export default function EndOfServiceYearsScreen() {
                         continue;
                     }
 
+                    const mappedPeriods = await Promise.all(periods.map(async (period) => ({
+                        period_index: period.period_index,
+                        month_count: period.month_count,
+                        daily_minimum_wage: period.daily_minimum_wage,
+                        percent_increase: period.percent_increase,
+                        seniority_base: period.seniority_base,
+                        seniority_base_by_group: Object.fromEntries(
+                            (await fetchSeniorityBaseByGroup(period.id)).map((row) => {
+                                const group = groups.find((item) => item.id === row.job_group_id);
+                                return [group?.group_number ?? row.job_group_id, Number(row.base_value)];
+                            }),
+                        ),
+                    })));
+
                     buckets.push({
                         year: year.year,
-                        periods: periods.map((period) => ({
-                            period_index: period.period_index,
-                            month_count: period.month_count,
-                            daily_minimum_wage: period.daily_minimum_wage,
-                        })),
+                        periods: mappedPeriods,
                     });
                 }
 
                 if (isMounted) {
                     setPeriodBuckets(buckets);
+                    setJobGroups(groups);
+                    setSelectedGroup(groups[0]?.group_number ?? null);
                     setAvailableYears(years.map((year) => year.year));
                 }
             } catch {
@@ -101,6 +119,9 @@ export default function EndOfServiceYearsScreen() {
     const formatCurrency = (value: number) =>
         `${new Intl.NumberFormat('fa-IR').format(value)} ریال`;
 
+    const formatNumber = (value: number) =>
+        toPersianDigits(Number.isInteger(value) ? String(value) : value.toFixed(2));
+
     const formatDisplayedDate = (value: string) => {
         const parsed = parseDateInput(value);
 
@@ -111,7 +132,7 @@ export default function EndOfServiceYearsScreen() {
         return `${toPersianDigits(String(parsed.year))}/${toPersianDigits(String(parsed.month).padStart(2, '0'))}/${toPersianDigits(String(parsed.day).padStart(2, '0'))}`;
     };
 
-    const openPicker = (target: 'start' | 'end') => {
+    const openPicker = (target: 'start' | 'end' | 'employment') => {
         setPickerTarget(target);
         setPickerVisible(true);
     };
@@ -143,8 +164,15 @@ export default function EndOfServiceYearsScreen() {
         return 0;
     };
 
+    const canUseSettlementPath = (parseDateInput(employmentDate)?.year ?? 0) <= 1391;
+
     const handleDateSelect = (value: string) => {
-        if (pickerTarget === 'start') {
+        if (pickerTarget === 'employment') {
+            setEmploymentDate(value);
+            if (compareDates(value, endDate) > 0) {
+                setEndDate(value);
+            }
+        } else if (pickerTarget === 'start') {
             setStartDate(value);
 
             if (endDate) {
@@ -175,8 +203,9 @@ export default function EndOfServiceYearsScreen() {
     const handleCalculate = () => {
         const parsedStart = parseDateInput(startDate);
         const parsedEnd = parseDateInput(endDate);
+        const employment = parseDateInput(employmentDate);
 
-        if (!parsedStart || !parsedEnd) {
+        if (!parsedStart || !parsedEnd || !employment || compareDates(employmentDate, endDate) > 0) {
             setResult(null);
             return;
         }
@@ -188,16 +217,28 @@ export default function EndOfServiceYearsScreen() {
             return;
         }
 
-        if (periodBuckets.length === 0) {
+        if (periodBuckets.length === 0 || (workshopType === 'classified' && selectedGroup == null)) {
             setResult(null);
             return;
         }
 
+        const seniority = calculateEntitledSeniorityFromPeriodData(
+            employment,
+            parsedEnd,
+            periodBuckets,
+            workshopType,
+            selectedGroup ?? undefined,
+            settledThrough1391,
+        );
+        const dailySeniorityByPeriod = Object.fromEntries(
+            seniority.breakdown.map((item) => [`${item.year}:${item.periodIndex}`, item.entitlement]),
+        );
         const calculation = calculateEndOfServiceYearsFromPeriodData(
             parsedStart,
             parsedEnd,
             periodBuckets,
-            includeDaysCovered,
+            seniority.finalEntitlement,
+            dailySeniorityByPeriod,
         );
 
         if (calculation.breakdown.length === 0) {
@@ -206,12 +247,15 @@ export default function EndOfServiceYearsScreen() {
         }
 
         setResult(calculation);
-        setShowDetailedBreakdown(false);
     };
 
     const handleReset = () => {
+        setEmploymentDate(defaultStartDate);
         setResult(null);
-        setShowDetailedBreakdown(false);
+        setWorkshopType('unclassified');
+        setSettledThrough1391(false);
+        setSelectedGroup(jobGroups[0]?.group_number ?? null);
+        setGroupMenuVisible(false);
     };
 
     const formattedResult = useMemo(() => {
@@ -253,7 +297,7 @@ export default function EndOfServiceYearsScreen() {
                                     فرمول محاسبه
                                 </ThemedText>
                                 <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>
-                                    تعداد کل ماه کارکرد * 2.5 * حداقل مزد روزانه مصوب شورای عالی کار در آخرین روز کارکرد
+                                    تعداد کل ماه کارکرد × ۲٫۵ × (حداقل مزد روزانه مصوب شورای عالی کار در آخرین روز کارکرد + پایه سنوات استحقاقی کارگر در آخرین روز کارکرد)
                                 </ThemedText>
                             </View>
 
@@ -287,26 +331,52 @@ export default function EndOfServiceYearsScreen() {
                                 </View>
                             </View>
 
-                            <View style={[styles.optionBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <View style={styles.optionRow}>
-                                    <View style={styles.checkboxRow}>
-                                        <Checkbox
-                                            status={includeDaysCovered ? 'checked' : 'unchecked'}
-                                            onPress={() => setIncludeDaysCovered((value) => !value)}
-                                            color={theme.primary}
-                                        />
-                                        <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                            محاسبه تعداد روزهای شمول
-                                        </ThemedText>
+                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ شروع به کار در کارگاه</ThemedText>
+                                <Pressable onPress={() => openPicker('employment')}>
+                                    <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                        <ThemedText type="small" style={[styles.fieldValue, { color: theme.text }]}>{formatDisplayedDate(employmentDate)}</ThemedText>
+                                        <MaterialCommunityIcons name="calendar-account-outline" size={18} color={theme.primary} />
                                     </View>
-                                </View>
+                                </Pressable>
+                            </View>
 
-                                <View style={styles.helpRow}>
-                                    <ThemedText type="small" style={[styles.helpText, { color: theme.textSecondary }]}>
-                                        با فعال بودن این گزینه، روزهای جزئی شمول هم در محاسبه لحاظ می‌شوند؛ اگر غیرفعال باشد، فقط ماه‌های کامل محاسبه می‌شوند.
-                                    </ThemedText>
+                            <View style={styles.optionSection}>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>نوع کارگاه</ThemedText>
+                                <View style={styles.optionsRow}>
+                                    {([['unclassified', 'فاقد طرح طبقه‌بندی'], ['classified', 'دارای طرح طبقه‌بندی']] as const).map(([value, label]) => (
+                                        <Pressable key={value} onPress={() => setWorkshopType(value)} style={[styles.optionButton, { backgroundColor: workshopType === value ? theme.primary : theme.surface, borderColor: workshopType === value ? theme.primary : theme.border }]}>
+                                            <ThemedText type="smallBold" style={{ color: workshopType === value ? theme.surface : theme.text }}>{label}</ThemedText>
+                                        </Pressable>
+                                    ))}
                                 </View>
                             </View>
+
+                            {workshopType === 'classified' ? (
+                                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
+                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>گروه شغلی</ThemedText>
+                                    <Menu
+                                        visible={groupMenuVisible}
+                                        onDismiss={() => setGroupMenuVisible(false)}
+                                        anchor={<Pressable onPress={() => setGroupMenuVisible(true)}><View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="small" style={{ color: theme.text }}>{selectedGroup == null ? 'انتخاب گروه' : `گروه ${toPersianDigits(String(selectedGroup))}`}</ThemedText><MaterialCommunityIcons name="briefcase-outline" size={18} color={theme.primary} /></View></Pressable>}
+                                    >
+                                        {jobGroups.map((group) => <Menu.Item key={group.id} title={`گروه ${toPersianDigits(String(group.group_number))}`} onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }} />)}
+                                    </Menu>
+                                </View>
+                            ) : null}
+
+                            <Pressable
+                                onPress={() => canUseSettlementPath && setSettledThrough1391((value) => !value)}
+                                style={[styles.checkRow, { backgroundColor: theme.surfaceVariant, borderColor: theme.border, opacity: canUseSettlementPath ? 1 : 0.55 }]}
+                            >
+                                <View style={styles.checkboxRow}>
+                                    <MaterialCommunityIcons name={settledThrough1391 ? 'checkbox-marked' : 'checkbox-blank-outline'} size={22} color={settledThrough1391 ? theme.primary : theme.textSecondary} />
+                                    <View style={styles.checkText}>
+                                        <ThemedText type="smallBold" style={[styles.optionTitle, { color: theme.text }]}>تصفیه حساب تا پایان سال ۱۳۹۱ انجام شده است</ThemedText>
+                                        <ThemedText type="small" style={[styles.optionDescription, { color: theme.textSecondary }]}>{canUseSettlementPath ? 'محاسبه سنوات از سال ۱۳۹۲ ادامه پیدا می‌کند.' : 'این گزینه برای استخدام‌های سال ۱۳۹۲ و بعد کاربرد ندارد.'}</ThemedText>
+                                    </View>
+                                </View>
+                            </Pressable>
 
                             <View style={styles.actionsGroup}>
                                 <Button
@@ -352,88 +422,25 @@ export default function EndOfServiceYearsScreen() {
                                             </View>
                                         </View>
 
-                                        <View style={styles.breakdownSectionHeader}>
-                                            <ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.text }]}>
-                                                جزئیات دوره‌ها
-                                            </ThemedText>
-                                            <Pressable
-                                                onPress={() => setShowDetailedBreakdown((value) => !value)}
-                                                style={[
-                                                    styles.toggleButton,
-                                                    {
-                                                        backgroundColor: theme.surface,
-                                                        borderColor: theme.border,
-                                                    },
-                                                ]}
-                                            >
-                                                <ThemedText type="smallBold" style={[styles.toggleButtonLabel, { color: theme.primary }]}>
-                                                    {showDetailedBreakdown ? 'عدم نمایش' : 'نمایش جزئیات'}
-                                                </ThemedText>
-                                                <MaterialCommunityIcons
-                                                    name={showDetailedBreakdown ? 'chevron-up' : 'chevron-down'}
-                                                    size={18}
-                                                    color={theme.primary}
-                                                />
-                                            </Pressable>
+                                        <View style={styles.summaryDetails}>
+                                            <View style={[styles.summaryDetailBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>کل ماه معادل کارکرد</ThemedText>
+                                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{formatNumber(result.totalMonthEquivalent)} ماه</ThemedText>
+                                            </View>
+                                            <View style={[styles.summaryDetailBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>حداقل مزد روز آخر</ThemedText>
+                                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(formatCurrency(result.finalDailyMinimumWage))}</ThemedText>
+                                            </View>
+                                            <View style={[styles.summaryDetailBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>پایه سنوات روز آخر</ThemedText>
+                                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(formatCurrency(result.finalDailySeniority))}</ThemedText>
+                                            </View>
+                                            <View style={[styles.summaryDetailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
+                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>{workshopType === 'classified' ? 'مزد مبنا روزانه' : 'مزد ثابت روزانه'}</ThemedText>
+                                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{toPersianDigits(formatCurrency(result.finalDailyWage))}</ThemedText>
+                                            </View>
                                         </View>
 
-                                        {showDetailedBreakdown ? (
-                                            <View style={styles.breakdownGrid}>
-                                                {result.breakdown.map((item, index) => (
-                                                    <View
-                                                        key={`${item.year}-${item.periodIndex}-${index}`}
-                                                        style={[
-                                                            styles.breakdownItemCard,
-                                                            {
-                                                                backgroundColor: theme.surface,
-                                                                borderColor: theme.border,
-                                                            },
-                                                        ]}
-                                                    >
-                                                        <View style={styles.breakdownItemHeaderRow}>
-                                                            <ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>
-                                                                {`سال ${toPersianDigits(String(item.year))} · دوره ${toPersianDigits(String(item.periodIndex))}`}
-                                                            </ThemedText>
-                                                        </View>
-
-                                                        <View style={styles.breakdownDetailGrid}>
-                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    تعداد کل ماه‌های شمول
-                                                                </ThemedText>
-                                                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
-                                                                    {toPersianDigits(String(item.monthsCovered))} ماه
-                                                                </ThemedText>
-                                                            </View>
-                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    تعداد روزهای شمول
-                                                                </ThemedText>
-                                                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
-                                                                    {toPersianDigits(String(item.daysCovered))} روز
-                                                                </ThemedText>
-                                                            </View>
-                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    حداقل مزد روزانه
-                                                                </ThemedText>
-                                                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
-                                                                    {item.dailyMinimumWage != null ? toPersianDigits(formatCurrency(item.dailyMinimumWage)) : '-'}
-                                                                </ThemedText>
-                                                            </View>
-                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    مبلغ این دوره
-                                                                </ThemedText>
-                                                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>
-                                                                    {toPersianDigits(formatCurrency(item.amount))}
-                                                                </ThemedText>
-                                                            </View>
-                                                        </View>
-                                                    </View>
-                                                ))}
-                                            </View>
-                                        ) : null}
                                     </Card.Content>
                                 </Card>
                             ) : null}
@@ -444,8 +451,8 @@ export default function EndOfServiceYearsScreen() {
 
             <PersianDatePickerModal
                 visible={pickerVisible}
-                value={pickerTarget === 'start' ? startDate : endDate}
-                title={pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'}
+                value={pickerTarget === 'employment' ? employmentDate : pickerTarget === 'start' ? startDate : endDate}
+                title={pickerTarget === 'employment' ? 'انتخاب تاریخ شروع به کار در کارگاه' : pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'}
                 onClose={closePicker}
                 onSelect={handleDateSelect}
                 availableYears={availableYears}
@@ -534,23 +541,25 @@ const styles = StyleSheet.create({
         fontSize: 13,
         flex: 1,
     },
-    optionBox: {
-        borderRadius: Radius.md,
+    optionSection: { gap: Spacing.two },
+    optionsRow: {
+        flexDirection: 'row',
+        gap: Spacing.two,
+    },
+    optionButton: {
+        flex: 1,
+        minHeight: 44,
+        borderRadius: 12,
         borderWidth: StyleSheet.hairlineWidth,
+        alignItems: 'center',
+        justifyContent: 'center',
         paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.two,
-        gap: Spacing.one,
     },
-    optionRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    checkboxRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.one,
-    },
+    checkRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
+    checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+    checkText: { flex: 1, gap: Spacing.one },
+    optionTitle: { fontSize: 13, lineHeight: 19, fontFamily: 'Vazirmatn-Bold' },
+    optionDescription: { fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
     helpRow: {
         marginTop: Spacing.one,
     },
@@ -597,6 +606,17 @@ const styles = StyleSheet.create({
         padding: Spacing.two,
         gap: Spacing.one,
         alignItems: 'center',
+    },
+    summaryDetails: {
+        gap: Spacing.one,
+    },
+    summaryDetailBox: {
+        borderRadius: 10,
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: Spacing.two,
+        paddingVertical: Spacing.one,
+        alignItems: 'center',
+        gap: Spacing.half,
     },
     summaryLabel: {
         fontSize: 11,

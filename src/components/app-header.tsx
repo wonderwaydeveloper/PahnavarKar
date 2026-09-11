@@ -1,7 +1,9 @@
 import { useAppContext } from '@/hooks/use-app-context';
 import { usePathname, useRouter } from 'expo-router';
-import { useWindowDimensions } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { Appbar } from 'react-native-paper';
+
+import { ThemedText } from '@/components/themed-text';
 
 interface AppHeaderProps {
   route?: { name?: string };
@@ -28,7 +30,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
 
     switch (normalized) {
       case 'account':
-        return { title: 'حساب کاربری' };
+        return { title: 'پهناور کار' };
       case 'edit-profile':
         return { title: 'ویرایش پروفایل' };
       case 'settings':
@@ -96,7 +98,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
       case 'home':
       case 'index':
       default:
-        return { title: 'خانه' };
+        return { title: 'پهناور کار' };
     }
   };
 
@@ -127,14 +129,34 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
           size={24}
         />
       ) : null}
-      <Appbar.Content
-        title={title}
-        titleStyle={{
-          fontSize: titleFontSize,
-          fontFamily: 'Vazirmatn-Bold',
-          color: titleColor,
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 0,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: 56,
         }}
-      />
+      >
+        <ThemedText
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={{
+            maxWidth: '100%',
+            fontSize: titleFontSize,
+            lineHeight: titleFontSize + 8,
+            fontFamily: 'Vazirmatn-Bold',
+            color: titleColor,
+            textAlign: 'center',
+          }}
+        >
+          {title}
+        </ThemedText>
+      </View>
     </Appbar.Header>
   );
 }

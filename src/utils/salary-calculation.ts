@@ -393,11 +393,17 @@ export interface EndOfServiceYearsBreakdownItem {
     monthsCovered: number;
     daysCovered: number;
     dailyMinimumWage: number | null;
+    dailySeniority: number;
+    monthEquivalent: number;
     amount: number;
 }
 
 export interface EndOfServiceYearsCalculationResult {
     totalAmount: number;
+    totalMonthEquivalent: number;
+    finalDailyMinimumWage: number;
+    finalDailySeniority: number;
+    finalDailyWage: number;
     breakdown: EndOfServiceYearsBreakdownItem[];
 }
 
@@ -2038,10 +2044,11 @@ export function calculateEndOfServiceYearsFromPeriodData(
     startDate: ParsedDateInput,
     endDate: ParsedDateInput,
     periodBuckets: SalaryPeriodBucket[],
-    includeDaysCovered = true,
+    dailySeniority = 0,
+    dailySeniorityByPeriod: Record<string, number> = {},
 ): EndOfServiceYearsCalculationResult {
     if (compareParsedDates(startDate, endDate) > 0) {
-        return { totalAmount: 0, breakdown: [] };
+        return { totalAmount: 0, totalMonthEquivalent: 0, finalDailyMinimumWage: 0, finalDailySeniority: 0, finalDailyWage: 0, breakdown: [] };
     }
 
     const coveredPeriods: {
@@ -2052,6 +2059,7 @@ export function calculateEndOfServiceYearsFromPeriodData(
         coveredMonthEquivalent: number;
         dailyMinimumWage: number;
     }[] = [];
+    let totalMonthEquivalent = 0;
 
     for (const bucket of [...periodBuckets].sort((a, b) => a.year - b.year)) {
         const sortedPeriods = [...bucket.periods].sort((a, b) => a.period_index - b.period_index);
@@ -2080,7 +2088,7 @@ export function calculateEndOfServiceYearsFromPeriodData(
                     if (overlapDays === monthDays) {
                         monthsCovered += 1;
                         coveredMonthEquivalent += 1;
-                    } else if (includeDaysCovered) {
+                    } else {
                         daysCovered += overlapDays;
                         coveredMonthEquivalent += overlapDays / monthDays;
                     }
@@ -2096,6 +2104,7 @@ export function calculateEndOfServiceYearsFromPeriodData(
                     coveredMonthEquivalent,
                     dailyMinimumWage,
                 });
+                totalMonthEquivalent += coveredMonthEquivalent;
             }
 
             monthOffset = periodEndMonth;
@@ -2103,21 +2112,34 @@ export function calculateEndOfServiceYearsFromPeriodData(
     }
 
     const lastDailyMinimumWage = coveredPeriods.at(-1)?.dailyMinimumWage ?? 0;
+    const normalizedDailySeniority = Number.isFinite(dailySeniority) ? Math.max(0, dailySeniority) : 0;
+    const finalPeriod = coveredPeriods.at(-1);
+    const finalDailySeniority = finalPeriod
+        ? Math.max(0, Number(dailySeniorityByPeriod[`${finalPeriod.year}:${finalPeriod.periodIndex}`] ?? normalizedDailySeniority))
+        : normalizedDailySeniority;
+    const lastDailyWage = lastDailyMinimumWage + finalDailySeniority;
     const breakdown: EndOfServiceYearsBreakdownItem[] = coveredPeriods.map((period) => {
+        const periodDailySeniority = Math.max(0, Number(dailySeniorityByPeriod[`${period.year}:${period.periodIndex}`] ?? normalizedDailySeniority));
         return {
             year: period.year,
             periodIndex: period.periodIndex,
             monthsCovered: period.monthsCovered,
             daysCovered: period.daysCovered,
             dailyMinimumWage: period.dailyMinimumWage,
-            amount: Math.round(period.coveredMonthEquivalent * 2.5 * lastDailyMinimumWage),
+            dailySeniority: periodDailySeniority,
+            monthEquivalent: period.coveredMonthEquivalent,
+            amount: Math.round(period.coveredMonthEquivalent * 2.5 * lastDailyWage),
         };
     });
 
     return {
         totalAmount: Math.round(
-            coveredPeriods.reduce((sum, period) => sum + period.coveredMonthEquivalent, 0) * 2.5 * lastDailyMinimumWage,
+            totalMonthEquivalent * 2.5 * lastDailyWage,
         ),
+        totalMonthEquivalent,
+        finalDailyMinimumWage: lastDailyMinimumWage,
+        finalDailySeniority,
+        finalDailyWage: lastDailyMinimumWage + finalDailySeniority,
         breakdown,
     };
 }

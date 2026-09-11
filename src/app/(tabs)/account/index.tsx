@@ -40,7 +40,7 @@ function runDebouncedAction(lastPressRef: { current: number }, callback: () => v
     callback();
 }
 
-export default function AccountScreen() {
+export default function ProfileScreen() {
     const theme = useTheme();
     const router = useRouter();
     const insets = useSafeAreaInsets();

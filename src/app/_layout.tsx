@@ -29,6 +29,7 @@ function AppContent() {
       <NavigationBar style={theme === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tools)" options={{ headerShown: false }} />
       </Stack>
     </>
   );

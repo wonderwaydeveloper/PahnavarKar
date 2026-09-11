@@ -6,7 +6,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function getTabBarIcon(
-    name: 'home' | 'account',
+    name: 'home' | 'search' | 'account',
     color: ColorValue,
     theme: { text: string },
     size: number,
@@ -16,6 +16,8 @@ function getTabBarIcon(
     switch (name) {
         case 'home':
             return <MaterialCommunityIcons name="home" color={iconColor} size={size} />;
+        case 'search':
+            return <MaterialCommunityIcons name="magnify" color={iconColor} size={size} />;
         case 'account':
             return <MaterialCommunityIcons name="account" color={iconColor} size={size} />;
         default:
@@ -23,12 +25,14 @@ function getTabBarIcon(
     }
 }
 
-function getTabBarLabel(name: 'home' | 'account') {
+function getTabBarLabel(name: 'home' | 'search' | 'account') {
     switch (name) {
         case 'home':
             return 'خانه';
+        case 'search':
+            return 'جستجو';
         case 'account':
-            return 'حساب';
+            return 'پروفایل';
         default:
             return '';
     }
@@ -42,6 +46,7 @@ export default function TabsLayout() {
         <Tabs
             screenOptions={({ route }) => ({
                 headerShown: false,
+                popToTopOnBlur: true,
                 tabBarStyle: {
                     backgroundColor: theme.surface,
                     borderTopColor: theme.border,
@@ -54,11 +59,12 @@ export default function TabsLayout() {
                     fontSize: 12,
                 },
                 tabBarIcon: ({ color, size }) =>
-                    getTabBarIcon(route.name as 'home' | 'account', color, theme, size),
-                tabBarLabel: getTabBarLabel(route.name as 'home' | 'account'),
+                    getTabBarIcon(route.name as 'home' | 'search' | 'account', color, theme, size),
+                tabBarLabel: getTabBarLabel(route.name as 'home' | 'search' | 'account'),
             })}
         >
             <Tabs.Screen name="home" />
+            <Tabs.Screen name="search" />
             <Tabs.Screen name="account" />
         </Tabs>
     );
