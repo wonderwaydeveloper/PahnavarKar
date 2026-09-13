@@ -87,8 +87,6 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
         return { title: 'مبلغ اعمال ماده ۸۷ قانون کار' };
       case 'social-security-premium-ceiling':
         return { title: 'سقف حق بیمه تامین اجتماعی' };
-      case 'suspension-wage':
-        return { title: 'محاسبه حق‌السعی ایام تعلیق' };
       case 'ordinary-work-hours':
         return { title: 'میزان ساعات کارکرد موظفی کارگر در مشاغل عادی' };
       case 'hazardous-work-hours':
@@ -105,7 +103,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
   const router = useRouter();
   const actualRouteName = normalizeRoute(pathname || route?.name);
   const { title } = getHeaderConfig(actualRouteName);
-  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unemployment-insurance-entitlement', 'unemployment-insurance-allowance', 'unused-leave-entitlement', 'unused-leave-wage', 'end-of-service-years', 'entitled-seniority', 'friday-work', 'official-holiday-work', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'suspension-wage', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours'].includes(actualRouteName);
+  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unemployment-insurance-entitlement', 'unemployment-insurance-allowance', 'unused-leave-entitlement', 'unused-leave-wage', 'end-of-service-years', 'entitled-seniority', 'friday-work', 'official-holiday-work', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours'].includes(actualRouteName);
 
   const { width } = useWindowDimensions();
   const titleFontSize = width >= 420 ? 18 : 16;

@@ -56,7 +56,6 @@ const WAGE_ACTION_KEYS = new Set([
     'unused-leave-wage',
     'official-holiday-work',
     'friday-work',
-    'suspension-wage',
 ]);
 
 function runDebouncedAction(lastPressRef: { current: number }, callback: () => void) {
@@ -90,7 +89,6 @@ function createHomeActions(router: ReturnType<typeof useRouter>): HomeAction[] {
         ['unemployment-insurance-allowance', 'مبلغ مقرری بیمه بیکاری', 'محاسبه مقرری بیمه بیکاری براساس بند ب ماده ۷ قانون بیمه بیکاری', 'cash-clock', '#0f766e', '/home/unemployment-insurance-allowance'],
         ['end-of-service-years', 'سنوات پایان کار', 'محاسبه سنوات پایان کار براساس ماده ۲۴ قانون کار', 'briefcase-clock', '#14b8a6', '/home/end-of-service-years'],
         ['friday-work', 'جمعه کاری', 'محاسبه مزد جمعه‌کاری‌های انجام‌شده براساس ماده ۶۲ قانون کار', 'calendar-star', '#f59e0b', '/home/friday-work'],
-        ['suspension-wage', 'محاسبه حق‌السعی ایام تعلیق', 'محاسبه حق‌السعی ایام تعلیق موضوع ماده ۶۷ آیین دادرسی کار', 'pause-circle-outline', '#7c3aed', '/home/suspension-wage'],
         ['ordinary-work-hours', 'میزان ساعات کارکرد موظفی کارگر در مشاغل عادی', 'محاسبه میزان ساعات کارکرد موظفی کارگر در مشاغل عادی طبق ماده ۵۱ قانون کار', 'calendar-check-outline', '#0891b2', '/home/ordinary-work-hours'],
         ['hazardous-work-hours', 'میزان ساعات کارکرد موظفی کارگر در مشاغل سخت و زیان‌آور', 'تعیین ساعات کارکرد موظفی کارگر طبق ماده ۵۲ قانون کار', 'hard-hat', '#d97706', '/home/hazardous-work-hours'],
         ['young-worker-work-hours', 'میزان ساعات کارکرد موظفی کارگر نوجوان', 'تعیین ساعات کارکرد کارگر نوجوان طبق ماده ۸۰ قانون کار', 'account-child', '#be123c', '/home/young-worker-work-hours'],
