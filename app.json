@@ -2,7 +2,7 @@
   "expo": {
     "name": "پهناور کار",
     "slug": "PahnavarKar",
-    "version": "1.5.0",
+    "version": "1.5.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "pahnavarkar",
@@ -30,7 +30,10 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFFFFF",
+          "backgroundColor": "#F3F7F9",
+          "dark": {
+            "backgroundColor": "#041E28"
+          },
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 160
         }
@@ -38,6 +41,12 @@
       "expo-sqlite",
       "expo-font",
       "expo-image",
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false
+        }
+      ],
       "expo-status-bar",
       "expo-web-browser"
     ],

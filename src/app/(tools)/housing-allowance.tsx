@@ -5,12 +5,14 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Checkbox, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { getDailyWorkRatio, scaleWageCalculationResult } from '@/utils/daily-work-ratio';
 import {
     calculateHousingAllowanceFromPeriodData,
     parseDateInput,
@@ -41,6 +43,7 @@ export default function HousingAllowanceScreen() {
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [result, setResult] = useState<HousingAllowanceCalculationResult | null>(null);
+    const [dailyWorkTime, setDailyWorkTime] = useState('07:20');
     const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
     const [includeDaysCovered, setIncludeDaysCovered] = useState(true);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
@@ -227,7 +230,7 @@ export default function HousingAllowanceScreen() {
             return;
         }
 
-        setResult(calculation);
+        setResult(scaleWageCalculationResult(calculation, getDailyWorkRatio(getDailyWorkMinutes(dailyWorkTime))));
         setShowDetailedBreakdown(false);
     };
 
@@ -368,6 +371,7 @@ export default function HousingAllowanceScreen() {
                                     </ThemedText>
                                 </View>
                             </View>
+                            <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
 
                             <View style={styles.actionsGroup}>
                                 <Button

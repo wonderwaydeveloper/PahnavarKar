@@ -2,18 +2,21 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Snackbar } from 'react-native-paper';
+import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
-import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
+import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { getDailyWorkRatio, scaleWageCalculationResult } from '@/utils/daily-work-ratio';
 import {
     calculateMonthlyShiftWorkFromPeriodData,
     parseDateInput,
+    type EntitledSeniorityWorkshopType,
     type MonthlyShiftWorkCalculationResult,
     type MonthlyShiftWorkType,
     type SalaryPeriodBucket,
@@ -21,7 +24,7 @@ import {
 
 const shiftTypeOptions: { value: MonthlyShiftWorkType; label: string; percentage: string }[] = [
     { value: 'morning-evening', label: 'صبح و عصر', percentage: '۱۰٪' },
-    { value: 'morning-evening-night', label: 'صبح، عصر و شب', percentage: '۱۵٪' },
+    { value: 'morning-evening-night', label: 'صبح و عصر و شب', percentage: '۱۵٪' },
     { value: 'morning-night-or-evening-night', label: 'صبح و شب یا عصر و شب', percentage: '۲۲.۵٪' },
 ];
 
@@ -36,16 +39,24 @@ export default function MonthlyShiftWorkScreen() {
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
     const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
+    const defaultEmploymentDate = `${currentPersianYear - 1}/01/01`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
-    const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | null>(null);
+    const [employmentDate, setEmploymentDate] = useState(defaultEmploymentDate);
+    const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | 'employment' | null>(null);
     const [pickerVisible, setPickerVisible] = useState(false);
     const [selectedShiftType, setSelectedShiftType] = useState<MonthlyShiftWorkType>('morning-evening');
+    const [workshopType, setWorkshopType] = useState<EntitledSeniorityWorkshopType>('unclassified');
+    const [settledThrough1391, setSettledThrough1391] = useState(false);
+    const [jobGroups, setJobGroups] = useState<{ id: number; group_number: number; sort_order: number }[]>([]);
+    const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
+    const [groupMenuVisible, setGroupMenuVisible] = useState(false);
     const [periodBuckets, setPeriodBuckets] = useState<SalaryPeriodBucket[]>([]);
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [result, setResult] = useState<MonthlyShiftWorkCalculationResult | null>(null);
+    const [dailyWorkTime, setDailyWorkTime] = useState('07:20');
     const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -58,7 +69,7 @@ export default function MonthlyShiftWorkScreen() {
                 setIsLoadingData(true);
                 await seedFromJsonAsset();
 
-                const years = await fetchYears();
+                const [years, groups] = await Promise.all([fetchYears(), fetchJobGroups()]);
                 const buckets: SalaryPeriodBucket[] = [];
 
                 for (const year of years) {
@@ -67,22 +78,31 @@ export default function MonthlyShiftWorkScreen() {
                         continue;
                     }
 
+                    const mappedPeriods = await Promise.all(periods.map(async (period) => ({
+                        period_index: period.period_index,
+                        month_count: period.month_count,
+                        daily_minimum_wage: period.daily_minimum_wage,
+                        percent_increase: period.percent_increase,
+                        seniority_base: period.seniority_base,
+                        seniority_base_by_group: Object.fromEntries(
+                            (await fetchSeniorityBaseByGroup(period.id)).map((row) => [
+                                groups.find((group) => group.id === row.job_group_id)?.group_number ?? row.job_group_id,
+                                Number(row.base_value),
+                            ]),
+                        ),
+                    })));
+
                     buckets.push({
                         year: year.year,
-                        periods: periods.map((period) => ({
-                            period_index: period.period_index,
-                            month_count: period.month_count,
-                            daily_minimum_wage: period.daily_minimum_wage,
-                            monthly_shift_work_morning_evening_10: period.monthly_shift_work_morning_evening_10,
-                            monthly_shift_work_morning_evening_night_15: period.monthly_shift_work_morning_evening_night_15,
-                            monthly_shift_work_morning_night_or_evening_night_225: period.monthly_shift_work_morning_night_or_evening_night_225,
-                        })),
+                        periods: mappedPeriods,
                     });
                 }
 
                 if (isMounted) {
                     setPeriodBuckets(buckets);
                     setAvailableYears(years.map((year) => year.year));
+                    setJobGroups(groups);
+                    setSelectedGroup(groups[0]?.group_number ?? null);
                 }
             } catch {
                 if (isMounted) {
@@ -105,11 +125,11 @@ export default function MonthlyShiftWorkScreen() {
 
     const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
 
-    const toPersianDigits = (value: string) =>
-        value.replace(/\d/g, (digit) => persianDigits[Number(digit)]);
+    const toPersianDigits = (value: string | number) =>
+        String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
 
     const formatCurrency = (value: number) =>
-        `${new Intl.NumberFormat('fa-IR').format(value)} ریال`;
+        `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 
     const formatDisplayedDate = (value: string) => {
         const parsed = parseDateInput(value);
@@ -121,7 +141,7 @@ export default function MonthlyShiftWorkScreen() {
         return `${toPersianDigits(String(parsed.year))}/${toPersianDigits(String(parsed.month).padStart(2, '0'))}/${toPersianDigits(String(parsed.day).padStart(2, '0'))}`;
     };
 
-    const openPicker = (target: 'start' | 'end') => {
+    const openPicker = (target: 'start' | 'end' | 'employment') => {
         setPickerTarget(target);
         setPickerVisible(true);
     };
@@ -167,6 +187,20 @@ export default function MonthlyShiftWorkScreen() {
             return;
         }
 
+        if (pickerTarget === 'employment') {
+            if (compareDates(value, startDate) > 0) {
+                setSnackbarMessage('تاریخ استخدام باید برابر یا قبل از تاریخ شروع باشد.');
+                setSnackbarVisible(true);
+                return;
+            }
+
+            setEmploymentDate(value);
+            if ((parseDateInput(value)?.year ?? 0) > 1391) {
+                setSettledThrough1391(false);
+            }
+            return;
+        }
+
         if (pickerTarget === 'end') {
             if (startDate) {
                 const comparison = compareDates(value, startDate);
@@ -185,8 +219,9 @@ export default function MonthlyShiftWorkScreen() {
     const handleCalculate = () => {
         const parsedStart = parseDateInput(startDate);
         const parsedEnd = parseDateInput(endDate);
+        const parsedEmployment = parseDateInput(employmentDate);
 
-        if (!parsedStart || !parsedEnd) {
+        if (!parsedStart || !parsedEnd || !parsedEmployment || compareDates(employmentDate, startDate) > 0) {
             setResult(null);
             return;
         }
@@ -205,12 +240,21 @@ export default function MonthlyShiftWorkScreen() {
             return;
         }
 
+        if (workshopType === 'classified' && selectedGroup == null) {
+            setSnackbarMessage('گروه شغلی را انتخاب کنید.');
+            setSnackbarVisible(true);
+            return;
+        }
+
         const calculation = calculateMonthlyShiftWorkFromPeriodData(
             parsedStart,
             parsedEnd,
+            parsedEmployment,
             periodBuckets,
             selectedShiftType,
-            true,
+            workshopType,
+            selectedGroup ?? undefined,
+            settledThrough1391,
         );
 
         if (calculation.breakdown.length === 0) {
@@ -218,11 +262,17 @@ export default function MonthlyShiftWorkScreen() {
             return;
         }
 
-        setResult(calculation);
+        setResult(scaleWageCalculationResult(calculation, getDailyWorkRatio(getDailyWorkMinutes(dailyWorkTime))));
         setShowDetailedBreakdown(false);
     };
 
     const handleReset = () => {
+        setStartDate(defaultStartDate);
+        setEndDate(defaultEndDate);
+        setEmploymentDate(defaultEmploymentDate);
+        setWorkshopType('unclassified');
+        setSettledThrough1391(false);
+        setSelectedShiftType('morning-evening');
         setResult(null);
         setShowDetailedBreakdown(false);
     };
@@ -237,6 +287,7 @@ export default function MonthlyShiftWorkScreen() {
 
     const selectedShiftLabel =
         shiftTypeOptions.find((option) => option.value === selectedShiftType)?.label ?? 'صبح و عصر';
+    const canUseSettlementPath = (parseDateInput(employmentDate)?.year ?? 0) <= 1391;
 
     return (
         <ThemedView style={styles.container}>
@@ -269,7 +320,7 @@ export default function MonthlyShiftWorkScreen() {
                                     فرمول محاسبه
                                 </ThemedText>
                                 <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>
-                                    ضریب نوبت × حداقل مزد روزانه × تعداد روزهای شمول
+                                    مبلغ نوبت‌کاری هر دوره = ضریب نوع نوبت × تعداد روزهای کارکرد کارگر در همان دوره × (حداقل مزد روزانه مصوب + پایه سنوات استحقاقی همان دوره)
                                 </ThemedText>
                             </View>
 
@@ -302,6 +353,45 @@ export default function MonthlyShiftWorkScreen() {
                                     </Pressable>
                                 </View>
                             </View>
+
+                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ استخدام</ThemedText>
+                                <Pressable onPress={() => openPicker('employment')}>
+                                    <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                        <ThemedText type="smallBold" style={[styles.fieldValue, { color: theme.text }]}>{formatDisplayedDate(employmentDate)}</ThemedText>
+                                        <MaterialCommunityIcons name="calendar-account-outline" size={18} color={theme.primary} />
+                                    </View>
+                                </Pressable>
+                                <ThemedText type="small" style={[styles.helpText, { color: theme.textSecondary }]}>برای محاسبه پایه سنوات استحقاقی در هر دوره</ThemedText>
+                            </View>
+
+                            <View style={styles.optionSection}>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>نوع کارگاه</ThemedText>
+                                <View style={styles.optionsRow}>
+                                    {([['unclassified', 'فاقد طرح طبقه‌بندی'], ['classified', 'دارای طرح طبقه‌بندی']] as const).map(([value, label]) => (
+                                        <Pressable key={value} onPress={() => setWorkshopType(value)} style={[styles.optionButton, { backgroundColor: workshopType === value ? theme.primary : theme.surface, borderColor: workshopType === value ? theme.primary : theme.border }]}>
+                                            <ThemedText type="smallBold" style={{ color: workshopType === value ? theme.surface : theme.text }}>{label}</ThemedText>
+                                        </Pressable>
+                                    ))}
+                                </View>
+                            </View>
+
+                            {workshopType === 'classified' ? (
+                                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
+                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>گروه شغلی</ThemedText>
+                                    <Menu visible={groupMenuVisible} onDismiss={() => setGroupMenuVisible(false)} anchor={<Pressable onPress={() => setGroupMenuVisible(true)} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="smallBold" style={{ color: theme.text }}>{selectedGroup == null ? 'انتخاب گروه' : `گروه ${toPersianDigits(selectedGroup)}`}</ThemedText><MaterialCommunityIcons name="briefcase-outline" size={18} color={theme.primary} /></Pressable>}>
+                                        {jobGroups.map((group) => <Menu.Item key={group.id} title={`گروه ${toPersianDigits(group.group_number)}`} onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }} />)}
+                                    </Menu>
+                                </View>
+                            ) : null}
+
+                            <Pressable onPress={() => canUseSettlementPath && setSettledThrough1391((value) => !value)} style={[styles.checkRow, { backgroundColor: theme.surfaceVariant, borderColor: theme.border, opacity: canUseSettlementPath ? 1 : 0.55 }]}>
+                                <MaterialCommunityIcons name={settledThrough1391 ? 'checkbox-marked' : 'checkbox-blank-outline'} size={22} color={settledThrough1391 ? theme.primary : theme.textSecondary} />
+                                <View style={styles.checkText}>
+                                    <ThemedText type="smallBold" style={[styles.optionTitle, { color: theme.text }]}>تصفیه حساب تا پایان سال ۱۳۹۱ انجام شده است</ThemedText>
+                                    <ThemedText type="small" style={[styles.optionDescription, { color: theme.textSecondary }]}>{canUseSettlementPath ? 'در این حالت شروع محاسبه از سال ۱۳۹۲ خواهد بود.' : 'این گزینه برای استخدام‌های سال ۱۳۹۲ و بعد از آن کاربرد ندارد.'}</ThemedText>
+                                </View>
+                            </Pressable>
 
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
@@ -344,6 +434,7 @@ export default function MonthlyShiftWorkScreen() {
                                     })}
                                 </View>
                             </View>
+                            <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
 
                             <View style={styles.actionsGroup}>
                                 <Button
@@ -381,7 +472,7 @@ export default function MonthlyShiftWorkScreen() {
                                         <View style={styles.summaryBoxHeader}>
                                             <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                                 <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
-                                                    مبلغ کل نوبت کاری ماهیانه ({selectedShiftLabel})
+                                                    مبلغ کل نوبت کاری در بازه زمانی انتخاب شده ({selectedShiftLabel})
                                                 </ThemedText>
                                                 <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>
                                                     {formattedResult}
@@ -434,12 +525,24 @@ export default function MonthlyShiftWorkScreen() {
                                                         </View>
 
                                                         <View style={styles.breakdownDetailGrid}>
+                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
+                                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>بازهٔ زمانی</ThemedText>
+                                                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>
+                                                                    {`${formatDisplayedDate(`${item.startDate.year}/${item.startDate.month}/${item.startDate.day}`)} تا ${formatDisplayedDate(`${item.endDate.year}/${item.endDate.month}/${item.endDate.day}`)}`}
+                                                                </ThemedText>
+                                                            </View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
                                                                     تعداد روزهای شمول
                                                                 </ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
                                                                     {toPersianDigits(String(item.daysCovered))} روز
+                                                                </ThemedText>
+                                                            </View>
+                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>{workshopType === 'classified' ? 'پایه سنوات استحقاقی روزانه گروه شغلی' : 'پایه سنوات استحقاقی روزانه'}</ThemedText>
+                                                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
+                                                                    {toPersianDigits(formatCurrency(item.dailySeniority))}
                                                                 </ThemedText>
                                                             </View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
@@ -481,8 +584,8 @@ export default function MonthlyShiftWorkScreen() {
 
             <PersianDatePickerModal
                 visible={pickerVisible}
-                value={pickerTarget === 'start' ? startDate : endDate}
-                title={pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'}
+                value={pickerTarget === 'start' ? startDate : pickerTarget === 'employment' ? employmentDate : endDate}
+                title={pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : pickerTarget === 'employment' ? 'انتخاب تاریخ استخدام' : 'انتخاب تاریخ پایان'}
                 onClose={closePicker}
                 onSelect={handleDateSelect}
                 availableYears={availableYears}
@@ -573,6 +676,11 @@ const styles = StyleSheet.create({
     sectionLabel: {
         fontSize: 11,
     },
+    helpText: {
+        fontSize: 11,
+        lineHeight: 20,
+        fontFamily: 'Vazirmatn-Regular',
+    },
     dateInput: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -599,6 +707,44 @@ const styles = StyleSheet.create({
         paddingVertical: Spacing.two,
         borderRadius: 12,
         borderWidth: 1,
+    },
+    optionSection: {
+        gap: Spacing.two,
+    },
+    optionsRow: {
+        flexDirection: 'row',
+        gap: Spacing.two,
+    },
+    optionButton: {
+        flex: 1,
+        minHeight: 44,
+        borderRadius: 12,
+        borderWidth: StyleSheet.hairlineWidth,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: Spacing.two,
+    },
+    checkRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.two,
+        borderRadius: 12,
+        borderWidth: StyleSheet.hairlineWidth,
+        padding: Spacing.two,
+    },
+    checkText: {
+        flex: 1,
+        gap: Spacing.one,
+    },
+    optionTitle: {
+        fontSize: 13,
+        lineHeight: 19,
+        fontFamily: 'Vazirmatn-Bold',
+    },
+    optionDescription: {
+        fontSize: 11,
+        lineHeight: 20,
+        fontFamily: 'Vazirmatn-Regular',
     },
     actionsGroup: {
         flexDirection: 'row',

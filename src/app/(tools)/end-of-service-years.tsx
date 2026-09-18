@@ -5,12 +5,14 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { getDailyWorkRatio, scaleWageCalculationResult } from '@/utils/daily-work-ratio';
 import {
     calculateEndOfServiceYearsFromPeriodData,
     calculateEntitledSeniorityFromPeriodData,
@@ -46,6 +48,7 @@ export default function EndOfServiceYearsScreen() {
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [result, setResult] = useState<EndOfServiceYearsCalculationResult | null>(null);
+    const [dailyWorkTime, setDailyWorkTime] = useState('07:20');
     const [snackbarVisible, setSnackbarVisible] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
 
@@ -246,7 +249,7 @@ export default function EndOfServiceYearsScreen() {
             return;
         }
 
-        setResult(calculation);
+        setResult(scaleWageCalculationResult(calculation, getDailyWorkRatio(getDailyWorkMinutes(dailyWorkTime))));
     };
 
     const handleReset = () => {
@@ -332,13 +335,14 @@ export default function EndOfServiceYearsScreen() {
                             </View>
 
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ شروع به کار در کارگاه</ThemedText>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ استخدام</ThemedText>
                                 <Pressable onPress={() => openPicker('employment')}>
                                     <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                         <ThemedText type="small" style={[styles.fieldValue, { color: theme.text }]}>{formatDisplayedDate(employmentDate)}</ThemedText>
                                         <MaterialCommunityIcons name="calendar-account-outline" size={18} color={theme.primary} />
                                     </View>
                                 </Pressable>
+                                <ThemedText type="small" style={[styles.helpText, { color: theme.textSecondary }]}>جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات</ThemedText>
                             </View>
 
                             <View style={styles.optionSection}>
@@ -377,6 +381,7 @@ export default function EndOfServiceYearsScreen() {
                                     </View>
                                 </View>
                             </Pressable>
+                            <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
 
                             <View style={styles.actionsGroup}>
                                 <Button
@@ -424,7 +429,7 @@ export default function EndOfServiceYearsScreen() {
 
                                         <View style={styles.summaryDetails}>
                                             <View style={[styles.summaryDetailBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>کل ماه معادل کارکرد</ThemedText>
+                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>تعداد ماه‌های کارکرد</ThemedText>
                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{formatNumber(result.totalMonthEquivalent)} ماه</ThemedText>
                                             </View>
                                             <View style={[styles.summaryDetailBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -432,7 +437,7 @@ export default function EndOfServiceYearsScreen() {
                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(formatCurrency(result.finalDailyMinimumWage))}</ThemedText>
                                             </View>
                                             <View style={[styles.summaryDetailBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>پایه سنوات روز آخر</ThemedText>
+                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>{workshopType === 'classified' ? 'پایه سنوات استحقاقی روزانه گروه شغلی' : 'پایه سنوات استحقاقی روزانه'}</ThemedText>
                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(formatCurrency(result.finalDailySeniority))}</ThemedText>
                                             </View>
                                             <View style={[styles.summaryDetailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
@@ -452,7 +457,7 @@ export default function EndOfServiceYearsScreen() {
             <PersianDatePickerModal
                 visible={pickerVisible}
                 value={pickerTarget === 'employment' ? employmentDate : pickerTarget === 'start' ? startDate : endDate}
-                title={pickerTarget === 'employment' ? 'انتخاب تاریخ شروع به کار در کارگاه' : pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'}
+                title={pickerTarget === 'employment' ? 'انتخاب تاریخ استخدام' : pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'}
                 onClose={closePicker}
                 onSelect={handleDateSelect}
                 availableYears={availableYears}

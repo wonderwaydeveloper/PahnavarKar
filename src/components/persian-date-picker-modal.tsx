@@ -179,7 +179,7 @@ export function PersianDatePickerModal({
           onPress={(e) => e.stopPropagation()}
         >
           <View style={styles.handle} />
-          
+
           <View style={styles.header}>
             <View style={styles.headerTextBlock}>
               <ThemedText type="smallBold" style={styles.title}>

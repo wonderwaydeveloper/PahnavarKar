@@ -74,7 +74,7 @@ export default function ProfileScreen() {
                     <View style={[styles.profileCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                         <View style={[styles.profileHeader, { backgroundColor: theme.surface }]}>
                             <Image
-                                source={require('@/assets/pictures/avatar.png')}
+                                source={require('@/assets/images/favicon.png')}
                                 style={[styles.avatarWrap, { backgroundColor: theme.primaryContainer }]}
                             />
 
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     avatarWrap: {
         width: 64,
         height: 64,
-        borderRadius: 16,
+        borderRadius: 24,
         alignItems: 'center',
         justifyContent: 'center',
     },

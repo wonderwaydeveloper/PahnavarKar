@@ -1,13 +1,12 @@
 import { Stack } from 'expo-router';
 import { useEffect } from 'react';
-import { I18nManager } from 'react-native';
+import { I18nManager, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppProvider } from '@/context';
 import { useAppContext } from '@/hooks/use-app-context';
 import { useFontLoading } from '@/hooks/use-font-loading';
 import { NavigationBar } from 'expo-navigation-bar';
-import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -25,7 +24,7 @@ function AppContent() {
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar barStyle="light-content" backgroundColor={headerBackgroundColor} />
       <NavigationBar style={theme === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

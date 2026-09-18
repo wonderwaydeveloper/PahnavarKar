@@ -15,6 +15,7 @@ interface PersianTimePickerModalProps {
     onClose: () => void;
     onSelect: (value: string) => void;
     maxHours?: number;
+    maxMinutesAtMaxHour?: number;
 }
 
 const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
@@ -61,6 +62,7 @@ export function PersianTimePickerModal({
     onClose,
     onSelect,
     maxHours = 8,
+    maxMinutesAtMaxHour = 59,
 }: PersianTimePickerModalProps) {
     const theme = useTheme();
     const insets = useSafeAreaInsets();
@@ -79,10 +81,14 @@ export function PersianTimePickerModal({
     }
 
     const hourOptions = useMemo(() => Array.from({ length: maxHours + 1 }, (_, index) => index), [maxHours]);
-    const minuteOptions = useMemo(() => Array.from({ length: 60 }, (_, index) => index), []);
+    const minuteOptions = useMemo(() => {
+        const maxMinutes = hours === maxHours ? Math.min(59, Math.max(0, maxMinutesAtMaxHour)) : 59;
+        return Array.from({ length: maxMinutes + 1 }, (_, index) => index);
+    }, [hours, maxHours, maxMinutesAtMaxHour]);
+    const selectedMinutes = hours === maxHours ? Math.min(minutes, maxMinutesAtMaxHour) : minutes;
 
     const handleConfirm = () => {
-        const selected = formatTimeValue(hours, minutes);
+        const selected = formatTimeValue(hours, selectedMinutes);
         onSelect(selected);
         onClose();
     };
@@ -162,7 +168,7 @@ export function PersianTimePickerModal({
                                 showsVerticalScrollIndicator={false}
                             >
                                 {minuteOptions.map((option) => {
-                                    const isSelected = option === minutes;
+                                    const isSelected = option === selectedMinutes;
                                     return (
                                         <Pressable
                                             key={`minute-${option}`}
@@ -195,7 +201,7 @@ export function PersianTimePickerModal({
                             پیش‌نمایش زمان
                         </ThemedText>
                         <ThemedText type="bodyBold" style={{ color: theme.primary }}>
-                            {formatTimeValue(hours, minutes).replace(/\d/g, (digit) => persianDigits[Number(digit)])}
+                            {formatTimeValue(hours, selectedMinutes).replace(/\d/g, (digit) => persianDigits[Number(digit)])}
                         </ThemedText>
                     </View>
 

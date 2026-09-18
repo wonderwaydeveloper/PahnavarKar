@@ -55,10 +55,12 @@ const ACTION_DEFINITIONS: SearchAction[] = ([
     ['monthly-shift-work', 'نوبت کاری ماهیانه', 'محاسبه نوبت‌کاری موضوع ماده ۵۵ قانون کار بر اساس ماده ۵۶ قانون کار', 'calendar-clock', '#0f766e', '/home/monthly-shift-work', 'wage'],
     ['minimum-bonus', 'حداقل عیدی و پاداش استحقاقی', 'محاسبه حداقل عیدی و پاداش ماهیانه براساس ماده واحده قانون تعیین عیدی و پاداش، مصوب مجلس در سال ۱۳۷۰', 'gift-outline', '#ef4444', '/home/minimum-bonus', 'wage'],
     ['maximum-bonus', 'حداکثر عیدی و پاداش استحقاقی', 'محاسبه حداکثر عیدی و پاداش ماهیانه براساس ماده واحده قانون تعیین عیدی و پاداش، مصوب مجلس در سال ۱۳۷۰', 'gift', '#ec4899', '/home/maximum-bonus', 'wage'],
+    ['bonus-entitlement', 'عیدی و پاداش استحقاقی', 'محاسبه عیدی و پاداش ماهیانه بر اساس ماده واحده قانون تعیین عیدی و پاداش، مصوب مجلس در سال ۱۳۷۰', 'gift-open-outline', '#db2777', '/home/bonus-entitlement', 'wage'],
     ['overtime-entitlement', 'اضافه کاری استحقاقی', 'محاسبه فوق‌العاده اضافه‌کاری براساس شرح ماده ۵۹ قانون کار', 'clock-alert-outline', '#f97316', '/home/overtime-entitlement', 'wage'],
     ['night-shift-entitlement', 'شب کاری استحقاقی', 'محاسبه فوق‌العاده شب‌کاری براساس شرح ماده ۵۸ قانون کار', 'weather-night', '#0ea5e9', '/home/night-shift-entitlement', 'wage'],
     ['unused-leave-entitlement', 'میزان مرخصی ذخیره شده کارگر', 'محاسبه تعداد مرخصی ذخیره شده کارگر براساس مواد ۶۴ و ۶۹ قانون کار', 'calendar-clock', '#e11d48', '/home/unused-leave-entitlement', 'wage'],
     ['unused-leave-wage', 'مزد مرخصی ذخیره شده کارگر', 'محاسبه مزد مرخصی ذخیره شده کارگر بر اساس آخرین ماه کارکرد', 'cash-clock', '#0891b2', '/home/unused-leave-wage', 'wage'],
+    ['suspension-wage', 'حق‌السعی ایام تعلیق', 'محاسبه حق‌السعی ایام تعلیق موضوع ماده ۳۴ قانون کار و ماده ۶۷ آیین دادرسی کار', 'scale-balance', '#0f766e', '/home/suspension-wage', 'wage'],
     ['insurance-days-entitlement', 'تعداد روزهای بیمه استحقاقی', 'محاسبه تعداد روزهای بیمه موضوع مفاد مواد ۳۹ و ۱۴۸ قانون کار', 'shield-check', '#22c55e', '/home/insurance-days-entitlement', 'other'],
     ['unemployment-insurance-entitlement', 'مدت زمان پرداخت مقرری بیمه بیکاری', 'محاسبه مدت زمان استحقاق دریافت مقرری بیمه بیکاری براساس ماده ۷ قانون بیمه بیکاری', 'briefcase-account', '#0284c7', '/home/unemployment-insurance-entitlement', 'other'],
     ['unemployment-insurance-allowance', 'مبلغ مقرری بیمه بیکاری', 'محاسبه مقرری بیمه بیکاری براساس بند ب ماده ۷ قانون بیمه بیکاری', 'cash-clock', '#0f766e', '/home/unemployment-insurance-allowance', 'wage'],
@@ -67,7 +69,8 @@ const ACTION_DEFINITIONS: SearchAction[] = ([
     ['ordinary-work-hours', 'میزان ساعات کارکرد موظفی کارگر در مشاغل عادی', 'محاسبه میزان ساعات کارکرد موظفی کارگر در مشاغل عادی طبق ماده ۵۱ قانون کار', 'calendar-check-outline', '#0891b2', '/home/ordinary-work-hours', 'other'],
     ['hazardous-work-hours', 'میزان ساعات کارکرد موظفی کارگر در مشاغل سخت و زیان‌آور', 'تعیین ساعات کارکرد موظفی کارگر طبق ماده ۵۲ قانون کار', 'hard-hat', '#d97706', '/home/hazardous-work-hours', 'other'],
     ['young-worker-work-hours', 'میزان ساعات کارکرد موظفی کارگر نوجوان', 'تعیین ساعات کارکرد کارگر نوجوان طبق ماده ۸۰ قانون کار', 'account-child', '#be123c', '/home/young-worker-work-hours', 'other'],
-    ['official-holiday-work', 'مبلغ تعطیل کاری استحقاقی', 'محاسبه مبلغ تعطیل‌کاری استحقاقی بر اساس تعداد روزهای تعطیل رسمی و مبلغ اضافه‌کاری هر ساعت', 'calendar-star', '#f97316', '/home/official-holiday-work', 'wage'],
+    ['official-holiday-work', 'مبلغ تعطیل کاری استحقاقی', 'محاسبه مبلغ تعطیل‌کاری‌های مندرج در ماده ۶۳ قانون کار بر اساس پایه سنوات هر دوره', 'calendar-star', '#f97316', '/home/official-holiday-work', 'wage'],
+    ['official-holidays-in-range', 'تعداد تعطیلات رسمی در بازه زمانی دلخواه', 'تعیین تعداد روزهای تعطیل موضوع ماده ۶۳ قانون کار بر اساس تقویم رسمی کشور؛ جمعه‌کاری تعطیل‌کاری محسوب نمی‌شود', 'calendar-check-outline', '#0891b2', '/home/official-holidays-in-range', 'other'],
     ['illegal-foreign-worker-penalty', 'مبلغ جریمه به‌کارگیری اتباع بیگانه غیرمجاز', 'محاسبه جریمه به‌کارگیری اتباع بیگانه غیرمجاز بر اساس تعداد کارگران، روزهای بازه و حداقل مزد همان سال', 'account-alert-outline', '#dc2626', '/home/illegal-foreign-worker-penalty', 'other'],
     ['article-87', 'مبلغ اعمال ماده ۸۷ قانون کار', 'محاسبه مبلغ اعمال ماده ۸۷ قانون کار برای صدور پروانه کسب یا بهره‌برداری بر اساس متراژ زیربنا', 'file-document-edit-outline', '#0ea5e9', '/home/article-87', 'other'],
     ['social-security-premium-ceiling', 'سقف حق بیمه تامین اجتماعی', 'محاسبه سقف حق بیمه براساس حداقل مزد مصوب شورای عالی کار و تعداد روزهای ماه انتخابی', 'shield-check-outline', '#10b981', '/home/social-security-premium-ceiling', 'other'],
@@ -193,7 +196,7 @@ export default function SearchTabScreen() {
             </View>
             <View style={styles.itemTextWrap}>
                 {renderHighlightedText(item.title, { color: theme.text, fontSize: 14, lineHeight: 20, fontFamily: 'Vazirmatn-Bold' })}
-                {renderHighlightedText(item.detail, { color: theme.textSecondary, fontSize: 14, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' })}
+                {renderHighlightedText(item.detail, { color: theme.textSecondary, fontSize: 13, lineHeight: 19, fontFamily: 'Vazirmatn-Regular' })}
             </View>
         </Pressable>
     ), [renderHighlightedText, router, theme.border, theme.surface, theme.surfaceVariant, theme.text, theme.textSecondary]);
@@ -235,7 +238,7 @@ const styles = StyleSheet.create({
     searchHeader: { zIndex: 1 },
     resultsList: { flex: 1 },
     content: { flexGrow: 1 },
-    searchBox: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth },
+    searchBox: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.two, borderWidth: StyleSheet.hairlineWidth },
     searchInput: { flex: 1, minHeight: 60, paddingVertical: 0, fontFamily: 'Vazirmatn-Regular', fontSize: 16, textAlign: 'right' },
     listItem: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.three, borderBottomWidth: StyleSheet.hairlineWidth },
     lastListItem: { borderBottomWidth: 0, marginBottom: Spacing.three },

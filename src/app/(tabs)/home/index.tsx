@@ -1,9 +1,9 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Fragment, memo, useRef, useState, type ComponentProps } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Fragment, memo, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
+import { Animated, LayoutChangeEvent, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { TabBar, TabView, type NavigationState, type SceneRendererProps } from 'react-native-tab-view';
+import { TabView, type NavigationState, type SceneRendererProps } from 'react-native-tab-view';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -29,7 +29,10 @@ type HomeAction = {
     onPress: () => void;
 };
 
-const TAB_DIRECTION = 'rtl' as const;
+type HomeTabBarProps = SceneRendererProps & {
+    navigationState: NavigationState<HomeRoute>;
+    theme: ReturnType<typeof useTheme>;
+};
 
 const HOME_ROUTES: HomeRoute[] = [
     { key: 'all', label: 'همه' },
@@ -52,8 +55,10 @@ const WAGE_ACTION_KEYS = new Set([
     'monthly-shift-work',
     'minimum-bonus',
     'maximum-bonus',
+    'bonus-entitlement',
     'end-of-service-years',
     'unused-leave-wage',
+    'suspension-wage',
     'official-holiday-work',
     'friday-work',
 ]);
@@ -80,10 +85,12 @@ function createHomeActions(router: ReturnType<typeof useRouter>): HomeAction[] {
         ['monthly-shift-work', 'نوبت کاری ماهیانه', 'محاسبه نوبت‌کاری موضوع ماده ۵۵ قانون کار بر اساس ماده ۵۶ قانون کار', 'calendar-clock', '#0f766e', '/home/monthly-shift-work'],
         ['minimum-bonus', 'حداقل عیدی و پاداش استحقاقی', 'محاسبه حداقل عیدی و پاداش ماهیانه براساس ماده واحده قانون تعیین عیدی و پاداش، مصوب مجلس در سال ۱۳۷۰', 'gift-outline', '#ef4444', '/home/minimum-bonus'],
         ['maximum-bonus', 'حداکثر عیدی و پاداش استحقاقی', 'محاسبه حداکثر عیدی و پاداش ماهیانه براساس ماده واحده قانون تعیین عیدی و پاداش، مصوب مجلس در سال ۱۳۷۰', 'gift', '#ec4899', '/home/maximum-bonus'],
+        ['bonus-entitlement', 'عیدی و پاداش استحقاقی', 'محاسبه عیدی و پاداش ماهیانه بر اساس ماده واحده قانون تعیین عیدی و پاداش، مصوب مجلس در سال ۱۳۷۰', 'gift-open-outline', '#db2777', '/home/bonus-entitlement'],
         ['overtime-entitlement', 'اضافه کاری استحقاقی', 'محاسبه فوق‌العاده اضافه‌کاری براساس شرح ماده ۵۹ قانون کار', 'clock-alert-outline', '#f97316', '/home/overtime-entitlement'],
         ['night-shift-entitlement', 'شب کاری استحقاقی', 'محاسبه فوق‌العاده شب‌کاری براساس شرح ماده ۵۸ قانون کار', 'weather-night', '#0ea5e9', '/home/night-shift-entitlement'],
         ['unused-leave-entitlement', 'میزان مرخصی ذخیره شده کارگر', 'محاسبه تعداد مرخصی ذخیره شده کارگر براساس مواد ۶۴ و ۶۹ قانون کار', 'calendar-clock', '#e11d48', '/home/unused-leave-entitlement'],
         ['unused-leave-wage', 'مزد مرخصی ذخیره شده کارگر', 'محاسبه مزد مرخصی ذخیره شده کارگر بر اساس آخرین ماه کارکرد', 'cash-clock', '#0891b2', '/home/unused-leave-wage'],
+        ['suspension-wage', 'حق‌السعی ایام تعلیق', 'محاسبه حق‌السعی ایام تعلیق موضوع ماده ۳۴ قانون کار و ماده ۶۷ آیین دادرسی کار', 'scale-balance', '#0f766e', '/home/suspension-wage'],
         ['insurance-days-entitlement', 'تعداد روزهای بیمه استحقاقی', 'محاسبه تعداد روزهای بیمه موضوع مفاد مواد ۳۹ و ۱۴۸ قانون کار', 'shield-check', '#22c55e', '/home/insurance-days-entitlement'],
         ['unemployment-insurance-entitlement', 'مدت زمان پرداخت مقرری بیمه بیکاری', 'محاسبه مدت زمان استحقاق دریافت مقرری بیمه بیکاری براساس ماده ۷ قانون بیمه بیکاری', 'briefcase-account', '#0284c7', '/home/unemployment-insurance-entitlement'],
         ['unemployment-insurance-allowance', 'مبلغ مقرری بیمه بیکاری', 'محاسبه مقرری بیمه بیکاری براساس بند ب ماده ۷ قانون بیمه بیکاری', 'cash-clock', '#0f766e', '/home/unemployment-insurance-allowance'],
@@ -92,7 +99,8 @@ function createHomeActions(router: ReturnType<typeof useRouter>): HomeAction[] {
         ['ordinary-work-hours', 'میزان ساعات کارکرد موظفی کارگر در مشاغل عادی', 'محاسبه میزان ساعات کارکرد موظفی کارگر در مشاغل عادی طبق ماده ۵۱ قانون کار', 'calendar-check-outline', '#0891b2', '/home/ordinary-work-hours'],
         ['hazardous-work-hours', 'میزان ساعات کارکرد موظفی کارگر در مشاغل سخت و زیان‌آور', 'تعیین ساعات کارکرد موظفی کارگر طبق ماده ۵۲ قانون کار', 'hard-hat', '#d97706', '/home/hazardous-work-hours'],
         ['young-worker-work-hours', 'میزان ساعات کارکرد موظفی کارگر نوجوان', 'تعیین ساعات کارکرد کارگر نوجوان طبق ماده ۸۰ قانون کار', 'account-child', '#be123c', '/home/young-worker-work-hours'],
-        ['official-holiday-work', 'مبلغ تعطیل کاری استحقاقی', 'محاسبه مبلغ تعطیل‌کاری استحقاقی بر اساس تعداد روزهای تعطیل رسمی و مبلغ اضافه‌کاری هر ساعت', 'calendar-star', '#f97316', '/home/official-holiday-work'],
+        ['official-holiday-work', 'مبلغ تعطیل کاری استحقاقی', 'محاسبه مبلغ تعطیل‌کاری‌های مندرج در ماده ۶۳ قانون کار بر اساس پایه سنوات هر دوره', 'calendar-star', '#f97316', '/home/official-holiday-work'],
+        ['official-holidays-in-range', 'تعداد تعطیلات رسمی در بازه زمانی دلخواه', 'تعیین تعداد روزهای تعطیل موضوع ماده ۶۳ قانون کار بر اساس تقویم رسمی کشور؛ جمعه‌کاری تعطیل‌کاری محسوب نمی‌شود', 'calendar-check-outline', '#0891b2', '/home/official-holidays-in-range'],
         ['illegal-foreign-worker-penalty', 'مبلغ جریمه به‌کارگیری اتباع بیگانه غیرمجاز', 'محاسبه جریمه به‌کارگیری اتباع بیگانه غیرمجاز بر اساس تعداد کارگران، روزهای بازه و حداقل مزد همان سال', 'account-alert-outline', '#dc2626', '/home/illegal-foreign-worker-penalty'],
         ['article-87', 'مبلغ اعمال ماده ۸۷ قانون کار', 'محاسبه مبلغ اعمال ماده ۸۷ قانون کار برای صدور پروانه کسب یا بهره‌برداری بر اساس متراژ زیربنا', 'file-document-edit-outline', '#0ea5e9', '/home/article-87'],
         ['social-security-premium-ceiling', 'سقف حق بیمه تامین اجتماعی', 'محاسبه سقف حق بیمه براساس حداقل مزد مصوب شورای عالی کار و تعداد روزهای ماه انتخابی', 'shield-check-outline', '#10b981', '/home/social-security-premium-ceiling'],
@@ -114,6 +122,104 @@ function filterActions(actions: HomeAction[], tab: HomeTab) {
     if (tab === 'nonWage') return actions.filter((action) => !WAGE_ACTION_KEYS.has(action.key) && action.key !== 'yearly-info');
     if (tab === 'yearlyInfo') return actions.filter((action) => action.key === 'yearly-info');
     return [];
+}
+
+type HomeTabItemProps = {
+    route: HomeRoute;
+    isActive: boolean;
+    onPress: () => void;
+    theme: ReturnType<typeof useTheme>;
+    onLayout: (event: LayoutChangeEvent) => void;
+};
+
+function HomeTabItem({ route, isActive, onPress, theme, onLayout }: HomeTabItemProps) {
+    const [indicatorProgress] = useState(() => new Animated.Value(isActive ? 1 : 0));
+
+    useEffect(() => {
+        Animated.spring(indicatorProgress, {
+            toValue: isActive ? 1 : 0,
+            damping: 18,
+            stiffness: 180,
+            mass: 0.7,
+            useNativeDriver: true,
+        }).start();
+    }, [indicatorProgress, isActive]);
+
+    return (
+        <Pressable
+            onPress={onPress}
+            style={({ pressed }) => [
+                styles.tabItem,
+                { backgroundColor: pressed ? theme.surfaceVariant : theme.surface },
+            ]}
+            onLayout={onLayout}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
+            accessibilityLabel={route.label}
+        >
+            <ThemedText
+                type="smallBold"
+                numberOfLines={1}
+                style={[styles.tabLabel, { color: isActive ? theme.primary : theme.textSecondary }]}
+            >
+                {route.label}
+            </ThemedText>
+            <Animated.View
+                style={[
+                    styles.tabIndicator,
+                    {
+                        backgroundColor: theme.primary,
+                        opacity: indicatorProgress,
+                        transform: [{ scaleX: indicatorProgress }],
+                    },
+                ]}
+            />
+        </Pressable>
+    );
+}
+
+function HomeTabBar({ navigationState, jumpTo, theme }: HomeTabBarProps) {
+    const scrollViewRef = useRef<ScrollView>(null);
+    const tabLayouts = useRef<Record<string, { x: number; width: number }>>({});
+    const [viewportWidth, setViewportWidth] = useState(0);
+
+    useEffect(() => {
+        const activeTab = navigationState.routes[navigationState.index];
+        const layout = activeTab ? tabLayouts.current[activeTab.key] : undefined;
+
+        if (!layout || viewportWidth <= 0) {
+            return;
+        }
+
+        const targetOffset = Math.max(0, layout.x - (viewportWidth - layout.width) / 2);
+        scrollViewRef.current?.scrollTo({ x: targetOffset, animated: true });
+    }, [navigationState.index, navigationState.routes, viewportWidth]);
+
+    return (
+        <View style={[styles.tabBar, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+            <ScrollView
+                ref={scrollViewRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.tabBarContent}
+                onLayout={(event) => setViewportWidth(event.nativeEvent.layout.width)}
+            >
+                {navigationState.routes.map((route, index) => (
+                    <HomeTabItem
+                        key={route.key}
+                        route={route}
+                        isActive={navigationState.index === index}
+                        onPress={() => jumpTo(route.key)}
+                        theme={theme}
+                        onLayout={(event) => {
+                            const { x, width } = event.nativeEvent.layout;
+                            tabLayouts.current[route.key] = { x, width };
+                        }}
+                    />
+                ))}
+            </ScrollView>
+        </View>
+    );
 }
 
 function DebouncedPressable({ onPress, ...props }: Omit<ComponentProps<typeof Pressable>, 'onPress'> & { onPress?: () => void }) {
@@ -151,7 +257,7 @@ const HomeScene = memo(function HomeScene({ tab, actions, theme, bottomInset }: 
                         </View>
                         <View style={styles.itemTextWrap}>
                             <ThemedText type="smallBold" numberOfLines={1} style={{ color: theme.text }}>{action.title}</ThemedText>
-                            <ThemedText type="small" style={{ color: theme.textSecondary }}>{action.detail}</ThemedText>
+                            <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 13, lineHeight: 19 }}>{action.detail}</ThemedText>
                         </View>
                     </DebouncedPressable>
                     {index < items.length - 1 ? <View style={[styles.chatSeparator, { backgroundColor: theme.border }]} /> : null}
@@ -199,25 +305,14 @@ export default function HomeTabScreen() {
     const router = useRouter();
     const { width } = useWindowDimensions();
     const [tabIndex, setTabIndex] = useState(0);
-    const actions = createHomeActions(router);
+    const actions = useMemo(() => createHomeActions(router), [router]);
 
     const renderScene = ({ route }: { route: HomeRoute }) => (
         <HomeScene tab={route.key} actions={actions} theme={theme} bottomInset={insets.bottom} />
     );
 
     const renderTabBar = (props: SceneRendererProps & { navigationState: NavigationState<HomeRoute> }) => (
-        <TabBar
-            {...props}
-            direction={TAB_DIRECTION}
-            scrollEnabled
-            gap={Spacing.one}
-            activeColor={theme.primary}
-            inactiveColor={theme.textSecondary}
-            indicatorStyle={[styles.tabIndicator, { backgroundColor: theme.primary }]}
-            style={[styles.tabBar, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}
-            tabStyle={styles.tabStyle}
-            contentContainerStyle={styles.tabBarContent}
-        />
+        <HomeTabBar {...props} theme={theme} />
     );
 
     return (
@@ -227,15 +322,13 @@ export default function HomeTabScreen() {
                 onIndexChange={setTabIndex}
                 renderScene={renderScene}
                 renderTabBar={renderTabBar}
-                direction={TAB_DIRECTION}
+                direction="rtl"
                 commonOptions={{
                     label: ({ route, color }) => (
                         <ThemedText type="smallBold" style={[styles.tabLabel, { color }]}>{route.label}</ThemedText>
                     ),
                 }}
                 initialLayout={{ width }}
-                lazy
-                renderLazyPlaceholder={() => <View style={[styles.lazyPlaceholder, { backgroundColor: theme.background }]} />}
                 style={styles.tabView}
             />
         </ThemedView>
@@ -245,14 +338,13 @@ export default function HomeTabScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     tabView: { flex: 1 },
-    tabBar: { borderBottomWidth: StyleSheet.hairlineWidth, elevation: 0 },
-    tabBarContent: { paddingHorizontal: Spacing.two },
-    tabStyle: { width: 'auto', minHeight: 54, paddingHorizontal: Spacing.two },
+    tabBar: { borderBottomWidth: StyleSheet.hairlineWidth },
+    tabBarContent: { flexDirection: 'row' },
+    tabItem: { minWidth: 88, minHeight: 54, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.three, position: 'relative' },
     tabLabel: { fontFamily: 'Vazirmatn-Medium', fontSize: 12, textTransform: 'none' },
-    tabIndicator: { height: 3, borderRadius: 2 },
+    tabIndicator: { position: 'absolute', left: Spacing.two, right: Spacing.two, bottom: 0, height: 4, borderRadius: 999, overflow: 'hidden' },
     sceneScroll: { flex: 1 },
     sceneContent: { flexGrow: 1 },
-    lazyPlaceholder: { flex: 1 },
     page: { gap: Spacing.one },
     categorySection: { gap: Spacing.one, marginTop: 0 },
     listCard: { overflow: 'hidden', borderRadius: Spacing.two },

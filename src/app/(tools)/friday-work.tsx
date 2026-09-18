@@ -2,19 +2,22 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { Button, Card, Snackbar } from 'react-native-paper';
+import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
-import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
+import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { getDailyWorkRatio, scaleWageCalculationResult } from '@/utils/daily-work-ratio';
 import {
     calculateAvailableFridaysByYear,
     calculateFridayWorkFromPeriodData,
     parseDateInput,
+    type EntitledSeniorityWorkshopType,
     type FridayWorkCalculationResult,
     type SalaryPeriodBucket,
 } from '@/utils/salary-calculation';
@@ -30,16 +33,24 @@ export default function FridayWorkScreen() {
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
     const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
+    const defaultEmploymentDate = `${currentPersianYear - 1}/01/01`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
+    const [employmentDate, setEmploymentDate] = useState(defaultEmploymentDate);
+    const [workshopType, setWorkshopType] = useState<EntitledSeniorityWorkshopType>('unclassified');
+    const [settledThrough1391, setSettledThrough1391] = useState(false);
+    const [jobGroups, setJobGroups] = useState<{ id: number; group_number: number; sort_order: number }[]>([]);
+    const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
+    const [groupMenuVisible, setGroupMenuVisible] = useState(false);
     const [fridayWorkDaysByYear, setFridayWorkDaysByYear] = useState<Record<number, string>>({});
-    const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | null>(null);
+    const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | 'employment' | null>(null);
     const [pickerVisible, setPickerVisible] = useState(false);
     const [periodBuckets, setPeriodBuckets] = useState<SalaryPeriodBucket[]>([]);
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [result, setResult] = useState<FridayWorkCalculationResult | null>(null);
+    const [dailyWorkTime, setDailyWorkTime] = useState('07:20');
     const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -52,7 +63,7 @@ export default function FridayWorkScreen() {
                 setIsLoadingData(true);
                 await seedFromJsonAsset();
 
-                const years = await fetchYears();
+                const [years, groups] = await Promise.all([fetchYears(), fetchJobGroups()]);
                 const buckets: SalaryPeriodBucket[] = [];
 
                 for (const year of years) {
@@ -61,20 +72,31 @@ export default function FridayWorkScreen() {
                         continue;
                     }
 
+                    const mappedPeriods = await Promise.all(periods.map(async (period) => ({
+                        period_index: period.period_index,
+                        month_count: period.month_count,
+                        daily_minimum_wage: period.daily_minimum_wage,
+                        percent_increase: period.percent_increase,
+                        seniority_base: period.seniority_base,
+                        seniority_base_by_group: Object.fromEntries(
+                            (await fetchSeniorityBaseByGroup(period.id)).map((row) => {
+                                const group = groups.find((item) => item.id === row.job_group_id);
+                                return [group?.group_number ?? row.job_group_id, Number(row.base_value)];
+                            }),
+                        ),
+                    })));
+
                     buckets.push({
                         year: year.year,
-                        periods: periods.map((period) => ({
-                            period_index: period.period_index,
-                            month_count: period.month_count,
-                            daily_minimum_wage: period.daily_minimum_wage,
-                            friday_work_per_day: period.friday_work_per_day,
-                        })),
+                        periods: mappedPeriods,
                     });
                 }
 
                 if (isMounted) {
                     setPeriodBuckets(buckets);
                     setAvailableYears(years.map((year) => year.year));
+                    setJobGroups(groups);
+                    setSelectedGroup(groups[0]?.group_number ?? null);
                 }
             } catch {
                 if (isMounted) {
@@ -101,7 +123,7 @@ export default function FridayWorkScreen() {
     const normalizeDigits = (value: string) => value.replace(/[۰-۹]/g, (digit) => latinDigits[persianDigits.indexOf(digit)]);
     const toPersianDigits = (value: string | number) => String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
     const filterFridayWorkDaysInput = (value: string) => value.replace(/[^0-9۰-۹]/g, '');
-    const formatCurrency = (value: number) => `${new Intl.NumberFormat('fa-IR').format(value)} ریال`;
+    const formatCurrency = (value: number) => `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 
     const formatDisplayedDate = (value: string) => {
         const parsed = parseDateInput(value);
@@ -126,7 +148,7 @@ export default function FridayWorkScreen() {
         return leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0;
     };
 
-    const openPicker = (target: 'start' | 'end') => {
+    const openPicker = (target: 'start' | 'end' | 'employment') => {
         setPickerTarget(target);
         setPickerVisible(true);
     };
@@ -137,24 +159,34 @@ export default function FridayWorkScreen() {
     };
 
     const handleDateSelect = (value: string) => {
-        if (pickerTarget === 'start') {
+        if (pickerTarget === 'employment') {
+            if (compareDates(value, startDate) > 0) {
+                setSnackbarMessage('تاریخ استخدام باید برابر یا قبل از تاریخ شروع جمعه‌کاری باشد.');
+                setSnackbarVisible(true);
+                closePicker();
+                return;
+            }
+            setEmploymentDate(value);
+            if ((parseDateInput(value)?.year ?? 0) > 1391) {
+                setSettledThrough1391(false);
+            }
+        } else if (pickerTarget === 'start') {
             setStartDate(value);
             if (compareDates(value, endDate) > 0) {
                 setEndDate(value);
             }
-            return;
-        }
-
-        if (pickerTarget === 'end') {
+        } else if (pickerTarget === 'end') {
             if (compareDates(value, startDate) < 0) {
                 setEndDate(startDate);
                 setSnackbarMessage('تاریخ پایان باید برابر یا بزرگتر از تاریخ شروع باشد.');
                 setSnackbarVisible(true);
+                closePicker();
                 return;
             }
 
             setEndDate(value);
         }
+        closePicker();
     };
 
     const selectedYears = (() => {
@@ -178,6 +210,7 @@ export default function FridayWorkScreen() {
 
         return calculateAvailableFridaysByYear(parsedStartDate, parsedEndDate);
     })();
+    const canUseSettlementPath = (parseDateInput(employmentDate)?.year ?? 0) <= 1391;
 
     const updateFridayWorkDays = (year: number, value: string) => {
         setFridayWorkDaysByYear((currentValues) => ({
@@ -217,15 +250,23 @@ export default function FridayWorkScreen() {
         const parsedStart = parseDateInput(startDate);
         const parsedEnd = parseDateInput(endDate);
 
-        if (!parsedStart || !parsedEnd || compareDates(startDate, endDate) > 0) {
+        const parsedEmployment = parseDateInput(employmentDate);
+        if (!parsedStart || !parsedEnd || !parsedEmployment || compareDates(startDate, endDate) > 0 || compareDates(employmentDate, startDate) > 0) {
             setResult(null);
-            setSnackbarMessage('بازهٔ زمانی واردشده معتبر نیست.');
+            setSnackbarMessage('بازهٔ زمانی یا تاریخ استخدام واردشده معتبر نیست.');
             setSnackbarVisible(true);
             return;
         }
 
         if (periodBuckets.length === 0) {
             setResult(null);
+            return;
+        }
+
+        if (workshopType === 'classified' && selectedGroup == null) {
+            setResult(null);
+            setSnackbarMessage('گروه شغلی را انتخاب کنید.');
+            setSnackbarVisible(true);
             return;
         }
 
@@ -253,7 +294,16 @@ export default function FridayWorkScreen() {
             parsedFridayWorkDaysByYear[year] = value;
         }
 
-        const calculation = calculateFridayWorkFromPeriodData(parsedStart, parsedEnd, periodBuckets, parsedFridayWorkDaysByYear);
+        const calculation = calculateFridayWorkFromPeriodData(
+            parsedStart,
+            parsedEnd,
+            parsedEmployment,
+            periodBuckets,
+            parsedFridayWorkDaysByYear,
+            workshopType,
+            selectedGroup ?? undefined,
+            settledThrough1391,
+        );
 
         if (calculation.breakdown.length === 0) {
             setResult(null);
@@ -262,13 +312,17 @@ export default function FridayWorkScreen() {
             return;
         }
 
-        setResult(calculation);
+        setResult(scaleWageCalculationResult(calculation, getDailyWorkRatio(getDailyWorkMinutes(dailyWorkTime))));
         setShowDetailedBreakdown(false);
     };
 
     const handleReset = () => {
         setStartDate(defaultStartDate);
         setEndDate(defaultEndDate);
+        setEmploymentDate(defaultEmploymentDate);
+        setWorkshopType('unclassified');
+        setSettledThrough1391(false);
+        setSelectedGroup(jobGroups[0]?.group_number ?? null);
         setFridayWorkDaysByYear(
             Object.fromEntries(selectedYears.map((year) => [year, toPersianDigits(String(availableFridaysByYear[year] ?? 0))])),
         );
@@ -299,7 +353,7 @@ export default function FridayWorkScreen() {
 
                             <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                 <ThemedText type="small" style={[styles.formulaLabel, { color: theme.textSecondary }]}>فرمول محاسبه</ThemedText>
-                                <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>تعداد جمعه کاری کارگر در هر سال × مبلغ جمعه کاری یک روز در دوره‌های همان سال</ThemedText>
+                                <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>مبلغ کل جمعه‌کاری = مجموعِ (تعداد جمعه‌کاری کارگر در هر دوره × ۰٫۴۰ × (حداقل مزد مصوب روزانه + پایه سنوات استحقاقی همان دوره))</ThemedText>
                             </View>
 
                             <View style={styles.metricsRow}>
@@ -315,6 +369,43 @@ export default function FridayWorkScreen() {
                                     </View>
                                 ))}
                             </View>
+
+                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ استخدام</ThemedText>
+                                <Pressable onPress={() => { setPickerTarget('employment'); setPickerVisible(true); }}>
+                                    <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                        <ThemedText type="small" style={[styles.fieldValue, { color: theme.text }]}>{formatDisplayedDate(employmentDate)}</ThemedText>
+                                        <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
+                                    </View>
+                                </Pressable>
+                                <ThemedText type="small" style={[styles.helpText, { color: theme.textSecondary }]}>جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات</ThemedText>
+                            </View>
+
+                            <View style={styles.optionSection}>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>نوع کارگاه</ThemedText>
+                                <View style={styles.optionsRow}>
+                                    {([['unclassified', 'فاقد طرح طبقه‌بندی'], ['classified', 'دارای طرح طبقه‌بندی']] as const).map(([value, label]) => (
+                                        <Pressable key={value} onPress={() => setWorkshopType(value)} style={[styles.optionButton, { backgroundColor: workshopType === value ? theme.primary : theme.surface, borderColor: workshopType === value ? theme.primary : theme.border }]}>
+                                            <ThemedText type="smallBold" style={{ color: workshopType === value ? theme.surface : theme.text }}>{label}</ThemedText>
+                                        </Pressable>
+                                    ))}
+                                </View>
+                            </View>
+
+                            {workshopType === 'classified' ? <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>گروه شغلی</ThemedText>
+                                <Menu visible={groupMenuVisible} onDismiss={() => setGroupMenuVisible(false)} anchor={<Pressable onPress={() => setGroupMenuVisible(true)} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="small" style={[styles.fieldValue, { color: theme.text }]}>{selectedGroup == null ? 'انتخاب گروه شغلی' : `گروه ${toPersianDigits(String(selectedGroup))}`}</ThemedText><MaterialCommunityIcons name="briefcase-outline" size={18} color={theme.primary} /></Pressable>} contentStyle={{ borderRadius: 16, backgroundColor: theme.surface }}>
+                                    {jobGroups.map((group) => <Menu.Item key={group.id} onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }} title={`گروه ${toPersianDigits(String(group.group_number))}`} titleStyle={{ fontFamily: 'Vazirmatn-Regular', color: theme.text }} />)}
+                                </Menu>
+                            </View> : null}
+
+                            <Pressable onPress={() => canUseSettlementPath && setSettledThrough1391((value) => !value)} style={[styles.checkRow, { backgroundColor: theme.surfaceVariant, borderColor: theme.border, opacity: canUseSettlementPath ? 1 : 0.55 }]}>
+                                <MaterialCommunityIcons name={settledThrough1391 ? 'checkbox-marked' : 'checkbox-blank-outline'} size={22} color={settledThrough1391 ? theme.primary : theme.textSecondary} />
+                                <View style={styles.checkText}>
+                                    <ThemedText type="smallBold" style={[styles.optionTitle, { color: theme.text }]}>تصفیه حساب تا پایان سال ۱۳۹۱ انجام شده است</ThemedText>
+                                    <ThemedText type="small" style={[styles.optionDescription, { color: theme.textSecondary }]}>{canUseSettlementPath ? 'در این حالت شروع محاسبه از سال ۱۳۹۲ خواهد بود.' : 'این گزینه برای استخدام‌های سال ۱۳۹۲ و بعد از آن کاربرد ندارد.'}</ThemedText>
+                                </View>
+                            </Pressable>
 
                             <View style={styles.yearFieldsGroup}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تعداد جمعه کاری کارگر در هر سال</ThemedText>
@@ -374,6 +465,7 @@ export default function FridayWorkScreen() {
                                 })}
                             </View>
 
+                            <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
                             <View style={styles.actionsGroup}>
                                 <Button mode="contained" onPress={handleCalculate} icon="calendar-star" style={styles.actionButton} labelStyle={styles.actionLabel} buttonColor={theme.primary} textColor={theme.surface} loading={isLoadingData} disabled={isLoadingData}>محاسبه</Button>
                                 {result ? <Button mode="outlined" onPress={handleReset} icon="refresh" style={[styles.actionButton, styles.resetButton]} labelStyle={styles.actionLabel} textColor={theme.primary} disabled={isLoadingData}>بازنشانی</Button> : null}
@@ -405,9 +497,12 @@ export default function FridayWorkScreen() {
                                                             <ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>{`سال ${toPersianDigits(String(item.year))} · دوره ${toPersianDigits(String(item.periodIndex))}`}</ThemedText>
                                                         </View>
                                                         <View style={styles.breakdownDetailGrid}>
+                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>بازهٔ زمانی</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{`${formatDisplayedDate(`${item.startDate.year}/${item.startDate.month}/${item.startDate.day}`)} تا ${formatDisplayedDate(`${item.endDate.year}/${item.endDate.month}/${item.endDate.day}`)}`}</ThemedText></View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>جمعه‌های موجود در این دوره</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(String(item.fridaysInPeriod))} روز</ThemedText></View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>جمعه‌کاری واردشده</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(String(item.fridayWorkDays))} روز</ThemedText></View>
-                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>مبلغ جمعه کاری یک روز</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{item.fridayWorkRate != null ? toPersianDigits(formatCurrency(item.fridayWorkRate)) : '-'}</ThemedText></View>
+                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>حداقل مزد روزانه</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(formatCurrency(item.dailyMinimumWage))}</ThemedText></View>
+                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>{workshopType === 'classified' ? 'پایه سنوات استحقاقی روزانه گروه شغلی' : 'پایه سنوات استحقاقی روزانه'}</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(formatCurrency(item.dailySeniority))}</ThemedText></View>
+                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>مبلغ جمعه‌کاری یک روز</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{item.fridayWorkRate != null ? toPersianDigits(formatCurrency(item.fridayWorkRate)) : '-'}</ThemedText></View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>مبلغ این دوره</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{toPersianDigits(formatCurrency(item.amount))}</ThemedText></View>
                                                         </View>
                                                     </View>
@@ -422,7 +517,7 @@ export default function FridayWorkScreen() {
                 </SafeAreaView>
             </ScrollView>
 
-            <PersianDatePickerModal visible={pickerVisible} value={pickerTarget === 'start' ? startDate : endDate} title={pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'} onClose={closePicker} onSelect={handleDateSelect} availableYears={availableYears} />
+            <PersianDatePickerModal visible={pickerVisible} value={pickerTarget === 'start' ? startDate : pickerTarget === 'end' ? endDate : employmentDate} title={pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : pickerTarget === 'end' ? 'انتخاب تاریخ پایان' : 'انتخاب تاریخ استخدام'} onClose={closePicker} onSelect={handleDateSelect} availableYears={availableYears} />
 
             <Snackbar visible={snackbarVisible} onDismiss={() => setSnackbarVisible(false)} duration={3000} style={{ backgroundColor: theme.error, borderRadius: Radius.md }} action={{ label: 'بستن', onPress: () => setSnackbarVisible(false), labelStyle: { color: theme.surface } }}>
                 <ThemedText type="small" style={{ color: theme.surface }}>{snackbarMessage}</ThemedText>
@@ -456,6 +551,14 @@ const styles = StyleSheet.create({
     stepperButtonDisabled: { opacity: 0.4 },
     textInput: { flex: 1, minHeight: 42, fontFamily: 'Vazirmatn-Bold', fontSize: 14, paddingVertical: 0 },
     fieldValue: { fontSize: 13, flex: 1 },
+    helpText: { fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
+    optionSection: { gap: Spacing.two },
+    optionsRow: { flexDirection: 'row', gap: Spacing.two },
+    optionButton: { flex: 1, minHeight: 44, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.two },
+    checkRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
+    checkText: { flex: 1, gap: Spacing.one },
+    optionTitle: { fontSize: 13, lineHeight: 19, fontFamily: 'Vazirmatn-Bold' },
+    optionDescription: { fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
     actionsGroup: { flexDirection: 'row', gap: Spacing.two },
     actionButton: { flex: 1, borderRadius: 12 },
     resetButton: { borderWidth: 1 },

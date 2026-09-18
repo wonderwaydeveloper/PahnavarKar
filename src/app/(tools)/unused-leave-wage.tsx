@@ -5,12 +5,14 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native
 import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { getDailyWorkRatio, scaleWageCalculationResult } from '@/utils/daily-work-ratio';
 import {
     calculateEntitledSeniorityFromPeriodData,
     calculateUnusedLeaveEntitlement,
@@ -56,6 +58,7 @@ export default function UnusedLeaveWageScreen() {
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [result, setResult] = useState<UnusedLeaveWageCalculationResult | null>(null);
+    const [dailyWorkTime, setDailyWorkTime] = useState('07:20');
     const [showDetails, setShowDetails] = useState(false);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -236,7 +239,7 @@ export default function UnusedLeaveWageScreen() {
             setSnackbarVisible(true);
             return;
         }
-        setResult(calculation);
+        setResult(scaleWageCalculationResult(calculation, getDailyWorkRatio(getDailyWorkMinutes(dailyWorkTime))));
         setShowDetails(false);
     };
 
@@ -293,11 +296,12 @@ export default function UnusedLeaveWageScreen() {
                                 ))}
                             </View>
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ شروع به کار در کارگاه</ThemedText>
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ استخدام</ThemedText>
                                 <Pressable onPress={() => setPickerTarget('employment')} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                     <ThemedText type="smallBold" style={[styles.fieldValue, { color: theme.text }]}>{formatDate(employmentDate)}</ThemedText>
                                     <MaterialCommunityIcons name="calendar-account-outline" size={18} color={theme.primary} />
                                 </Pressable>
+                                <ThemedText type="small" style={[styles.helpText, { color: theme.textSecondary }]}>جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات</ThemedText>
                             </View>
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>ذخیره مرخصی از سال‌های قبل</ThemedText>
@@ -421,9 +425,9 @@ export default function UnusedLeaveWageScreen() {
                                 style={[styles.settlementRow, { backgroundColor: theme.surfaceVariant, borderColor: theme.border, opacity: canUseSettlementPath ? 1 : 0.55 }]}
                             >
                                 <MaterialCommunityIcons name={settledThrough1391 ? 'checkbox-marked' : 'checkbox-blank-outline'} size={22} color={settledThrough1391 ? theme.primary : theme.textSecondary} />
-                                <View style={styles.settlementText}>
-                                    <ThemedText type="smallBold" style={[styles.settlementTitle, { color: theme.text }]}>تصفیه حساب تا پایان سال ۱۳۹۱ انجام شده است</ThemedText>
-                                    <ThemedText type="small" style={[styles.settlementDescription, { color: theme.textSecondary }]}>{canUseSettlementPath ? 'محاسبه سنوات از سال ۱۳۹۲ ادامه پیدا می‌کند.' : 'این گزینه برای استخدام‌های سال ۱۳۹۲ و بعد کاربرد ندارد.'}</ThemedText>
+                                <View style={styles.checkText}>
+                                    <ThemedText type="smallBold" style={[styles.optionTitle, { color: theme.text }]}>تصفیه حساب تا پایان سال ۱۳۹۱ انجام شده است</ThemedText>
+                                    <ThemedText type="small" style={[styles.optionDescription, { color: theme.textSecondary }]}>{canUseSettlementPath ? 'محاسبه سنوات از سال ۱۳۹۲ ادامه پیدا می‌کند.' : 'این گزینه برای استخدام‌های سال ۱۳۹۲ و بعد کاربرد ندارد.'}</ThemedText>
                                 </View>
                             </Pressable>
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
@@ -465,6 +469,7 @@ export default function UnusedLeaveWageScreen() {
                                     ))}
                                 </Menu>
                             </View>
+                            <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
                             <View style={styles.actionsGroup}>
                                 <Button mode="contained" onPress={handleCalculate} icon="cash-clock" buttonColor={theme.primary} textColor={theme.surface} style={styles.actionButton} labelStyle={styles.actionLabel} loading={isLoadingData} disabled={isLoadingData}>محاسبه</Button>
                                 {result ? <Button mode="outlined" onPress={handleReset} icon="refresh" textColor={theme.primary} style={styles.actionButton} labelStyle={styles.actionLabel}>بازنشانی</Button> : null}
@@ -478,7 +483,7 @@ export default function UnusedLeaveWageScreen() {
                     </Card>
                 </SafeAreaView>
             </ScrollView>
-            <PersianDatePickerModal visible={pickerTarget !== null} value={pickerTarget === 'employment' ? employmentDate : pickerTarget === 'start' ? startDate : endDate} title={pickerTarget === 'employment' ? 'انتخاب تاریخ شروع به کار در کارگاه' : pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'} onClose={() => setPickerTarget(null)} onSelect={handleDateSelect} availableYears={availableYears} />
+            <PersianDatePickerModal visible={pickerTarget !== null} value={pickerTarget === 'employment' ? employmentDate : pickerTarget === 'start' ? startDate : endDate} title={pickerTarget === 'employment' ? 'انتخاب تاریخ استخدام' : pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'} onClose={() => setPickerTarget(null)} onSelect={handleDateSelect} availableYears={availableYears} />
             <Snackbar visible={snackbarVisible} onDismiss={() => setSnackbarVisible(false)} duration={3000} style={{ backgroundColor: theme.error, borderRadius: Radius.md }} action={{ label: 'بستن', onPress: () => setSnackbarVisible(false), labelStyle: { color: theme.surface } }}><ThemedText type="small" style={{ color: theme.surface }}>{snackbarMessage}</ThemedText></Snackbar>
         </ThemedView>
     );
@@ -500,6 +505,7 @@ const styles = StyleSheet.create({
     metricsRow: { flexDirection: 'row', gap: Spacing.two },
     metricBox: { flex: 1, borderRadius: 14, padding: Spacing.two, gap: Spacing.one },
     sectionLabel: { fontSize: 11 },
+    helpText: { fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
     dateInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, gap: Spacing.one },
     fieldValue: { flex: 1, fontSize: 13 },
     textInput: { minHeight: 42, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, paddingHorizontal: Spacing.two, fontFamily: 'Vazirmatn-Bold', fontSize: 14 },
@@ -516,6 +522,9 @@ const styles = StyleSheet.create({
     optionSection: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
     leaveUsageField: { gap: Spacing.one },
     settlementRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
+    checkText: { flex: 1, gap: Spacing.one },
+    optionTitle: { fontSize: 13, lineHeight: 19, fontFamily: 'Vazirmatn-Bold' },
+    optionDescription: { fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
     settlementText: { flex: 1, gap: Spacing.one },
     settlementTitle: { fontSize: 13, lineHeight: 19 },
     settlementDescription: { fontSize: 11, lineHeight: 20 },

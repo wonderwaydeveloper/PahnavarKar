@@ -5,12 +5,14 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { getDailyWorkRatio, scaleWageCalculationResult } from '@/utils/daily-work-ratio';
 import {
     calculateEntitledSeniorityFromPeriodData,
     parseDateInput,
@@ -41,6 +43,7 @@ export default function EntitledSeniorityScreen() {
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [result, setResult] = useState<EntitledSeniorityCalculationResult | null>(null);
+    const [dailyWorkTime, setDailyWorkTime] = useState('07:20');
     const [showDetails, setShowDetails] = useState(false);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -121,7 +124,7 @@ export default function EntitledSeniorityScreen() {
     const selectDate = (value: string) => {
         if (pickerTarget === 'employment') {
             setEmploymentDate(value);
-            if ((parseDateInput(value)?.year ?? 0) > 1392) {
+            if ((parseDateInput(value)?.year ?? 0) > 1391) {
                 setSettledThrough1391(false);
             }
             if (compareDates(value, endDate) > 0) setEndDate(value);
@@ -165,7 +168,7 @@ export default function EntitledSeniorityScreen() {
             setResult(null);
             return;
         }
-        setResult(calculation);
+        setResult(scaleWageCalculationResult(calculation, getDailyWorkRatio(getDailyWorkMinutes(dailyWorkTime))));
         setShowDetails(false);
     };
 
@@ -238,6 +241,7 @@ export default function EntitledSeniorityScreen() {
                                     <ThemedText type="small" style={[styles.optionDescription, { color: theme.textSecondary }]}>{canUseSettlementPath ? 'در این حالت شروع محاسبه از سال ۱۳۹۲ خواهد بود.' : 'این گزینه برای استخدام‌های سال ۱۳۹۲ و بعد از آن کاربرد ندارد.'}</ThemedText>
                                 </View>
                             </Pressable>
+                            <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
 
                             <View style={styles.actionsGroup}>
                                 <Button mode="contained" onPress={handleCalculate} icon="cash-plus" buttonColor={theme.primary} textColor={theme.surface} style={styles.actionButton} labelStyle={styles.actionLabel} loading={isLoading} disabled={isLoading}>محاسبه</Button>

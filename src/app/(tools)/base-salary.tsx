@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -32,6 +33,7 @@ export default function BaseSalaryScreen() {
     const [endDate, setEndDate] = useState(defaultEndDate);
     const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | null>(null);
     const [pickerVisible, setPickerVisible] = useState(false);
+    const [dailyWorkTime, setDailyWorkTime] = useState('07:20');
     const [periodBuckets, setPeriodBuckets] = useState<SalaryPeriodBucket[]>([]);
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
@@ -95,7 +97,7 @@ export default function BaseSalaryScreen() {
         value.replace(/\d/g, (digit) => persianDigits[Number(digit)]);
 
     const formatCurrency = (value: number) =>
-        `${new Intl.NumberFormat('fa-IR').format(value)} ریال`;
+        `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 
     const formatDisplayedDate = (value: string) => {
         const parsed = parseDateInput(value);
@@ -188,7 +190,7 @@ export default function BaseSalaryScreen() {
             return;
         }
 
-        const calculation = calculateSalaryFromPeriodData(parsedStart, parsedEnd, periodBuckets);
+        const calculation = calculateSalaryFromPeriodData(parsedStart, parsedEnd, periodBuckets, getDailyWorkMinutes(dailyWorkTime));
 
         if (calculation.breakdown.length === 0) {
             setResult(null);
@@ -202,6 +204,7 @@ export default function BaseSalaryScreen() {
     const handleReset = () => {
         setResult(null);
         setShowDetailedBreakdown(false);
+        setDailyWorkTime('07:20');
     };
 
     const formattedResult = useMemo(() => {
@@ -273,6 +276,8 @@ export default function BaseSalaryScreen() {
                                     </Pressable>
                                 </View>
                             </View>
+
+                            <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
 
                             <View style={styles.actionsGroup}>
                                 <Button
@@ -365,7 +370,7 @@ export default function BaseSalaryScreen() {
 
                                                         <View style={styles.breakdownDetailGrid}>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>تعداد روز های پوشش</ThemedText>
+                                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>تعداد روزهای پوشش</ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>
                                                                     {toPersianDigits(String(item.daysCovered)) + ' روز'}
                                                                 </ThemedText>
@@ -586,6 +591,11 @@ const styles = StyleSheet.create({
     sectionLabel: {
         fontSize: 11,
         fontWeight: '500',
+    },
+    helpText: {
+        fontSize: 11,
+        lineHeight: 20,
+        fontFamily: 'Vazirmatn-Regular',
     },
     fieldValue: {
         fontSize: 13,

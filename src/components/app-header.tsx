@@ -1,6 +1,6 @@
 import { useAppContext } from '@/hooks/use-app-context';
 import { usePathname, useRouter } from 'expo-router';
-import { useWindowDimensions, View } from 'react-native';
+import { Image, useWindowDimensions, View } from 'react-native';
 import { Appbar } from 'react-native-paper';
 
 import { ThemedText } from '@/components/themed-text';
@@ -30,7 +30,7 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
 
     switch (normalized) {
       case 'account':
-        return { title: 'پهناور کار' };
+        return { title: 'پروفایل' };
       case 'edit-profile':
         return { title: 'ویرایش پروفایل' };
       case 'settings':
@@ -55,6 +55,8 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
         return { title: 'حداقل عیدی و پاداش استحقاقی' };
       case 'maximum-bonus':
         return { title: 'حداکثر عیدی و پاداش استحقاقی' };
+      case 'bonus-entitlement':
+        return { title: 'عیدی و پاداش استحقاقی' };
       case 'spousal-allowance':
         return { title: 'حق تاهل استحقاقی' };
       case 'monthly-shift-work':
@@ -73,6 +75,8 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
         return { title: 'میزان مرخصی ذخیره شده کارگر' };
       case 'unused-leave-wage':
         return { title: 'مزد مرخصی ذخیره شده کارگر' };
+      case 'suspension-wage':
+        return { title: 'حق‌السعی ایام تعلیق' };
       case 'end-of-service-years':
         return { title: 'سنوات پایان کار' };
       case 'entitled-seniority':
@@ -81,6 +85,8 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
         return { title: 'جمعه کاری' };
       case 'official-holiday-work':
         return { title: 'مبلغ تعطیل کاری استحقاقی' };
+      case 'official-holidays-in-range':
+        return { title: 'تعداد تعطیلات رسمی در بازه زمانی دلخواه' };
       case 'illegal-foreign-worker-penalty':
         return { title: 'مبلغ جریمه به‌کارگیری اتباع بیگانه غیرمجاز' };
       case 'article-87':
@@ -103,7 +109,8 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
   const router = useRouter();
   const actualRouteName = normalizeRoute(pathname || route?.name);
   const { title } = getHeaderConfig(actualRouteName);
-  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unemployment-insurance-entitlement', 'unemployment-insurance-allowance', 'unused-leave-entitlement', 'unused-leave-wage', 'end-of-service-years', 'entitled-seniority', 'friday-work', 'official-holiday-work', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours'].includes(actualRouteName);
+  const showHomeLogo = actualRouteName === 'home' || actualRouteName === 'index';
+  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'bonus-entitlement', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unemployment-insurance-entitlement', 'unemployment-insurance-allowance', 'unused-leave-entitlement', 'unused-leave-wage', 'suspension-wage', 'end-of-service-years', 'entitled-seniority', 'friday-work', 'official-holiday-work', 'official-holidays-in-range', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours'].includes(actualRouteName);
 
   const { width } = useWindowDimensions();
   const titleFontSize = width >= 420 ? 18 : 16;
@@ -140,20 +147,29 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
           paddingHorizontal: 56,
         }}
       >
-        <ThemedText
-          numberOfLines={1}
-          ellipsizeMode="tail"
-          style={{
-            maxWidth: '100%',
-            fontSize: titleFontSize,
-            lineHeight: titleFontSize + 8,
-            fontFamily: 'Vazirmatn-Bold',
-            color: titleColor,
-            textAlign: 'center',
-          }}
-        >
-          {title}
-        </ThemedText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '100%' }}>
+          {showHomeLogo ? (
+            <Image
+              source={require('@/assets/images/android-icon-foreground.png')}
+              resizeMode="contain"
+              style={{ width: 40, height: 40 }}
+            />
+          ) : null}
+          <ThemedText
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={{
+              flexShrink: 1,
+              fontSize: titleFontSize,
+              lineHeight: titleFontSize + 8,
+              fontFamily: 'Vazirmatn-Bold',
+              color: titleColor,
+              textAlign: 'center',
+            }}
+          >
+            {title}
+          </ThemedText>
+        </View>
       </View>
     </Appbar.Header>
   );

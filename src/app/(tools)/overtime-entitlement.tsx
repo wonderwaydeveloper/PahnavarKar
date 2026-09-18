@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Snackbar } from 'react-native-paper';
+import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -10,11 +10,12 @@ import { PersianTimePickerModal } from '@/components/persian-time-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
-import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
+import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
 import {
     calculateOvertimeEntitlementFromPeriodData,
     parseDateInput,
+    type EntitledSeniorityWorkshopType,
     type OvertimeEntitlementCalculationResult,
     type SalaryPeriodBucket,
 } from '@/utils/salary-calculation';
@@ -30,10 +31,12 @@ export default function OvertimeEntitlementScreen() {
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
     const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
+    const defaultEmploymentDate = `${currentPersianYear - 1}/01/01`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
-    const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | null>(null);
+    const [employmentDate, setEmploymentDate] = useState(defaultEmploymentDate);
+    const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | 'employment' | null>(null);
     const [pickerVisible, setPickerVisible] = useState(false);
     const [timePickerVisible, setTimePickerVisible] = useState(false);
     const [dailyOvertimeHours, setDailyOvertimeHours] = useState('01:00');
@@ -44,6 +47,11 @@ export default function OvertimeEntitlementScreen() {
     const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
+    const [workshopType, setWorkshopType] = useState<EntitledSeniorityWorkshopType>('unclassified');
+    const [settledThrough1391, setSettledThrough1391] = useState(false);
+    const [jobGroups, setJobGroups] = useState<{ id: number; group_number: number; sort_order: number }[]>([]);
+    const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
+    const [groupMenuVisible, setGroupMenuVisible] = useState(false);
 
     useEffect(() => {
         let isMounted = true;
@@ -53,7 +61,7 @@ export default function OvertimeEntitlementScreen() {
                 setIsLoadingData(true);
                 await seedFromJsonAsset();
 
-                const years = await fetchYears();
+                const [years, groups] = await Promise.all([fetchYears(), fetchJobGroups()]);
                 const buckets: SalaryPeriodBucket[] = [];
 
                 for (const year of years) {
@@ -62,20 +70,25 @@ export default function OvertimeEntitlementScreen() {
                         continue;
                     }
 
+                    const mappedPeriods = await Promise.all(periods.map(async (period) => ({
+                        period_index: period.period_index,
+                        month_count: period.month_count,
+                        daily_minimum_wage: period.daily_minimum_wage,
+                        percent_increase: period.percent_increase,
+                        seniority_base: period.seniority_base,
+                        seniority_base_by_group: Object.fromEntries((await fetchSeniorityBaseByGroup(period.id)).map((row) => [groups.find((group) => group.id === row.job_group_id)?.group_number ?? row.job_group_id, Number(row.base_value)])),
+                    })));
                     buckets.push({
                         year: year.year,
-                        periods: periods.map((period) => ({
-                            period_index: period.period_index,
-                            month_count: period.month_count,
-                            daily_minimum_wage: period.daily_minimum_wage,
-                            overtime_per_hour: period.overtime_per_hour,
-                        })),
+                        periods: mappedPeriods,
                     });
                 }
 
                 if (isMounted) {
                     setPeriodBuckets(buckets);
                     setAvailableYears(years.map((year) => year.year));
+                    setJobGroups(groups);
+                    setSelectedGroup(groups[0]?.group_number ?? null);
                 }
             } catch {
                 if (isMounted) {
@@ -98,11 +111,11 @@ export default function OvertimeEntitlementScreen() {
 
     const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
 
-    const toPersianDigits = (value: string) =>
-        value.replace(/\d/g, (digit) => persianDigits[Number(digit)]);
+    const toPersianDigits = (value: string | number) =>
+        String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
 
     const formatCurrency = (value: number) =>
-        `${new Intl.NumberFormat('fa-IR').format(value)} ریال`;
+        `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 
     const formatDisplayedDate = (value: string) => {
         const parsed = parseDateInput(value);
@@ -114,7 +127,7 @@ export default function OvertimeEntitlementScreen() {
         return `${toPersianDigits(String(parsed.year))}/${toPersianDigits(String(parsed.month).padStart(2, '0'))}/${toPersianDigits(String(parsed.day).padStart(2, '0'))}`;
     };
 
-    const openPicker = (target: 'start' | 'end') => {
+    const openPicker = (target: 'start' | 'end' | 'employment') => {
         setPickerTarget(target);
         setPickerVisible(true);
     };
@@ -170,9 +183,18 @@ export default function OvertimeEntitlementScreen() {
 
         return 0;
     };
+    const canUseSettlementPath = (parseDateInput(employmentDate)?.year ?? 0) <= 1391;
 
     const handleDateSelect = (value: string) => {
-        if (pickerTarget === 'start') {
+        if (pickerTarget === 'employment') {
+            if (compareDates(value, startDate) > 0) {
+                setSnackbarMessage('تاریخ استخدام باید برابر یا قبل از تاریخ شروع اضافه‌کاری باشد.');
+                setSnackbarVisible(true);
+            } else {
+                setEmploymentDate(value);
+                if ((parseDateInput(value)?.year ?? 0) > 1391) setSettledThrough1391(false);
+            }
+        } else if (pickerTarget === 'start') {
             setStartDate(value);
 
             if (endDate) {
@@ -182,10 +204,7 @@ export default function OvertimeEntitlementScreen() {
                 }
             }
 
-            return;
-        }
-
-        if (pickerTarget === 'end') {
+        } else if (pickerTarget === 'end') {
             if (startDate) {
                 const comparison = compareDates(value, startDate);
                 if (comparison < 0) {
@@ -198,13 +217,15 @@ export default function OvertimeEntitlementScreen() {
 
             setEndDate(value);
         }
+        closePicker();
     };
 
     const handleCalculate = () => {
         const parsedStart = parseDateInput(startDate);
         const parsedEnd = parseDateInput(endDate);
+        const parsedEmployment = parseDateInput(employmentDate);
 
-        if (!parsedStart || !parsedEnd) {
+        if (!parsedStart || !parsedEnd || !parsedEmployment || compareDates(employmentDate, startDate) > 0) {
             setResult(null);
             return;
         }
@@ -223,6 +244,13 @@ export default function OvertimeEntitlementScreen() {
             return;
         }
 
+        if (workshopType === 'classified' && selectedGroup == null) {
+            setResult(null);
+            setSnackbarMessage('گروه شغلی را انتخاب کنید.');
+            setSnackbarVisible(true);
+            return;
+        }
+
         const hours = parseTimeToDecimalHours(dailyOvertimeHours);
         if (!Number.isFinite(hours) || hours <= 0) {
             setSnackbarMessage('تعداد ساعات اضافه کاری روزانه باید بزرگ‌تر از صفر باشد.');
@@ -237,11 +265,7 @@ export default function OvertimeEntitlementScreen() {
         }
 
         const calculation = calculateOvertimeEntitlementFromPeriodData(
-            parsedStart,
-            parsedEnd,
-            periodBuckets,
-            hours,
-            true,
+            parsedStart, parsedEnd, parsedEmployment, periodBuckets, hours, workshopType, selectedGroup ?? undefined, settledThrough1391,
         );
 
         if (calculation.breakdown.length === 0) {
@@ -297,7 +321,7 @@ export default function OvertimeEntitlementScreen() {
                                     فرمول محاسبه
                                 </ThemedText>
                                 <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>
-                                    تعداد ساعات اضافه کاری روزانه × مبلغ اضافه کاری یک ساعت × تعداد روزهای کارکرد
+                                    مبلغ کل اضافه‌کاری = مجموعِ (تعداد روزهای کارکرد در هر دوره × 1.40 × تعداد ساعات اضافه‌کاری روزانه × ((حداقل مزد روزانه + پایه سنوات استحقاقی همان دوره) / 7.33))
                                 </ThemedText>
                             </View>
 
@@ -330,6 +354,11 @@ export default function OvertimeEntitlementScreen() {
                                     </Pressable>
                                 </View>
                             </View>
+
+                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}><ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ استخدام</ThemedText><Pressable onPress={() => openPicker('employment')}><View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="small" style={[styles.fieldValue, { color: theme.text }]}>{formatDisplayedDate(employmentDate)}</ThemedText><MaterialCommunityIcons name="calendar-account-outline" size={18} color={theme.primary} /></View></Pressable><ThemedText type="small" style={styles.helpText}>جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات</ThemedText></View>
+                            <View style={styles.optionSection}><ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>نوع کارگاه</ThemedText><View style={styles.optionsRow}>{([['unclassified', 'فاقد طرح طبقه‌بندی'], ['classified', 'دارای طرح طبقه‌بندی']] as const).map(([value, label]) => <Pressable key={value} onPress={() => setWorkshopType(value)} style={[styles.optionButton, { backgroundColor: workshopType === value ? theme.primary : theme.surface, borderColor: workshopType === value ? theme.primary : theme.border }]}><ThemedText type="smallBold" style={{ color: workshopType === value ? theme.surface : theme.text }}>{label}</ThemedText></Pressable>)}</View></View>
+                            {workshopType === 'classified' ? <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}><ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>گروه شغلی</ThemedText><Menu visible={groupMenuVisible} onDismiss={() => setGroupMenuVisible(false)} anchor={<Pressable onPress={() => setGroupMenuVisible(true)} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="small" style={{ color: theme.text }}>{selectedGroup == null ? 'انتخاب گروه' : `گروه ${toPersianDigits(selectedGroup)}`}</ThemedText><MaterialCommunityIcons name="briefcase-outline" size={18} color={theme.primary} /></Pressable>}>{jobGroups.map((group) => <Menu.Item key={group.id} title={`گروه ${toPersianDigits(group.group_number)}`} onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }} />)}</Menu></View> : null}
+                            <Pressable onPress={() => canUseSettlementPath && setSettledThrough1391((value) => !value)} style={[styles.checkRow, { backgroundColor: theme.surfaceVariant, borderColor: theme.border, opacity: canUseSettlementPath ? 1 : 0.55 }]}><MaterialCommunityIcons name={settledThrough1391 ? 'checkbox-marked' : 'checkbox-blank-outline'} size={22} color={settledThrough1391 ? theme.primary : theme.textSecondary} /><View style={styles.checkText}><ThemedText type="smallBold" style={[styles.optionTitle, { color: theme.text }]}>تصفیه حساب تا پایان سال ۱۳۹۱ انجام شده است</ThemedText><ThemedText type="small" style={[styles.optionDescription, { color: theme.textSecondary }]}>{canUseSettlementPath ? 'در این حالت شروع محاسبه از سال ۱۳۹۲ خواهد بود.' : 'این گزینه برای استخدام‌های سال ۱۳۹۲ و بعد از آن کاربرد ندارد.'}</ThemedText></View></Pressable>
 
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
@@ -434,6 +463,7 @@ export default function OvertimeEntitlementScreen() {
                                                         </View>
 
                                                         <View style={styles.breakdownDetailGrid}>
+                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>بازهٔ زمانی</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{`${formatDisplayedDate(`${item.startDate.year}/${item.startDate.month}/${item.startDate.day}`)} تا ${formatDisplayedDate(`${item.endDate.year}/${item.endDate.month}/${item.endDate.day}`)}`}</ThemedText></View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
                                                                     تعداد روزهای شمول
@@ -450,12 +480,13 @@ export default function OvertimeEntitlementScreen() {
                                                                     {formatTotalOvertimeHours(item.totalOvertimeHours)}
                                                                 </ThemedText>
                                                             </View>
+                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>{workshopType === 'classified' ? 'پایه سنوات استحقاقی روزانه گروه شغلی' : 'پایه سنوات استحقاقی روزانه'}</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(formatCurrency(item.dailySeniority))}</ThemedText></View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    مبلغ اضافه کاری یک ساعت
+                                                                    حداقل مزد روزانه
                                                                 </ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
-                                                                    {item.overtimeRate != null ? toPersianDigits(formatCurrency(item.overtimeRate)) : '-'}
+                                                                    {toPersianDigits(formatCurrency(item.dailyMinimumWage))}
                                                                 </ThemedText>
                                                             </View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
@@ -481,8 +512,8 @@ export default function OvertimeEntitlementScreen() {
 
             <PersianDatePickerModal
                 visible={pickerVisible}
-                value={pickerTarget === 'start' ? startDate : endDate}
-                title={pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'}
+                value={pickerTarget === 'start' ? startDate : pickerTarget === 'end' ? endDate : employmentDate}
+                title={pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : pickerTarget === 'end' ? 'انتخاب تاریخ پایان' : 'انتخاب تاریخ استخدام'}
                 onClose={closePicker}
                 onSelect={handleDateSelect}
                 availableYears={availableYears}
@@ -582,6 +613,14 @@ const styles = StyleSheet.create({
         paddingVertical: Spacing.two,
         gap: Spacing.one,
     },
+    helpText: { fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
+    optionSection: { gap: Spacing.two },
+    optionsRow: { flexDirection: 'row', gap: Spacing.two },
+    optionButton: { flex: 1, minHeight: 44, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.two },
+    checkRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
+    checkText: { flex: 1, gap: Spacing.one },
+    optionTitle: { fontSize: 13, lineHeight: 19, fontFamily: 'Vazirmatn-Bold' },
+    optionDescription: { fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
     sectionLabel: {
         fontSize: 11,
     },
