@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -32,15 +33,17 @@ export default function AboutUsScreen() {
                 <View style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                     <View style={styles.heroCardContent}>
                         <Image
-                            source={require('@/assets/images/icon.png')}
-                            style={[styles.avatar, { backgroundColor: theme.primaryContainer, width: 64, height: 64, borderRadius: 16 }]}
+                            source={require('@/assets/images/logo-white.png')}
+                            contentFit="contain"
+                            allowDownscaling={false}
+                            style={[styles.avatar, { backgroundColor: theme.primary, width: 64, height: 64, borderRadius: 16 }]}
                         />
 
                         <View style={styles.brandBlock}>
-                            <ThemedText type="bodyBold" style={[styles.titleText, { color: theme.text }]}>درباره پهناور کار</ThemedText>
+                            <ThemedText type="smallBold" style={[styles.titleText, { color: theme.text }]}>درباره پهناور کار</ThemedText>
                         </View>
 
-                        <ThemedText type="body" style={[styles.heroText, { color: theme.textSecondary }]}>
+                        <ThemedText type="small" style={[styles.heroText, { color: theme.textSecondary }]}>
                             ما با هدف ساده‌سازی محاسبات حقوق و دستمزد، ابزارهایی کاربردی و قابل اعتماد برای کاربران فراهم کرده‌ایم.
                         </ThemedText>
                     </View>
@@ -56,8 +59,8 @@ export default function AboutUsScreen() {
                                     </View>
 
                                     <View style={styles.textBlock}>
-                                        <ThemedText type="labelBold" style={{ color: theme.text }}>{section.title}</ThemedText>
-                                        <ThemedText type="body" style={[styles.sectionDescription, { color: theme.textSecondary }]}>
+                                        <ThemedText type="smallBold" style={{ color: theme.text }}>{section.title}</ThemedText>
+                                        <ThemedText type="small" style={[styles.sectionDescription, { color: theme.textSecondary }]}>
                                             {section.description}
                                         </ThemedText>
                                     </View>
@@ -98,7 +101,7 @@ const styles = StyleSheet.create({
     },
     titleText: {},
     subtitleText: {},
-    heroText: { lineHeight: 24 },
+    heroText: { lineHeight: 20 },
     sectionRow: {
         width: '100%',
         flexDirection: 'row',
@@ -110,7 +113,7 @@ const styles = StyleSheet.create({
         marginTop: Spacing.one,
     },
     textBlock: { flex: 1, gap: Spacing.one, alignItems: 'flex-start' },
-    sectionDescription: { lineHeight: 24 },
+    sectionDescription: { lineHeight: 20 },
     divider: {
         marginVertical: Spacing.one,
         height: 1,

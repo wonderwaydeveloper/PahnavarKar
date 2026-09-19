@@ -13,9 +13,9 @@ export default function AppInfoScreen() {
 
     const appInfo = [
         { label: 'نام برنامه', value: 'پهناور کار' },
-        { label: 'نسخه', value: appVersion },
-        { label: 'وضعیت', value: 'فعال' },
-        { label: 'توسعه', value: 'Expo + React Native' },
+        { label: 'نسخه برنامه', value: appVersion },
+        { label: 'وضعیت برنامه', value: 'فعال' },
+        { label: 'کاربرد', value: 'محاسبه حقوق و مزایا' },
     ];
 
     return (
@@ -24,7 +24,7 @@ export default function AppInfoScreen() {
                 <View style={[styles.headerCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                     <ThemedText type="smallBold" style={[styles.headerTitle, { color: theme.text }]}>اطلاعات برنامه</ThemedText>
                     <ThemedText type="small" style={[styles.headerDescription, { color: theme.textSecondary }]}>
-                        اطلاعات پایه و وضعیت نسخه‌ی جاری برنامه در یک صفحه مجزا نمایش داده می‌شود.
+                        نسخه و اطلاعات اصلی پهناور کار را در این بخش مشاهده کنید.
                     </ThemedText>
                 </View>
 
@@ -45,7 +45,7 @@ export default function AppInfoScreen() {
                                 type="smallBold"
                                 style={[
                                     styles.infoValue,
-                                    { color: item.label === 'وضعیت' ? theme.success : theme.text },
+                                    { color: item.label === 'وضعیت برنامه' ? theme.success : theme.text },
                                 ]}
                             >
                                 {item.value}
@@ -68,7 +68,8 @@ const styles = StyleSheet.create({
         gap: Spacing.two,
     },
     headerTitle: {
-        fontSize: 15,
+        fontSize: 14,
+        lineHeight: 20,
     },
     headerDescription: {
         lineHeight: 20,

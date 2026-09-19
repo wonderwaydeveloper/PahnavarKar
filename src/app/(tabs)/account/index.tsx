@@ -1,7 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Snackbar } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -74,8 +75,10 @@ export default function ProfileScreen() {
                     <View style={[styles.profileCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                         <View style={[styles.profileHeader, { backgroundColor: theme.surface }]}>
                             <Image
-                                source={require('@/assets/images/favicon.png')}
-                                style={[styles.avatarWrap, { backgroundColor: theme.primaryContainer }]}
+                                source={require('@/assets/images/logo-white.png')}
+                                contentFit="contain"
+                                allowDownscaling={false}
+                                style={[styles.avatarWrap, { backgroundColor: theme.primary }]}
                             />
 
                             {/* identity block removed per request: name and username are not shown under avatar */}
@@ -245,6 +248,11 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         alignItems: 'center',
         justifyContent: 'center',
+        shadowColor: '#041E28',
+        shadowOpacity: 0.18,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 2,
     },
     identityBlock: {
         flex: 1,
@@ -391,8 +399,8 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     actionSubtitle: {
-        fontSize: 11,
-        lineHeight: 15,
+        fontSize: 14,
+        lineHeight: 20,
     },
     valuePill: {
         paddingHorizontal: Spacing.two,

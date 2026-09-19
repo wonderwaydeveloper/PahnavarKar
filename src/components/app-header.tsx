@@ -1,6 +1,7 @@
 import { useAppContext } from '@/hooks/use-app-context';
+import { Image } from 'expo-image';
 import { usePathname, useRouter } from 'expo-router';
-import { Image, useWindowDimensions, View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { Appbar } from 'react-native-paper';
 
 import { ThemedText } from '@/components/themed-text';
@@ -150,9 +151,18 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '100%' }}>
           {showHomeLogo ? (
             <Image
-              source={require('@/assets/images/android-icon-foreground.png')}
-              resizeMode="contain"
-              style={{ width: 40, height: 40 }}
+              source={require('@/assets/images/logo-white.png')}
+              contentFit="contain"
+              allowDownscaling={false}
+              style={{
+                width: 40,
+                height: 40,
+                shadowColor: '#041E28',
+                shadowOpacity: 0.2,
+                shadowRadius: 3,
+                shadowOffset: { width: 0, height: 1 },
+                elevation: 2,
+              }}
             />
           ) : null}
           <ThemedText
