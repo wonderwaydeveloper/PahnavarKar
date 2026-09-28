@@ -6,6 +6,7 @@ import { Button, Card, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
+import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -240,41 +241,21 @@ export default function BaseSalaryScreen() {
                                     </ThemedText>
                                 </View>
                             </View>
-                            <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <ThemedText type="small" style={[styles.formulaLabel, { color: theme.textSecondary }]}>
-                                    فرمول محاسبه
-                                </ThemedText>
-                                <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>
-                                    مبلغ حداقل مزد روزانه مصوب شورای عالی کار در هر سال × تعداد روزهای کارکرد هر سال
-                                </ThemedText>
-                            </View>
                             <View style={styles.metricsRow}>
-                                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                                        از تاریخ
-                                    </ThemedText>
-                                    <Pressable onPress={() => openPicker('start')}>
-                                        <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                            <ThemedText type="small" style={[styles.fieldValue, { color: startDate ? theme.text : theme.textSecondary }]}>
-                                                {formatDisplayedDate(startDate) || '۱۴۰۳/۰۱/۰۱'}
-                                            </ThemedText>
-                                            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                        </View>
-                                    </Pressable>
-                                </View>
-                                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                                        تا تاریخ
-                                    </ThemedText>
-                                    <Pressable onPress={() => openPicker('end')}>
-                                        <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                            <ThemedText type="small" style={[styles.fieldValue, { color: endDate ? theme.text : theme.textSecondary }]}>
-                                                {formatDisplayedDate(endDate) || '۱۴۰۳/۱۲/۲۹'}
-                                            </ThemedText>
-                                            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                        </View>
-                                    </Pressable>
-                                </View>
+                                <DateInputField
+                                    label="از تاریخ"
+                                    value={startDate}
+                                    placeholder="۱۴۰۳/۰۱/۰۱"
+                                    onPress={() => openPicker('start')}
+                                    formatValue={formatDisplayedDate}
+                                />
+                                <DateInputField
+                                    label="تا تاریخ"
+                                    value={endDate}
+                                    placeholder="۱۴۰۳/۱۲/۲۹"
+                                    onPress={() => openPicker('end')}
+                                    formatValue={formatDisplayedDate}
+                                />
                             </View>
 
                             <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
@@ -475,12 +456,6 @@ const styles = StyleSheet.create({
         gap: Spacing.one,
         alignItems: 'center',
     },
-    formulaBox: {
-        borderRadius: 12,
-        borderWidth: 1,
-        padding: Spacing.two,
-        gap: Spacing.one,
-    },
     metricsRow: {
         flexDirection: 'row',
         alignItems: 'stretch',
@@ -580,13 +555,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     pageTitle: {
+        display: 'none',
         fontSize: 16,
         lineHeight: 22,
         fontFamily: 'Vazirmatn-Bold',
     },
     pageDescription: {
         lineHeight: 20,
-        fontSize: 12,
+        fontSize: 13,
     },
     sectionLabel: {
         fontSize: 11,
@@ -606,14 +582,6 @@ const styles = StyleSheet.create({
     },
     amountValue: {
         fontSize: 18,
-    },
-    formulaLabel: {
-        fontSize: 11,
-        fontWeight: '500',
-    },
-    formulaValue: {
-        fontSize: 13,
-        lineHeight: 18,
     },
     breakdownItemTitle: {
         fontSize: 12,

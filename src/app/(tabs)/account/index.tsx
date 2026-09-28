@@ -15,7 +15,7 @@ import { useTheme } from '@/hooks/use-theme';
 
 const profileActions = [
     { key: 'edit-profile', label: 'ویرایش پروفایل', subtitle: 'تغییر اطلاعات شخصی و حساب شما', icon: 'account-edit', color: '#4f46e5' },
-    { key: 'settings', label: 'تنظیمات', subtitle: 'مدیریت ترجیحات و رفتار برنامه', icon: 'cog-outline', color: '#14b8a6' },
+    { key: 'settings', label: 'تنظیمات', subtitle: 'تنظیم ظاهر و حالت رنگی برنامه', icon: 'cog-outline', color: '#14b8a6' },
     { key: 'support', label: 'پشتیبانی', subtitle: 'ارتباط سریع با تیم پشتیبانی', icon: 'lifebuoy', color: '#2563eb' },
     { key: 'about-us', label: 'درباره ما', subtitle: 'معرفی پروژه و اهداف ما', icon: 'information-outline', color: '#8b5cf6' },
 ];
@@ -50,7 +50,7 @@ export default function ProfileScreen() {
     const appVersion = appConfig.expo?.version ?? '1.0.0';
 
     const handleUnavailableAction = (key: string) => {
-        if (key === 'about-us' || key === 'app-info') {
+        if (key === 'settings' || key === 'about-us' || key === 'app-info') {
             runDebouncedAction(lastPressRef, () => router.push(`/(tabs)/account/${key}` as any));
             return;
         }

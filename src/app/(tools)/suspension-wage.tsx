@@ -6,6 +6,7 @@ import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
+import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -322,32 +323,18 @@ export default function SuspensionWageScreen() {
               </View>
 
               <View style={styles.metricsRow}>
-                <View
-                  style={[
-                    styles.metricBox,
-                    { backgroundColor: theme.surfaceVariant },
-                  ]}
-                >
-                  <DateField
-                    label="تاریخ شروع تعلیق"
-                    value={formatDate(startDate)}
-                    onPress={() => openPicker("start")}
-                    theme={theme}
-                  />
-                </View>
-                <View
-                  style={[
-                    styles.metricBox,
-                    { backgroundColor: theme.surfaceVariant },
-                  ]}
-                >
-                  <DateField
-                    label="تاریخ پایان تعلیق"
-                    value={formatDate(endDate)}
-                    onPress={() => openPicker("end")}
-                    theme={theme}
-                  />
-                </View>
+                <DateInputField
+                  label="تاریخ شروع تعلیق"
+                  value={startDate}
+                  onPress={() => openPicker('start')}
+                  formatValue={formatDate}
+                />
+                <DateInputField
+                  label="تاریخ پایان تعلیق"
+                  value={endDate}
+                  onPress={() => openPicker('end')}
+                  formatValue={formatDate}
+                />
               </View>
 
               <View
@@ -359,24 +346,14 @@ export default function SuspensionWageScreen() {
                   },
                 ]}
               >
-                <ThemedText
-                  type="small"
-                  style={[styles.sectionLabel, { color: theme.textSecondary }]}
-                >
-                  تاریخ استخدام
-                </ThemedText>
-                <DateField
-                  label=""
-                  value={formatDate(employmentDate)}
-                  onPress={() => openPicker("employment")}
-                  theme={theme}
+                <DateInputField
+                  label="تاریخ استخدام"
+                  value={employmentDate}
+                  onPress={() => openPicker('employment')}
+                  formatValue={formatDate}
+                  iconName="calendar-account-outline"
+                  helperText="جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات"
                 />
-                <ThemedText
-                  type="small"
-                  style={[styles.helpText, { color: theme.textSecondary }]}
-                >
-                  جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات
-                </ThemedText>
               </View>
 
               <View
@@ -824,6 +801,10 @@ export default function SuspensionWageScreen() {
                               >{`سال ${toPersianDigits(String(item.year))}، دوره ${toPersianDigits(String(item.periodIndex))}`}</ThemedText>
                             </View>
                             <View style={styles.breakdownDetailGrid}>
+                              <View style={[styles.detailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>نوع بازه</ThemedText>
+                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{item.phase === 'before-anniversary' ? 'پیش از سالگرد استخدام' : 'بعد از سالگرد استخدام'}</ThemedText>
+                              </View>
                               <View
                                 style={[
                                   styles.detailBox,
@@ -1147,49 +1128,6 @@ export default function SuspensionWageScreen() {
   );
 }
 
-function DateField({
-  label,
-  value,
-  onPress,
-  theme,
-}: {
-  label: string;
-  value: string;
-  onPress: () => void;
-  theme: ReturnType<typeof useTheme>;
-}) {
-  return (
-    <View style={styles.fieldGroup}>
-      {label ? (
-        <ThemedText
-          type="small"
-          style={[styles.sectionLabel, { color: theme.textSecondary }]}
-        >
-          {label}
-        </ThemedText>
-      ) : null}
-      <Pressable
-        onPress={onPress}
-        style={[
-          styles.dateInput,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
-      >
-        <ThemedText
-          type="smallBold"
-          style={[styles.fieldValue, { color: theme.text }]}
-        >
-          {value}
-        </ThemedText>
-        <MaterialCommunityIcons
-          name="calendar-month-outline"
-          size={18}
-          color={theme.primary}
-        />
-      </Pressable>
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -1211,8 +1149,8 @@ const styles = StyleSheet.create({
   },
   headerRow: { alignItems: "flex-start" },
   headerText: { flex: 1, gap: Spacing.one },
-  pageTitle: { fontSize: 16, lineHeight: 22, fontFamily: "Vazirmatn-Bold" },
-  pageDescription: { fontSize: 12, lineHeight: 20 },
+  pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: "Vazirmatn-Bold" },
+  pageDescription: { fontSize: 13, lineHeight: 20 },
   formulaBox: {
     borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,

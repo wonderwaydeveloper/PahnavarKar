@@ -6,6 +6,7 @@ import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
+import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -120,7 +121,7 @@ export default function EndOfServiceYearsScreen() {
         value.replace(/\d/g, (digit) => persianDigits[Number(digit)]);
 
     const formatCurrency = (value: number) =>
-        `${new Intl.NumberFormat('fa-IR').format(value)} ریال`;
+        `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 
     const formatNumber = (value: number) =>
         toPersianDigits(Number.isInteger(value) ? String(value) : value.toFixed(2));
@@ -305,45 +306,31 @@ export default function EndOfServiceYearsScreen() {
                             </View>
 
                             <View style={styles.metricsRow}>
-                                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                                        از تاریخ
-                                    </ThemedText>
-                                    <Pressable onPress={() => openPicker('start')}>
-                                        <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                            <ThemedText type="small" style={[styles.fieldValue, { color: startDate ? theme.text : theme.textSecondary }]}>
-                                                {formatDisplayedDate(startDate) || '۱۴۰۳/۰۱/۰۱'}
-                                            </ThemedText>
-                                            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                        </View>
-                                    </Pressable>
-                                </View>
+                                <DateInputField
+                                    label="از تاریخ"
+                                    value={startDate}
+                                    placeholder="۱۴۰۳/۰۱/۰۱"
+                                    onPress={() => openPicker('start')}
+                                    formatValue={formatDisplayedDate}
+                                />
 
-                                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                                        تا تاریخ
-                                    </ThemedText>
-                                    <Pressable onPress={() => openPicker('end')}>
-                                        <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                            <ThemedText type="small" style={[styles.fieldValue, { color: endDate ? theme.text : theme.textSecondary }]}>
-                                                {formatDisplayedDate(endDate) || '۱۴۰۳/۱۲/۲۹'}
-                                            </ThemedText>
-                                            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                        </View>
-                                    </Pressable>
-                                </View>
+                                <DateInputField
+                                    label="تا تاریخ"
+                                    value={endDate}
+                                    placeholder="۱۴۰۳/۱۲/۲۹"
+                                    onPress={() => openPicker('end')}
+                                    formatValue={formatDisplayedDate}
+                                />
                             </View>
 
-                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ استخدام</ThemedText>
-                                <Pressable onPress={() => openPicker('employment')}>
-                                    <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                        <ThemedText type="small" style={[styles.fieldValue, { color: theme.text }]}>{formatDisplayedDate(employmentDate)}</ThemedText>
-                                        <MaterialCommunityIcons name="calendar-account-outline" size={18} color={theme.primary} />
-                                    </View>
-                                </Pressable>
-                                <ThemedText type="small" style={[styles.helpText, { color: theme.textSecondary }]}>جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات</ThemedText>
-                            </View>
+                            <DateInputField
+                                label="تاریخ استخدام"
+                                value={employmentDate}
+                                onPress={() => openPicker('employment')}
+                                formatValue={formatDisplayedDate}
+                                iconName="calendar-account-outline"
+                                helperText="جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات"
+                            />
 
                             <View style={styles.optionSection}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>نوع کارگاه</ThemedText>
@@ -689,13 +676,14 @@ const styles = StyleSheet.create({
         fontSize: 12,
     },
     pageTitle: {
+        display: 'none',
         fontSize: 16,
         lineHeight: 22,
         fontFamily: 'Vazirmatn-Bold',
     },
     pageDescription: {
         lineHeight: 20,
-        fontSize: 12,
+        fontSize: 13,
     },
     formulaLabel: {
         fontSize: 11,

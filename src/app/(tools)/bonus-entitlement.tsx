@@ -6,6 +6,7 @@ import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
+import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -183,16 +184,6 @@ export default function BonusEntitlementScreen() {
         setShowDetails(false);
     };
 
-    const renderDateField = (target: PickerTarget, label: string, value: string) => (
-        <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-            <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>{label}</ThemedText>
-            <Pressable onPress={() => setPickerTarget(target)} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                <ThemedText type="smallBold" style={{ color: theme.text }}>{formatDate(value)}</ThemedText>
-                <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-            </Pressable>
-        </View>
-    );
-
     return (
         <ThemedView style={styles.container}>
             <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.three, paddingBottom: insets.bottom + Spacing.four }]} showsVerticalScrollIndicator={false}>
@@ -210,16 +201,10 @@ export default function BonusEntitlementScreen() {
                                 <ThemedText type="small" style={[styles.formulaText, { color: theme.textSecondary }]}>گام سوم: مبلغ عیدی و پاداش استحقاقی برابر است با مبلغ محاسبه‌شده، مشروط بر اینکه از حداکثر قانونی بیشتر نباشد.</ThemedText>
                             </View>
                             <View style={styles.metricsRow}>
-                                {renderDateField('start', 'از تاریخ', startDate)}
-                                {renderDateField('end', 'تا تاریخ', endDate)}
+                                <DateInputField label="از تاریخ" value={startDate} onPress={() => setPickerTarget('start')} formatValue={formatDate} />
+                                <DateInputField label="تا تاریخ" value={endDate} onPress={() => setPickerTarget('end')} formatValue={formatDate} />
                             </View>
-                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ استخدام</ThemedText>
-                                <Pressable onPress={() => setPickerTarget('employment')} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                    <ThemedText type="smallBold" style={{ color: theme.text }}>{formatDate(employmentDate)}</ThemedText>
-                                    <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                </Pressable>
-                            </View>
+                            <DateInputField label="تاریخ استخدام" value={employmentDate} onPress={() => setPickerTarget('employment')} formatValue={formatDate} iconName="calendar-account-outline" />
                             <View style={styles.optionSection}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>نوع کارگاه</ThemedText>
                                 <View style={styles.optionsRow}>
@@ -288,7 +273,7 @@ export default function BonusEntitlementScreen() {
                                                     </View>
                                                     <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                         <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>نوع بازه</ThemedText>
-                                                        <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{item.phase === 'before-anniversary' ? 'پیش از سالگرد' : 'پس از سالگرد'}</ThemedText>
+                                                        <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{item.phase === 'before-anniversary' ? 'پیش از سالگرد استخدام' : 'بعد از سالگرد استخدام'}</ThemedText>
                                                     </View>
                                                     <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                         <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>ماه‌های کارکرد دوره</ThemedText>
@@ -333,7 +318,7 @@ export default function BonusEntitlementScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 }, scrollContent: { flexGrow: 1 }, safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: Spacing.four },
     card: { borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' }, cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
-    headerText: { gap: Spacing.one }, pageTitle: { fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' }, pageDescription: { fontSize: 12, lineHeight: 20 },
+    headerText: { gap: Spacing.one }, pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' }, pageDescription: { fontSize: 13, lineHeight: 20 },
     formulaBox: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two, gap: Spacing.one }, formulaLabel: { fontSize: 11 }, formulaText: { fontSize: 12, lineHeight: 21 },
     metricsRow: { flexDirection: 'row', gap: Spacing.two }, metricBox: { flex: 1, borderRadius: 14, padding: Spacing.two, gap: Spacing.one }, sectionLabel: { fontSize: 11 },
     dateInput: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },

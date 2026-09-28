@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -157,7 +158,7 @@ export default function YoungWorkerWorkHoursScreen() {
                     <Card elevation={1} style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                         <Card.Content style={styles.cardContent}>
                             <View style={styles.headerText}>
-                                <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>میزان ساعات کارکرد موظفی کارگر نوجوان</ThemedText>
+                                <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>کارکرد موظفی کارگر نوجوان</ThemedText>
                                 <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>تعیین ساعات کارکرد کارگر نوجوان طبق ماده ۸۰ قانون کار</ThemedText>
                             </View>
                             <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
@@ -165,15 +166,8 @@ export default function YoungWorkerWorkHoursScreen() {
                                 <ThemedText type="small" style={[styles.formulaText, { color: theme.text }]}>((تعداد کل روزهای بازهٔ زمانی انتخاب‌شده − تعداد روزهای تعطیل رسمی − تعداد روزهای جمعه) × ۷٫۳۳) − (تعداد کل روزهای بازهٔ زمانی انتخاب‌شده × ۰٫۵)</ThemedText>
                             </View>
                             <View style={styles.metricsRow}>
-                                {(['start', 'end'] as const).map((target) => (
-                                    <View key={target} style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                        <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>{target === 'start' ? 'از تاریخ' : 'تا تاریخ'}</ThemedText>
-                                        <Pressable onPress={() => setPickerTarget(target)} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                            <ThemedText type="smallBold" style={{ color: theme.text }}>{formatDate(target === 'start' ? startDate : endDate)}</ThemedText>
-                                            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                        </Pressable>
-                                    </View>
-                                ))}
+                                <DateInputField label="از تاریخ" value={startDate} onPress={() => setPickerTarget('start')} formatValue={formatDate} />
+                                <DateInputField label="تا تاریخ" value={endDate} onPress={() => setPickerTarget('end')} formatValue={formatDate} />
                             </View>
                             <View style={styles.actionsGroup}>
                                 <Button mode="contained" onPress={handleCalculate} icon="account-child" buttonColor={theme.primary} textColor={theme.surface} style={styles.actionButton} labelStyle={styles.actionLabel} loading={isLoadingData} disabled={isLoadingData}>محاسبه</Button>
@@ -201,8 +195,8 @@ const styles = StyleSheet.create({
     card: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerText: { gap: Spacing.one },
-    pageTitle: { fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' },
-    pageDescription: { fontSize: 12, lineHeight: 20 },
+    pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' },
+    pageDescription: { fontSize: 13, lineHeight: 20 },
     formulaBox: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two, gap: Spacing.one },
     formulaText: { fontSize: 12, lineHeight: 21 },
     metricsRow: { flexDirection: 'row', gap: Spacing.two },

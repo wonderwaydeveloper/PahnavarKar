@@ -6,6 +6,7 @@ import { Button, Card, Checkbox, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
+import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -107,7 +108,7 @@ export default function HousingAllowanceScreen() {
         value.replace(/\d/g, (digit) => persianDigits[Number(digit)]);
 
     const formatCurrency = (value: number) =>
-        `${new Intl.NumberFormat('fa-IR').format(value)} ریال`;
+        `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 
     const formatDisplayedDate = (value: string) => {
         const parsed = parseDateInput(value);
@@ -265,7 +266,7 @@ export default function HousingAllowanceScreen() {
                             <View style={styles.headerRow}>
                                 <View style={styles.headerText}>
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
-                                        محاسبه حق مسکن ماهیانه
+                                        محاسبه حق مسکن
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
                                         محاسبه حق مسکن ماهیانه موضوع مصوبه هیات وزیران به تناسب بازه زمانی انتخابی
@@ -283,33 +284,21 @@ export default function HousingAllowanceScreen() {
                             </View>
 
                             <View style={styles.metricsRow}>
-                                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                                        از تاریخ
-                                    </ThemedText>
-                                    <Pressable onPress={() => openPicker('start')}>
-                                        <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                            <ThemedText type="small" style={[styles.fieldValue, { color: startDate ? theme.text : theme.textSecondary }]}>
-                                                {formatDisplayedDate(startDate) || '۱۴۰۳/۰۱/۰۱'}
-                                            </ThemedText>
-                                            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                        </View>
-                                    </Pressable>
-                                </View>
+                                <DateInputField
+                                    label="از تاریخ"
+                                    value={startDate}
+                                    placeholder="۱۴۰۳/۰۱/۰۱"
+                                    onPress={() => openPicker('start')}
+                                    formatValue={formatDisplayedDate}
+                                />
 
-                                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                                        تا تاریخ
-                                    </ThemedText>
-                                    <Pressable onPress={() => openPicker('end')}>
-                                        <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                            <ThemedText type="small" style={[styles.fieldValue, { color: endDate ? theme.text : theme.textSecondary }]}>
-                                                {formatDisplayedDate(endDate) || '۱۴۰۳/۱۲/۲۹'}
-                                            </ThemedText>
-                                            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                        </View>
-                                    </Pressable>
-                                </View>
+                                <DateInputField
+                                    label="تا تاریخ"
+                                    value={endDate}
+                                    placeholder="۱۴۰۳/۱۲/۲۹"
+                                    onPress={() => openPicker('end')}
+                                    formatValue={formatDisplayedDate}
+                                />
                             </View>
 
                             {shouldShowMaritalStatus ? (
@@ -467,18 +456,10 @@ export default function HousingAllowanceScreen() {
                                                                     تعداد ماه‌های شمول
                                                                 </ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
-                                                                    {toPersianDigits(String(item.monthsCovered))} ماه
+                                                                    {toPersianDigits(item.monthsCovered.toFixed(2).replace(/\.00$/, ''))} ماه
                                                                 </ThemedText>
                                                             </View>
 
-                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    تعداد روزهای شمول
-                                                                </ThemedText>
-                                                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
-                                                                    {toPersianDigits(String(item.daysCovered))} روز
-                                                                </ThemedText>
-                                                            </View>
 
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
@@ -724,13 +705,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     pageTitle: {
+        display: 'none',
         fontSize: 16,
         lineHeight: 22,
         fontFamily: 'Vazirmatn-Bold',
     },
     pageDescription: {
         lineHeight: 20,
-        fontSize: 12,
+        fontSize: 13,
     },
     sectionLabel: {
         fontSize: 11,

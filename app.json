@@ -2,7 +2,7 @@
   "expo": {
     "name": "پهناور کار",
     "slug": "PahnavarKar",
-    "version": "1.5.2",
+    "version": "1.5.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "pahnavarkar",
@@ -35,7 +35,7 @@
             "backgroundColor": "#041E28"
           },
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 160
+          "imageWidth": 200
         }
       ],
       "expo-sqlite",

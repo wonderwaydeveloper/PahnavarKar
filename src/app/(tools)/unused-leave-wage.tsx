@@ -6,6 +6,7 @@ import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
+import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -285,24 +286,17 @@ export default function UnusedLeaveWageScreen() {
                                 <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>میزان مرخصی ذخیره‌شده کارگر × ((حداقل مزد روزانه مصوب شورای عالی کار در آخرین روز کارکرد + پایه سنوات استحقاقی روزانه در آخرین روز کارکرد) + (مبلغ حق مسکن ماهیانه در آخرین ماه کارکرد ÷ تعداد روزهای آن ماه در تقویم) + (مبلغ حق عائله‌مندی ماهیانه در آخرین ماه کارکرد ÷ تعداد روزهای آن ماه در تقویم) + (مبلغ بن کارگری در آخرین ماه کارکرد ÷ تعداد روزهای آن ماه در تقویم) + (مبلغ حق تأهل ماهیانه در آخرین ماه کارکرد ÷ تعداد روزهای آن ماه در تقویم))</ThemedText>
                             </View>
                             <View style={styles.metricsRow}>
-                                {(['start', 'end'] as const).map((target) => (
-                                    <View key={target} style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                        <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>{target === 'start' ? 'از تاریخ' : 'تا تاریخ'}</ThemedText>
-                                        <Pressable onPress={() => setPickerTarget(target)} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                            <ThemedText type="smallBold" style={[styles.fieldValue, { color: theme.text }]}>{formatDate(target === 'start' ? startDate : endDate)}</ThemedText>
-                                            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                        </Pressable>
-                                    </View>
-                                ))}
+                                <DateInputField label="از تاریخ" value={startDate} onPress={() => setPickerTarget('start')} formatValue={formatDate} />
+                                <DateInputField label="تا تاریخ" value={endDate} onPress={() => setPickerTarget('end')} formatValue={formatDate} />
                             </View>
-                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ استخدام</ThemedText>
-                                <Pressable onPress={() => setPickerTarget('employment')} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                    <ThemedText type="smallBold" style={[styles.fieldValue, { color: theme.text }]}>{formatDate(employmentDate)}</ThemedText>
-                                    <MaterialCommunityIcons name="calendar-account-outline" size={18} color={theme.primary} />
-                                </Pressable>
-                                <ThemedText type="small" style={[styles.helpText, { color: theme.textSecondary }]}>جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات</ThemedText>
-                            </View>
+                            <DateInputField
+                                label="تاریخ استخدام"
+                                value={employmentDate}
+                                onPress={() => setPickerTarget('employment')}
+                                formatValue={formatDate}
+                                iconName="calendar-account-outline"
+                                helperText="جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات"
+                            />
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>ذخیره مرخصی از سال‌های قبل</ThemedText>
                                 <View style={[styles.stepper, styles.initialSavedStepper, { backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}>
@@ -497,8 +491,8 @@ const styles = StyleSheet.create({
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerRow: { alignItems: 'flex-start' },
     headerText: { flex: 1, gap: Spacing.one },
-    pageTitle: { fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' },
-    pageDescription: { fontSize: 12, lineHeight: 20 },
+    pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' },
+    pageDescription: { fontSize: 13, lineHeight: 20 },
     formulaBox: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, gap: Spacing.one },
     formulaLabel: { fontSize: 11 },
     formulaValue: { fontSize: 12, lineHeight: 20 },

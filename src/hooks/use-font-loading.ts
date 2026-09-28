@@ -1,6 +1,5 @@
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
 
 // مهم:
 // این باید در global scope باشد تا Native Splash قبل از mount شدن React
@@ -16,15 +15,6 @@ const FONT_MAP = {
 
 export function useFontLoading() {
   const [fontsLoaded, fontError] = useFonts(FONT_MAP);
-
-  useEffect(() => {
-    // چه فونت‌ها با موفقیت load شده باشند
-    // و چه loading با error تمام شده باشد،
-    // نباید Native Splash برای همیشه باقی بماند.
-    if (fontsLoaded || fontError) {
-      SplashScreen.hide();
-    }
-  }, [fontsLoaded, fontError]);
 
   return {
     fontsLoaded,

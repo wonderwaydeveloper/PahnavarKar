@@ -6,6 +6,7 @@ import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
+import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -357,29 +358,33 @@ export default function FridayWorkScreen() {
                             </View>
 
                             <View style={styles.metricsRow}>
-                                {(['start', 'end'] as const).map((target) => (
-                                    <View key={target} style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                        <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>{target === 'start' ? 'از تاریخ' : 'تا تاریخ'}</ThemedText>
-                                        <Pressable onPress={() => openPicker(target)}>
-                                            <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                                <ThemedText type="small" style={[styles.fieldValue, { color: theme.text }]}>{formatDisplayedDate(target === 'start' ? startDate : endDate)}</ThemedText>
-                                                <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                            </View>
-                                        </Pressable>
-                                    </View>
-                                ))}
+                                <DateInputField
+                                    label="از تاریخ"
+                                    value={startDate}
+                                    placeholder="۱۴۰۳/۰۱/۰۱"
+                                    onPress={() => openPicker('start')}
+                                    formatValue={formatDisplayedDate}
+                                />
+                                <DateInputField
+                                    label="تا تاریخ"
+                                    value={endDate}
+                                    placeholder="۱۴۰۳/۱۲/۲۹"
+                                    onPress={() => openPicker('end')}
+                                    formatValue={formatDisplayedDate}
+                                />
                             </View>
 
-                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ استخدام</ThemedText>
-                                <Pressable onPress={() => { setPickerTarget('employment'); setPickerVisible(true); }}>
-                                    <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                        <ThemedText type="small" style={[styles.fieldValue, { color: theme.text }]}>{formatDisplayedDate(employmentDate)}</ThemedText>
-                                        <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                    </View>
-                                </Pressable>
-                                <ThemedText type="small" style={[styles.helpText, { color: theme.textSecondary }]}>جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات</ThemedText>
-                            </View>
+                            <DateInputField
+                                label="تاریخ استخدام"
+                                value={employmentDate}
+                                onPress={() => {
+                                    setPickerTarget('employment');
+                                    setPickerVisible(true);
+                                }}
+                                formatValue={formatDisplayedDate}
+                                iconName="calendar-account-outline"
+                                helperText="جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات"
+                            />
 
                             <View style={styles.optionSection}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>نوع کارگاه</ThemedText>
@@ -498,11 +503,12 @@ export default function FridayWorkScreen() {
                                                         </View>
                                                         <View style={styles.breakdownDetailGrid}>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>بازهٔ زمانی</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{`${formatDisplayedDate(`${item.startDate.year}/${item.startDate.month}/${item.startDate.day}`)} تا ${formatDisplayedDate(`${item.endDate.year}/${item.endDate.month}/${item.endDate.day}`)}`}</ThemedText></View>
+                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>نوع بازه</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{item.phase === 'before-anniversary' ? 'پیش از سالگرد استخدام' : 'بعد از سالگرد استخدام'}</ThemedText></View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>جمعه‌های موجود در این دوره</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(String(item.fridaysInPeriod))} روز</ThemedText></View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>جمعه‌کاری واردشده</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(String(item.fridayWorkDays))} روز</ThemedText></View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>حداقل مزد روزانه</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(formatCurrency(item.dailyMinimumWage))}</ThemedText></View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>{workshopType === 'classified' ? 'پایه سنوات استحقاقی روزانه گروه شغلی' : 'پایه سنوات استحقاقی روزانه'}</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(formatCurrency(item.dailySeniority))}</ThemedText></View>
-                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>مبلغ جمعه‌کاری یک روز</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{item.fridayWorkRate != null ? toPersianDigits(formatCurrency(item.fridayWorkRate)) : '-'}</ThemedText></View>
+                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>مبلغ یک روز جمعه کاری</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{item.fridayWorkRate != null ? toPersianDigits(formatCurrency(item.fridayWorkRate)) : '-'}</ThemedText></View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>مبلغ این دوره</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{toPersianDigits(formatCurrency(item.amount))}</ThemedText></View>
                                                         </View>
                                                     </View>
@@ -534,8 +540,8 @@ const styles = StyleSheet.create({
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerRow: { alignItems: 'flex-start' },
     headerText: { flex: 1, gap: Spacing.one },
-    pageTitle: { fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' },
-    pageDescription: { lineHeight: 20, fontSize: 12 },
+    pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' },
+    pageDescription: { lineHeight: 20, fontSize: 13 },
     formulaBox: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, gap: Spacing.one },
     formulaLabel: { fontSize: 11 },
     formulaValue: { lineHeight: 20, fontSize: 12 },

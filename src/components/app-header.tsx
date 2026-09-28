@@ -1,18 +1,22 @@
 import { useAppContext } from '@/hooks/use-app-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { usePathname, useRouter } from 'expo-router';
+import { type ReactNode } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { Appbar } from 'react-native-paper';
 
 import { ThemedText } from '@/components/themed-text';
+import { TOOL_DEFINITIONS } from '@/constants/tool-definitions';
 
 interface AppHeaderProps {
   route?: { name?: string };
   formatYear?: (value: number | string | null | undefined) => string;
   selectedYear?: { year: number | string } | null;
+  centerContent?: ReactNode;
 }
 
-export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
+export function AppHeader({ route, formatYear, selectedYear, centerContent }: AppHeaderProps) {
   const { colors, theme: appTheme } = useAppContext();
   const pathname = usePathname();
   const isLightTheme = appTheme === 'light';
@@ -49,9 +53,9 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
       case 'family-allowance':
         return { title: 'حق عائله مندی' };
       case 'housing-allowance':
-        return { title: 'حق مسکن ماهیانه' };
+        return { title: 'حق مسکن' };
       case 'monthly-allowance':
-        return { title: 'بن کارگری ماهیانه' };
+        return { title: 'بن کارگری' };
       case 'minimum-bonus':
         return { title: 'حداقل عیدی و پاداش استحقاقی' };
       case 'maximum-bonus':
@@ -95,11 +99,11 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
       case 'social-security-premium-ceiling':
         return { title: 'سقف حق بیمه تامین اجتماعی' };
       case 'ordinary-work-hours':
-        return { title: 'میزان ساعات کارکرد موظفی کارگر در مشاغل عادی' };
+        return { title: 'کارکرد موظفی کارگر در مشاغل عادی' };
       case 'hazardous-work-hours':
-        return { title: 'ساعات کارکرد موظفی کارگر در مشاغل سخت' };
+        return { title: 'کارکرد موظفی کارگر در مشاغل سخت و زیان‌آور' };
       case 'young-worker-work-hours':
-        return { title: 'میزان ساعات کارکرد موظفی کارگر نوجوان' };
+        return { title: 'کارکرد موظفی کارگر نوجوان' };
       case 'home':
       case 'index':
       default:
@@ -110,11 +114,15 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
   const router = useRouter();
   const actualRouteName = normalizeRoute(pathname || route?.name);
   const { title } = getHeaderConfig(actualRouteName);
+  const activeTool = TOOL_DEFINITIONS.find((tool) => tool.key === actualRouteName);
   const showHomeLogo = actualRouteName === 'home' || actualRouteName === 'index';
   const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'bonus-entitlement', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unemployment-insurance-entitlement', 'unemployment-insurance-allowance', 'unused-leave-entitlement', 'unused-leave-wage', 'suspension-wage', 'end-of-service-years', 'entitled-seniority', 'friday-work', 'official-holiday-work', 'official-holidays-in-range', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours'].includes(actualRouteName);
+  const shouldAlignSecondaryHeaderStart = showBackButton && !centerContent;
 
   const { width } = useWindowDimensions();
-  const titleFontSize = width >= 420 ? 18 : 16;
+  const titleFontSize = showBackButton
+    ? width >= 420 ? 16 : 14
+    : width >= 420 ? 18 : 16;
 
   return (
     <Appbar.Header
@@ -133,53 +141,87 @@ export function AppHeader({ route, formatYear, selectedYear }: AppHeaderProps) {
           color={titleColor}
           onPress={() => router.back()}
           size={24}
+          style={{ width: 40, marginHorizontal: 0 }}
         />
       ) : null}
       <View
-        pointerEvents="none"
+        pointerEvents={centerContent ? 'auto' : 'none'}
         style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-          alignItems: 'center',
+          ...(shouldAlignSecondaryHeaderStart
+            ? {
+              flex: 1,
+              justifyContent: 'center',
+              marginStart: 0,
+            }
+            : {
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              alignItems: 'center',
+            }),
           justifyContent: 'center',
-          paddingHorizontal: 56,
+          paddingHorizontal: shouldAlignSecondaryHeaderStart ? 0 : centerContent ? 12 : 56,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '100%' }}>
-          {showHomeLogo ? (
-            <Image
-              source={require('@/assets/images/logo-white.png')}
-              contentFit="contain"
-              allowDownscaling={false}
-              style={{
-                width: 40,
-                height: 40,
-                shadowColor: '#041E28',
-                shadowOpacity: 0.2,
-                shadowRadius: 3,
-                shadowOffset: { width: 0, height: 1 },
-                elevation: 2,
-              }}
-            />
-          ) : null}
-          <ThemedText
-            numberOfLines={1}
-            ellipsizeMode="tail"
+        {centerContent ? (
+          <View style={{ width: '100%' }}>{centerContent}</View>
+        ) : (
+          <View
             style={{
-              flexShrink: 1,
-              fontSize: titleFontSize,
-              lineHeight: titleFontSize + 8,
-              fontFamily: 'Vazirmatn-Bold',
-              color: titleColor,
-              textAlign: 'center',
+              width: '100%',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: shouldAlignSecondaryHeaderStart ? 'flex-start' : 'center',
+              gap: 8,
             }}
           >
-            {title}
-          </ThemedText>
-        </View>
+            {showHomeLogo ? (
+              <Image
+                source={require('@/assets/images/logo-white.png')}
+                contentFit="contain"
+                allowDownscaling={false}
+                style={{
+                  width: 32,
+                  height: 32,
+                  shadowColor: '#041E28',
+                  shadowOpacity: 0.2,
+                  shadowRadius: 3,
+                  shadowOffset: { width: 0, height: 1 }
+                }}
+              />
+            ) : null}
+            {activeTool ? (
+              <View
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: activeTool.accent,
+                }}
+              >
+                <MaterialCommunityIcons name={activeTool.icon} size={18} color="#FFFFFF" />
+              </View>
+            ) : null}
+            <ThemedText
+              style={{
+                flexShrink: 1,
+                minWidth: 0,
+                maxWidth: '100%',
+                fontSize: titleFontSize,
+                lineHeight: titleFontSize + 8,
+                fontFamily: 'Vazirmatn-Bold',
+                color: titleColor,
+                textAlign: shouldAlignSecondaryHeaderStart ? 'right' : 'center',
+              }}
+            >
+              {title}
+            </ThemedText>
+          </View>
+        )}
       </View>
     </Appbar.Header>
   );

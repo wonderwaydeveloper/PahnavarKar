@@ -21,7 +21,7 @@ export function DailyWorkTimeField({ value, onChange }: DailyWorkTimeFieldProps)
     return (
         <>
             <View style={{ backgroundColor: theme.surfaceVariant, borderRadius: 14, padding: Spacing.two, gap: Spacing.one }}>
-                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11, lineHeight: 18 }}>
                     {isFullTime ? 'ساعات کارکرد روزانه بر اساس ماده ۵۱ قانون کار' : 'ساعات کارکرد روزانه بر اساس ماده ۳۹ قانون کار'}
                 </ThemedText>
                 <Pressable
@@ -31,7 +31,7 @@ export function DailyWorkTimeField({ value, onChange }: DailyWorkTimeFieldProps)
                     <ThemedText type="smallBold" style={{ color: theme.text }}>{value.replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)])}</ThemedText>
                     <MaterialCommunityIcons name="clock-outline" size={18} color={theme.primary} />
                 </Pressable>
-                <ThemedText type="small" style={{ color: theme.textSecondary }}>مبنای تمام‌وقت: ۷ ساعت و ۲۰ دقیقه در روز</ThemedText>
+                <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11, lineHeight: 18 }}>مبنای تمام‌وقت: ۷ ساعت و ۲۰ دقیقه در روز</ThemedText>
             </View>
             <PersianTimePickerModal
                 visible={visible}

@@ -6,6 +6,7 @@ import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
+import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -292,33 +293,18 @@ export default function OfficialHolidayWorkScreen() {
                             </View>
 
                             <View style={styles.metricsRow}>
-                                {(['start', 'end'] as const).map((target) => (
-                                    <View key={target} style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                        <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                                            {target === 'start' ? 'از تاریخ' : 'تا تاریخ'}
-                                        </ThemedText>
-                                        <Pressable onPress={() => setPickerTarget(target)} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                            <ThemedText type="smallBold" style={{ color: theme.text }}>
-                                                {formatDate(target === 'start' ? startDate : endDate)}
-                                            </ThemedText>
-                                            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                        </Pressable>
-                                    </View>
-                                ))}
+                                <DateInputField label="از تاریخ" value={startDate} onPress={() => setPickerTarget('start')} formatValue={formatDate} />
+                                <DateInputField label="تا تاریخ" value={endDate} onPress={() => setPickerTarget('end')} formatValue={formatDate} />
                             </View>
 
-                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ استخدام</ThemedText>
-                                <Pressable onPress={() => setPickerTarget('employment')}>
-                                    <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                        <ThemedText type="smallBold" style={{ color: theme.text }}>{formatDate(employmentDate)}</ThemedText>
-                                        <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                    </View>
-                                </Pressable>
-                                <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                                    برای محاسبه پایه سنوات استحقاقی هر دوره
-                                </ThemedText>
-                            </View>
+                            <DateInputField
+                                label="تاریخ استخدام"
+                                value={employmentDate}
+                                onPress={() => setPickerTarget('employment')}
+                                formatValue={formatDate}
+                                iconName="calendar-account-outline"
+                                helperText="برای محاسبه پایه سنوات استحقاقی هر دوره"
+                            />
 
                             <View style={styles.optionSection}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>نوع کارگاه</ThemedText>
@@ -453,6 +439,10 @@ export default function OfficialHolidayWorkScreen() {
                                                                 </ThemedText>
                                                             </View>
                                                             <View style={[styles.detailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>نوع بازه</ThemedText>
+                                                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{item.phase === 'before-anniversary' ? 'پیش از سالگرد استخدام' : 'بعد از سالگرد استخدام'}</ThemedText>
+                                                            </View>
+                                                            <View style={[styles.detailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>تعداد روزهای تعطیل</ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
                                                                     {toPersianDigits(item.daysCovered)} روز
@@ -530,8 +520,8 @@ const styles = StyleSheet.create({
     card: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerText: { gap: Spacing.one },
-    pageTitle: { fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' },
-    pageDescription: { fontSize: 12, lineHeight: 20 },
+    pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' },
+    pageDescription: { fontSize: 13, lineHeight: 20 },
     formulaBox: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two, gap: Spacing.one },
     formulaLabel: { fontSize: 11 },
     formulaText: { fontSize: 12, lineHeight: 21 },

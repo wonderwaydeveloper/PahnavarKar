@@ -15,6 +15,13 @@ export function getDailyWorkRatio(dailyWorkMinutes: number): number {
 }
 
 type WageCalculationResult = {
+    dailyWage?: number;
+    dailyMinimumWage?: number;
+    dailySeniority?: number;
+    dailyHousingAllowance?: number;
+    dailyChildAllowance?: number;
+    dailyMonthlyAllowance?: number;
+    dailyMaritalAllowance?: number;
     totalAmount?: number;
     totalCalculatedAmount?: number;
     totalMinimumAmount?: number;
@@ -36,6 +43,13 @@ export function scaleWageCalculationResult<T extends object>(result: T, ratio: n
         'totalMaximumAmount',
         'totalEntitlementAmount',
         'finalEntitlement',
+        'dailyWage',
+        'dailyMinimumWage',
+        'dailySeniority',
+        'dailyHousingAllowance',
+        'dailyChildAllowance',
+        'dailyMonthlyAllowance',
+        'dailyMaritalAllowance',
     ] as const) {
         if (key in sourceResult) {
             scaledResult[key] = scale(sourceResult[key]) as never;

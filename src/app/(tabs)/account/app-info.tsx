@@ -15,7 +15,7 @@ export default function AppInfoScreen() {
         { label: 'نام برنامه', value: 'پهناور کار' },
         { label: 'نسخه برنامه', value: appVersion },
         { label: 'وضعیت برنامه', value: 'فعال' },
-        { label: 'کاربرد', value: 'محاسبه حقوق و مزایا' },
+        { label: 'کاربرد', value: 'محاسبه حقوق و دستمزد' },
     ];
 
     return (

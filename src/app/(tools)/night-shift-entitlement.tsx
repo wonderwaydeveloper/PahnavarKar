@@ -6,6 +6,7 @@ import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
+import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -290,36 +291,31 @@ export default function NightShiftEntitlementScreen() {
                             </View>
 
                             <View style={styles.metricsRow}>
-                                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant, flex: 1 }]}>
-                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                                        از تاریخ
-                                    </ThemedText>
-                                    <Pressable onPress={() => openPicker('start')}>
-                                        <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                            <ThemedText type="small" style={[styles.fieldValue, { color: startDate ? theme.text : theme.textSecondary }]}>
-                                                {formatDisplayedDate(startDate) || '۱۴۰۳/۰۱/۰۱'}
-                                            </ThemedText>
-                                            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                        </View>
-                                    </Pressable>
-                                </View>
+                                <DateInputField
+                                    label="از تاریخ"
+                                    value={startDate}
+                                    placeholder="۱۴۰۳/۰۱/۰۱"
+                                    onPress={() => openPicker('start')}
+                                    formatValue={formatDisplayedDate}
+                                />
 
-                                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant, flex: 1 }]}>
-                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                                        تا تاریخ
-                                    </ThemedText>
-                                    <Pressable onPress={() => openPicker('end')}>
-                                        <View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                            <ThemedText type="small" style={[styles.fieldValue, { color: endDate ? theme.text : theme.textSecondary }]}>
-                                                {formatDisplayedDate(endDate) || '۱۴۰۳/۱۲/۲۹'}
-                                            </ThemedText>
-                                            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                        </View>
-                                    </Pressable>
-                                </View>
+                                <DateInputField
+                                    label="تا تاریخ"
+                                    value={endDate}
+                                    placeholder="۱۴۰۳/۱۲/۲۹"
+                                    onPress={() => openPicker('end')}
+                                    formatValue={formatDisplayedDate}
+                                />
                             </View>
 
-                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}><ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ استخدام</ThemedText><Pressable onPress={() => openPicker('employment')}><View style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="small" style={[styles.fieldValue, { color: theme.text }]}>{formatDisplayedDate(employmentDate)}</ThemedText><MaterialCommunityIcons name="calendar-account-outline" size={18} color={theme.primary} /></View></Pressable><ThemedText type="small" style={styles.helpText}>جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات</ThemedText></View>
+                            <DateInputField
+                                label="تاریخ استخدام"
+                                value={employmentDate}
+                                onPress={() => openPicker('employment')}
+                                formatValue={formatDisplayedDate}
+                                iconName="calendar-account-outline"
+                                helperText="جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات"
+                            />
                             <View style={styles.optionSection}><ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>نوع کارگاه</ThemedText><View style={styles.optionsRow}>{([['unclassified', 'فاقد طرح طبقه‌بندی'], ['classified', 'دارای طرح طبقه‌بندی']] as const).map(([value, label]) => <Pressable key={value} onPress={() => setWorkshopType(value)} style={[styles.optionButton, { backgroundColor: workshopType === value ? theme.primary : theme.surface, borderColor: workshopType === value ? theme.primary : theme.border }]}><ThemedText type="smallBold" style={{ color: workshopType === value ? theme.surface : theme.text }}>{label}</ThemedText></Pressable>)}</View></View>
                             {workshopType === 'classified' ? <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}><ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>گروه شغلی</ThemedText><Menu visible={groupMenuVisible} onDismiss={() => setGroupMenuVisible(false)} anchor={<Pressable onPress={() => setGroupMenuVisible(true)} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="small" style={{ color: theme.text }}>{selectedGroup == null ? 'انتخاب گروه' : `گروه ${toPersianDigits(selectedGroup)}`}</ThemedText><MaterialCommunityIcons name="briefcase-outline" size={18} color={theme.primary} /></Pressable>}>{jobGroups.map((group) => <Menu.Item key={group.id} title={`گروه ${toPersianDigits(group.group_number)}`} onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }} />)}</Menu></View> : null}
                             <Pressable onPress={() => canUseSettlementPath && setSettledThrough1391((value) => !value)} style={[styles.checkRow, { backgroundColor: theme.surfaceVariant, borderColor: theme.border, opacity: canUseSettlementPath ? 1 : 0.55 }]}>
@@ -420,6 +416,7 @@ export default function NightShiftEntitlementScreen() {
 
                                                         <View style={styles.breakdownDetailGrid}>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>بازهٔ زمانی</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{`${formatDisplayedDate(`${item.startDate.year}/${item.startDate.month}/${item.startDate.day}`)} تا ${formatDisplayedDate(`${item.endDate.year}/${item.endDate.month}/${item.endDate.day}`)}`}</ThemedText></View>
+                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>نوع بازه</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{item.phase === 'before-anniversary' ? 'پیش از سالگرد استخدام' : 'بعد از سالگرد استخدام'}</ThemedText></View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
                                                                     تعداد روزهای کارکرد در شب
@@ -432,7 +429,7 @@ export default function NightShiftEntitlementScreen() {
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>{workshopType === 'classified' ? 'پایه سنوات استحقاقی روزانه گروه شغلی' : 'پایه سنوات استحقاقی روزانه'}</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(formatCurrency(item.dailySeniority))}</ThemedText></View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                                 <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                                                    مبلغ شب‌کاری یک روز
+                                                                    مبلغ یک نوبت شب‌کاری
                                                                 </ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
                                                                     {toPersianDigits(formatCurrency(item.nightShiftRate))}
@@ -517,13 +514,14 @@ const styles = StyleSheet.create({
         gap: Spacing.one,
     },
     pageTitle: {
+        display: 'none',
         fontSize: 16,
         lineHeight: 22,
         fontFamily: 'Vazirmatn-Bold',
     },
     pageDescription: {
         lineHeight: 20,
-        fontSize: 12,
+        fontSize: 13,
     },
     formulaBox: {
         borderRadius: 12,

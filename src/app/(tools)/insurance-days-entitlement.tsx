@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { PersianTimePickerModal } from '@/components/persian-time-picker-modal';
 import { ThemedText } from '@/components/themed-text';
@@ -284,35 +285,21 @@ export default function InsuranceDaysEntitlementScreen() {
                             </View>
 
                             <View style={styles.metricsRow}>
-                                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                                        از تاریخ
-                                    </ThemedText>
-                                    <Pressable
-                                        style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                                        onPress={() => openPicker('start')}
-                                    >
-                                        <ThemedText type="smallBold" style={[styles.fieldValue, { color: theme.text }]}>
-                                            {formatDisplayedDate(startDate)}
-                                        </ThemedText>
-                                        <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                    </Pressable>
-                                </View>
+                                <DateInputField
+                                    label="از تاریخ"
+                                    value={startDate}
+                                    placeholder="۱۴۰۳/۰۱/۰۱"
+                                    onPress={() => openPicker('start')}
+                                    formatValue={formatDisplayedDate}
+                                />
 
-                                <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-                                        تا تاریخ
-                                    </ThemedText>
-                                    <Pressable
-                                        style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                                        onPress={() => openPicker('end')}
-                                    >
-                                        <ThemedText type="smallBold" style={[styles.fieldValue, { color: theme.text }]}>
-                                            {formatDisplayedDate(endDate)}
-                                        </ThemedText>
-                                        <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                    </Pressable>
-                                </View>
+                                <DateInputField
+                                    label="تا تاریخ"
+                                    value={endDate}
+                                    placeholder="۱۴۰۳/۱۲/۲۹"
+                                    onPress={() => openPicker('end')}
+                                    formatValue={formatDisplayedDate}
+                                />
                             </View>
 
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
@@ -520,13 +507,14 @@ const styles = StyleSheet.create({
         gap: Spacing.one,
     },
     pageTitle: {
+        display: 'none',
         fontSize: 16,
         lineHeight: 22,
         fontFamily: 'Vazirmatn-Bold',
     },
     pageDescription: {
         lineHeight: 20,
-        fontSize: 12,
+        fontSize: 13,
     },
     formulaBox: {
         borderRadius: Radius.md,

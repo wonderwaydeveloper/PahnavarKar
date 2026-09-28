@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native
 import { Button, Card, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -243,21 +244,19 @@ export default function UnemploymentInsuranceAllowanceScreen() {
                                 <ThemedText type="small" style={[styles.formulaText, { color: theme.text }]}>گام صفر: احراز حداقل ۶ ماه سابقه از شروع کار تا شروع بیکاری{'\n'}متوسط مزد روزانه = مجموع حقوق ۹۰ روز اخیر ÷ ۹۰{'\n'}مبلغ پایه روزانه = متوسط مزد روزانه × ۵۵٪{'\n'}سهم افراد تحت تکفل = تعداد افراد تحت تکفل × ۱۰٪ × مبلغ حداقل مزد روزانه مصوب شورای عالی کار{'\n'}مبلغ اولیه روزانه = مبلغ پایه روزانه + سهم افراد تحت تکفل{'\n'}مبلغ نهایی روزانه = اعمال کف مبلغ حداقل مزد روزانه مصوب شورای عالی کار و سقف ۸۰٪ متوسط مزد{'\n'}مقرری ماهیانه = مبلغ نهایی روزانه × ۳۰</ThemedText>
                             </View>
 
-                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ شروع به کار در آخرین کارگاه</ThemedText>
-                                <Pressable onPress={() => openPicker('employment')} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                    <ThemedText type="smallBold" style={{ color: theme.text }}>{formatDate(employmentDate)}</ThemedText>
-                                    <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                </Pressable>
-                            </View>
+                            <DateInputField
+                                label="تاریخ شروع به کار در آخرین کارگاه"
+                                value={employmentDate}
+                                onPress={() => openPicker('employment')}
+                                formatValue={formatDate}
+                            />
 
-                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تاریخ شروع بیکاری</ThemedText>
-                                <Pressable onPress={() => openPicker('unemployment')} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                    <ThemedText type="smallBold" style={{ color: theme.text }}>{formatDate(unemploymentDate)}</ThemedText>
-                                    <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                </Pressable>
-                            </View>
+                            <DateInputField
+                                label="تاریخ شروع بیکاری"
+                                value={unemploymentDate}
+                                onPress={() => openPicker('unemployment')}
+                                formatValue={formatDate}
+                            />
 
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>مجموع حقوق ۹۰ روز اخیر (ریال)</ThemedText>
@@ -319,8 +318,8 @@ const styles = StyleSheet.create({
     card: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerText: { gap: Spacing.one },
-    pageTitle: { fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' },
-    pageDescription: { fontSize: 12, lineHeight: 20 },
+    pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' },
+    pageDescription: { fontSize: 13, lineHeight: 20 },
     formulaBox: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two, gap: Spacing.one },
     formulaText: { fontSize: 12, lineHeight: 21 },
     metricBox: { borderRadius: 12, padding: Spacing.two, gap: Spacing.one },

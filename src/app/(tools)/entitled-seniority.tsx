@@ -6,6 +6,7 @@ import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
+import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -203,15 +204,8 @@ export default function EntitledSeniorityScreen() {
                             </View>
 
                             <View style={styles.metricsRow}>
-                                {([['employment', 'تاریخ استخدام'], ['end', 'تا تاریخ']] as const).map(([target, label]) => (
-                                    <View key={target} style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                        <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>{label}</ThemedText>
-                                        <Pressable onPress={() => setPickerTarget(target)} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                            <ThemedText type="smallBold" style={[styles.fieldValue, { color: theme.text }]}>{formatDate(target === 'employment' ? employmentDate : endDate)}</ThemedText>
-                                            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={theme.primary} />
-                                        </Pressable>
-                                    </View>
-                                ))}
+                                <DateInputField label="تاریخ استخدام" value={employmentDate} onPress={() => setPickerTarget('employment')} formatValue={formatDate} iconName="calendar-account-outline" />
+                                <DateInputField label="تا تاریخ" value={endDate} onPress={() => setPickerTarget('end')} formatValue={formatDate} />
                             </View>
 
                             <View style={styles.optionSection}>
@@ -298,7 +292,7 @@ export default function EntitledSeniorityScreen() {
                                                     <View style={[styles.detailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                                         <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>نوع بازه</ThemedText>
                                                         <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
-                                                            {item.phase === 'before-anniversary' ? 'پیش از سالگرد' : 'پس از سالگرد'}
+                                                            {item.phase === 'before-anniversary' ? 'پیش از سالگرد استخدام' : 'بعد از سالگرد استخدام'}
                                                         </ThemedText>
                                                     </View>
                                                     <View style={[styles.detailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
@@ -340,8 +334,8 @@ const styles = StyleSheet.create({
     card: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerText: { gap: Spacing.one },
-    pageTitle: { fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' },
-    pageDescription: { fontSize: 12, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
+    pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' },
+    pageDescription: { fontSize: 13, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
     formulaBox: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two, gap: Spacing.one },
     formulaLabel: { fontSize: 10, lineHeight: 16, fontFamily: 'Vazirmatn-Medium' },
     formulaValue: { fontSize: 12, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
