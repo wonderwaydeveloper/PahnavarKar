@@ -1,11 +1,12 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DateInputField } from '@/components/date-input-field';
+import { NumericInputField } from '@/components/numeric-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -35,10 +36,6 @@ function normalizeDigits(value: string) {
 
 function toPersianDigits(value: string | number) {
     return String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
-}
-
-function sanitizeNumber(value: string) {
-    return toPersianDigits(normalizeDigits(value).replace(/[^0-9]/g, ''));
 }
 
 function changeNumber(value: string, delta: number, maximum?: number) {
@@ -220,14 +217,6 @@ export default function UnemploymentInsuranceAllowanceScreen() {
         setResult(calculation);
     };
 
-    const handleReset = () => {
-        setEmploymentDate(defaultEmploymentDate);
-        setUnemploymentDate(defaultUnemploymentDate);
-        setTotalWages('۴۵۰۰۰۰۰۰۰');
-        setDependents('۲');
-        setResult(null);
-    };
-
     return (
         <ThemedView style={styles.container}>
             <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.three, paddingBottom: insets.bottom + Spacing.four }]} showsVerticalScrollIndicator={false}>
@@ -249,6 +238,7 @@ export default function UnemploymentInsuranceAllowanceScreen() {
                                 value={employmentDate}
                                 onPress={() => openPicker('employment')}
                                 formatValue={formatDate}
+                                helperText="جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات"
                             />
 
                             <DateInputField
@@ -260,7 +250,7 @@ export default function UnemploymentInsuranceAllowanceScreen() {
 
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>مجموع حقوق ۹۰ روز اخیر (ریال)</ThemedText>
-                                <TextInput value={totalWages} onChangeText={(value) => setTotalWages(sanitizeNumber(value))} keyboardType="number-pad" inputMode="numeric" style={[styles.textInput, { color: theme.text, backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]} textAlign="center" accessibilityLabel="مجموع حقوق ۹۰ روز اخیر" />
+                                <NumericInputField value={totalWages} onChangeText={setTotalWages} style={[styles.textInput, { color: theme.text, backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]} textAlign="center" accessibilityLabel="مجموع حقوق ۹۰ روز اخیر" />
                                 <ThemedText type="small" style={[styles.fieldHint, { color: theme.textMuted }]}>توجه: این مبلغ شامل حقوق و مزایای مشمول بیمه می‌باشد.</ThemedText>
                             </View>
 
@@ -271,14 +261,13 @@ export default function UnemploymentInsuranceAllowanceScreen() {
                                 </View>
                                 <View style={[styles.stepper, styles.dependentsStepper, { backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}>
                                     <Pressable onPress={() => setDependents((value) => changeNumber(value, -1))} disabled={Number(normalizeDigits(dependents || '0')) <= 0} style={({ pressed }) => [styles.stepperButton, { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant }, Number(normalizeDigits(dependents || '0')) <= 0 && styles.stepperButtonDisabled]} accessibilityRole="button" accessibilityLabel="کاهش افراد تحت تکفل"><MaterialCommunityIcons name="minus" size={20} color={theme.primary} /></Pressable>
-                                    <TextInput value={dependents} onChangeText={(value) => setDependents(sanitizeNumber(value))} keyboardType="number-pad" inputMode="numeric" style={[styles.stepperInput, { color: theme.text, direction: 'ltr' }]} textAlign="center" accessibilityLabel="تعداد افراد تحت تکفل" />
+                                    <NumericInputField value={dependents} onChangeText={setDependents} style={[styles.stepperInput, { color: theme.text, direction: 'ltr' }]} textAlign="center" accessibilityLabel="تعداد افراد تحت تکفل" />
                                     <Pressable onPress={() => setDependents((value) => changeNumber(value, 1, 4))} disabled={Number(normalizeDigits(dependents || '0')) >= 4} style={({ pressed }) => [styles.stepperButton, { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant }, Number(normalizeDigits(dependents || '0')) >= 4 && styles.stepperButtonDisabled]} accessibilityRole="button" accessibilityLabel="افزایش افراد تحت تکفل"><MaterialCommunityIcons name="plus" size={20} color={theme.primary} /></Pressable>
                                 </View>
                             </View>
 
                             <View style={styles.actionsGroup}>
                                 <Button mode="contained" onPress={handleCalculate} icon="cash-clock" buttonColor={theme.primary} textColor={theme.surface} style={styles.actionButton} labelStyle={styles.actionLabel} loading={isLoadingData} disabled={isLoadingData}>محاسبه</Button>
-                                <Button mode="outlined" onPress={handleReset} icon="refresh" textColor={theme.primary} style={styles.actionButton} labelStyle={styles.actionLabel}>بازنشانی</Button>
                             </View>
 
                             {result ? (

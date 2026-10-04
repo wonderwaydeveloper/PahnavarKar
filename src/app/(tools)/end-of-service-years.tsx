@@ -8,8 +8,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
+import { SettlementThrough1391Field } from '@/components/settlement-through-1391-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { WorkshopTypeSelector } from '@/components/workshop-type-selector';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
@@ -253,15 +255,6 @@ export default function EndOfServiceYearsScreen() {
         setResult(scaleWageCalculationResult(calculation, getDailyWorkRatio(getDailyWorkMinutes(dailyWorkTime))));
     };
 
-    const handleReset = () => {
-        setEmploymentDate(defaultStartDate);
-        setResult(null);
-        setWorkshopType('unclassified');
-        setSettledThrough1391(false);
-        setSelectedGroup(jobGroups[0]?.group_number ?? null);
-        setGroupMenuVisible(false);
-    };
-
     const formattedResult = useMemo(() => {
         if (!result) {
             return '۰ ریال';
@@ -332,16 +325,7 @@ export default function EndOfServiceYearsScreen() {
                                 helperText="جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات"
                             />
 
-                            <View style={styles.optionSection}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>نوع کارگاه</ThemedText>
-                                <View style={styles.optionsRow}>
-                                    {([['unclassified', 'فاقد طرح طبقه‌بندی'], ['classified', 'دارای طرح طبقه‌بندی']] as const).map(([value, label]) => (
-                                        <Pressable key={value} onPress={() => setWorkshopType(value)} style={[styles.optionButton, { backgroundColor: workshopType === value ? theme.primary : theme.surface, borderColor: workshopType === value ? theme.primary : theme.border }]}>
-                                            <ThemedText type="smallBold" style={{ color: workshopType === value ? theme.surface : theme.text }}>{label}</ThemedText>
-                                        </Pressable>
-                                    ))}
-                                </View>
-                            </View>
+                            <WorkshopTypeSelector value={workshopType} onValueChange={setWorkshopType} />
 
                             {workshopType === 'classified' ? (
                                 <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
@@ -356,18 +340,7 @@ export default function EndOfServiceYearsScreen() {
                                 </View>
                             ) : null}
 
-                            <Pressable
-                                onPress={() => canUseSettlementPath && setSettledThrough1391((value) => !value)}
-                                style={[styles.checkRow, { backgroundColor: theme.surfaceVariant, borderColor: theme.border, opacity: canUseSettlementPath ? 1 : 0.55 }]}
-                            >
-                                <View style={styles.checkboxRow}>
-                                    <MaterialCommunityIcons name={settledThrough1391 ? 'checkbox-marked' : 'checkbox-blank-outline'} size={22} color={settledThrough1391 ? theme.primary : theme.textSecondary} />
-                                    <View style={styles.checkText}>
-                                        <ThemedText type="smallBold" style={[styles.optionTitle, { color: theme.text }]}>تصفیه حساب تا پایان سال ۱۳۹۱ انجام شده است</ThemedText>
-                                        <ThemedText type="small" style={[styles.optionDescription, { color: theme.textSecondary }]}>{canUseSettlementPath ? 'محاسبه سنوات از سال ۱۳۹۲ ادامه پیدا می‌کند.' : 'این گزینه برای استخدام‌های سال ۱۳۹۲ و بعد کاربرد ندارد.'}</ThemedText>
-                                    </View>
-                                </View>
-                            </Pressable>
+                            <SettlementThrough1391Field checked={settledThrough1391} enabled={canUseSettlementPath} onChange={setSettledThrough1391} />
                             <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
 
                             <View style={styles.actionsGroup}>
@@ -385,19 +358,6 @@ export default function EndOfServiceYearsScreen() {
                                     محاسبه
                                 </Button>
 
-                                {result ? (
-                                    <Button
-                                        mode="outlined"
-                                        onPress={handleReset}
-                                        icon="refresh"
-                                        style={[styles.actionButton, styles.resetButton]}
-                                        labelStyle={styles.actionLabel}
-                                        textColor={theme.primary}
-                                        disabled={isLoadingData}
-                                    >
-                                        بازنشانی
-                                    </Button>
-                                ) : null}
                             </View>
 
                             {result ? (
@@ -572,9 +532,6 @@ const styles = StyleSheet.create({
     actionLabel: {
         fontFamily: 'Vazirmatn-Bold',
         fontSize: 12,
-    },
-    resetButton: {
-        borderWidth: 1,
     },
     breakdownCard: {
         borderRadius: 12,

@@ -48,6 +48,8 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
         return { title: 'اطلاعات برنامه' };
       case 'yearly-info':
         return { title: 'اطلاعات جامع مزدی از سال ۱۳۶۹ تاکنون' };
+      case 'group-calculation':
+        return { title: 'محاسبهٔ گروهی' };
       case 'base-salary':
         return { title: 'حقوق پایه' };
       case 'family-allowance':
@@ -57,19 +59,19 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
       case 'monthly-allowance':
         return { title: 'بن کارگری' };
       case 'minimum-bonus':
-        return { title: 'حداقل عیدی و پاداش استحقاقی' };
+        return { title: 'حداقل عیدی و پاداش' };
       case 'maximum-bonus':
-        return { title: 'حداکثر عیدی و پاداش استحقاقی' };
+        return { title: 'حداکثر عیدی و پاداش' };
       case 'bonus-entitlement':
         return { title: 'عیدی و پاداش استحقاقی' };
       case 'spousal-allowance':
-        return { title: 'حق تاهل استحقاقی' };
+        return { title: 'حق تاهل' };
       case 'monthly-shift-work':
         return { title: 'نوبت کاری ماهیانه' };
       case 'overtime-entitlement':
-        return { title: 'اضافه کاری استحقاقی' };
+        return { title: 'اضافه کاری' };
       case 'night-shift-entitlement':
-        return { title: 'شب کاری استحقاقی' };
+        return { title: 'شب کاری' };
       case 'insurance-days-entitlement':
         return { title: 'تعداد روزهای بیمه استحقاقی' };
       case 'unemployment-insurance-entitlement':
@@ -86,10 +88,12 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
         return { title: 'سنوات پایان کار' };
       case 'entitled-seniority':
         return { title: 'پایه سنوات استحقاقی' };
+      case 'mission-allowance':
+        return { title: 'فوق‌العاده مأموریت' };
       case 'friday-work':
         return { title: 'جمعه کاری' };
       case 'official-holiday-work':
-        return { title: 'مبلغ تعطیل کاری استحقاقی' };
+        return { title: 'مبلغ تعطیل کاری' };
       case 'official-holidays-in-range':
         return { title: 'تعداد تعطیلات رسمی در بازه زمانی دلخواه' };
       case 'illegal-foreign-worker-penalty':
@@ -116,7 +120,7 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
   const { title } = getHeaderConfig(actualRouteName);
   const activeTool = TOOL_DEFINITIONS.find((tool) => tool.key === actualRouteName);
   const showHomeLogo = actualRouteName === 'home' || actualRouteName === 'index';
-  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'bonus-entitlement', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unemployment-insurance-entitlement', 'unemployment-insurance-allowance', 'unused-leave-entitlement', 'unused-leave-wage', 'suspension-wage', 'end-of-service-years', 'entitled-seniority', 'friday-work', 'official-holiday-work', 'official-holidays-in-range', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours'].includes(actualRouteName);
+  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'group-calculation', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'bonus-entitlement', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unemployment-insurance-entitlement', 'unemployment-insurance-allowance', 'unused-leave-entitlement', 'unused-leave-wage', 'suspension-wage', 'end-of-service-years', 'entitled-seniority', 'mission-allowance', 'friday-work', 'official-holiday-work', 'official-holidays-in-range', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours'].includes(actualRouteName);
   const shouldAlignSecondaryHeaderStart = showBackButton && !centerContent;
 
   const { width } = useWindowDimensions();

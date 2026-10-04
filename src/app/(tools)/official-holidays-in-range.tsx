@@ -118,13 +118,6 @@ export default function OfficialHolidaysInRangeScreen() {
         setShowDetails(false);
     };
 
-    const handleReset = () => {
-        setStartDate(defaultStartDate);
-        setEndDate(defaultEndDate);
-        setResult(null);
-        setShowDetails(false);
-    };
-
     return (
         <ThemedView style={styles.container}>
             <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.three, paddingBottom: insets.bottom + Spacing.four }]} showsVerticalScrollIndicator={false}>
@@ -148,7 +141,6 @@ export default function OfficialHolidaysInRangeScreen() {
 
                             <View style={styles.actionsGroup}>
                                 <Button mode="contained" onPress={handleCalculate} icon="calendar-check-outline" buttonColor={theme.primary} textColor={theme.surface} style={styles.actionButton} labelStyle={styles.actionLabel} loading={isLoading} disabled={isLoading}>محاسبه</Button>
-                                {result ? <Button mode="outlined" onPress={handleReset} icon="refresh" textColor={theme.primary} style={styles.actionButton} labelStyle={styles.actionLabel}>بازنشانی</Button> : null}
                             </View>
 
                             {result ? (

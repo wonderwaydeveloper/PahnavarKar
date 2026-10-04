@@ -182,13 +182,6 @@ export default function SocialSecurityPremiumCeilingScreen() {
         setShowDetails(false);
     };
 
-    const handleReset = () => {
-        setStartDate(defaultStartDate);
-        setEndDate(defaultEndDate);
-        setResult(null);
-        setShowDetails(false);
-    };
-
     return (
         <ThemedView style={styles.container}>
             <ScrollView
@@ -242,16 +235,6 @@ export default function SocialSecurityPremiumCeilingScreen() {
                                     محاسبه
                                 </Button>
 
-                                <Button
-                                    mode="outlined"
-                                    onPress={handleReset}
-                                    icon="refresh"
-                                    textColor={theme.primary}
-                                    style={styles.actionButton}
-                                    labelStyle={styles.actionLabel}
-                                >
-                                    بازنشانی
-                                </Button>
                             </View>
 
                             {result !== null ? (

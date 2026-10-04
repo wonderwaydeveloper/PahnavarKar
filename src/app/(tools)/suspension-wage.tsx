@@ -8,8 +8,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
+import { SettlementThrough1391Field } from '@/components/settlement-through-1391-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { WorkshopTypeSelector } from '@/components/workshop-type-selector';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
@@ -493,72 +495,10 @@ export default function SuspensionWageScreen() {
                 </Menu>
               </View>
 
-              <View style={styles.workshopTypeSection}>
-                <ThemedText
-                  type="small"
-                  style={[styles.sectionLabel, { color: theme.textSecondary }]}
-                >
-                  نوع کارگاه
-                </ThemedText>
-                <View style={styles.optionsRow}>
-                  <Pressable
-                    onPress={() => setWorkshopType("unclassified")}
-                    style={[
-                      styles.optionButton,
-                      {
-                        backgroundColor:
-                          workshopType === "unclassified"
-                            ? theme.primary
-                            : theme.surface,
-                        borderColor:
-                          workshopType === "unclassified"
-                            ? theme.primary
-                            : theme.border,
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      type="smallBold"
-                      style={{
-                        color:
-                          workshopType === "unclassified"
-                            ? theme.surface
-                            : theme.text,
-                      }}
-                    >
-                      فاقد طرح طبقه‌بندی
-                    </ThemedText>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setWorkshopType("classified")}
-                    style={[
-                      styles.optionButton,
-                      {
-                        backgroundColor:
-                          workshopType === "classified"
-                            ? theme.primary
-                            : theme.surface,
-                        borderColor:
-                          workshopType === "classified"
-                            ? theme.primary
-                            : theme.border,
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      type="smallBold"
-                      style={{
-                        color:
-                          workshopType === "classified"
-                            ? theme.surface
-                            : theme.text,
-                      }}
-                    >
-                      دارای طرح طبقه‌بندی
-                    </ThemedText>
-                  </Pressable>
-                </View>
-              </View>
+              <WorkshopTypeSelector
+                value={workshopType}
+                onValueChange={setWorkshopType}
+              />
 
               {workshopType === "classified" ? (
                 <View
@@ -631,51 +571,11 @@ export default function SuspensionWageScreen() {
                 </View>
               ) : null}
 
-              <Pressable
-                onPress={() =>
-                  canUseSettlementPath &&
-                  setSettledThrough1391((value) => !value)
-                }
-                style={[
-                  styles.checkRow,
-                  {
-                    backgroundColor: theme.surfaceVariant,
-                    borderColor: theme.border,
-                    opacity: canUseSettlementPath ? 1 : 0.55,
-                  },
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name={
-                    settledThrough1391
-                      ? "checkbox-marked"
-                      : "checkbox-blank-outline"
-                  }
-                  size={22}
-                  color={
-                    settledThrough1391 ? theme.primary : theme.textSecondary
-                  }
-                />
-                <View style={styles.checkText}>
-                  <ThemedText
-                    type="smallBold"
-                    style={[styles.optionTitle, { color: theme.text }]}
-                  >
-                    تصفیه حساب تا پایان سال ۱۳۹۱ انجام شده است
-                  </ThemedText>
-                  <ThemedText
-                    type="small"
-                    style={[
-                      styles.optionDescription,
-                      { color: theme.textSecondary },
-                    ]}
-                  >
-                    {canUseSettlementPath
-                      ? "در این حالت شروع محاسبه از سال ۱۳۹۲ خواهد بود."
-                      : "این گزینه برای استخدام‌های سال ۱۳۹۲ و بعد از آن کاربرد ندارد."}
-                  </ThemedText>
-                </View>
-              </Pressable>
+              <SettlementThrough1391Field
+                checked={settledThrough1391}
+                enabled={canUseSettlementPath}
+                onChange={setSettledThrough1391}
+              />
 
               <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
               <View style={styles.actionsGroup}>
@@ -692,18 +592,6 @@ export default function SuspensionWageScreen() {
                 >
                   محاسبه
                 </Button>
-                {result ? (
-                  <Button
-                    mode="outlined"
-                    onPress={() => setResult(null)}
-                    icon="refresh"
-                    textColor={theme.primary}
-                    style={styles.actionButton}
-                    labelStyle={styles.actionLabel}
-                  >
-                    بازنشانی
-                  </Button>
-                ) : null}
               </View>
 
               {result ? (

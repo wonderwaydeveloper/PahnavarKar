@@ -1,15 +1,18 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
+import { NumericInputField } from '@/components/numeric-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
+import { SettlementThrough1391Field } from '@/components/settlement-through-1391-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { WorkshopTypeSelector } from '@/components/workshop-type-selector';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
@@ -146,7 +149,7 @@ export default function UnusedLeaveWageScreen() {
     const updateUsedLeaveDays = (segmentIndex: number, value: string) => {
         setUsedLeaveDaysBySegment((current) => ({
             ...current,
-            [segmentIndex]: value.replace(/[^0-9۰-۹.]/g, ''),
+            [segmentIndex]: value,
         }));
     };
 
@@ -244,22 +247,6 @@ export default function UnusedLeaveWageScreen() {
         setShowDetails(false);
     };
 
-    const handleReset = () => {
-        setStartDate(defaultStartDate);
-        setEndDate(defaultEndDate);
-        setEmploymentDate(defaultEmploymentDate);
-        setMaritalStatus('single');
-        setChildrenCount(0);
-        setUsedLeaveDaysBySegment({});
-        setInitialSavedLeaveDays('۰');
-        setWorkshopType('unclassified');
-        setSettledThrough1391(false);
-        setGroupMenuVisible(false);
-        setChildrenMenuVisible(false);
-        setResult(null);
-        setShowDetails(false);
-    };
-
     const components = result ? [
         ['حداقل مزد روزانه', result.dailyMinimumWage],
         [workshopType === 'classified' ? 'پایه سنوات استحقاقی روزانه گروه شغلی' : 'پایه سنوات استحقاقی روزانه', result.dailySeniority],
@@ -313,11 +300,10 @@ export default function UnusedLeaveWageScreen() {
                                     >
                                         <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
                                     </Pressable>
-                                    <TextInput
+                                    <NumericInputField
+                                        mode="decimal"
                                         value={initialSavedLeaveDays}
-                                        onChangeText={(value) => setInitialSavedLeaveDays(value.replace(/[^0-9۰-۹.]/g, ''))}
-                                        keyboardType="decimal-pad"
-                                        inputMode="decimal"
+                                        onChangeText={setInitialSavedLeaveDays}
                                         placeholder="۰"
                                         placeholderTextColor={theme.textMuted}
                                         style={[styles.stepperInput, { color: theme.text }]}
@@ -360,10 +346,10 @@ export default function UnusedLeaveWageScreen() {
                                                     >
                                                         <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
                                                     </Pressable>
-                                                    <TextInput
+                                                    <NumericInputField
+                                                        mode="decimal"
                                                         value={usedLeaveDaysBySegment[index] ?? ''}
                                                         onChangeText={(value) => updateUsedLeaveDays(index, value)}
-                                                        keyboardType="decimal-pad"
                                                         placeholder="۰"
                                                         placeholderTextColor={theme.textMuted}
                                                         style={[styles.stepperInput, { color: theme.text }]}
@@ -387,16 +373,7 @@ export default function UnusedLeaveWageScreen() {
                                     })}
                                 </View>
                             ) : null}
-                            <View style={[styles.optionSection, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>نوع کارگاه</ThemedText>
-                                <View style={styles.statusRow}>
-                                    {([['unclassified', 'فاقد طرح طبقه‌بندی'], ['classified', 'دارای طرح طبقه‌بندی']] as const).map(([value, label]) => (
-                                        <Pressable key={value} onPress={() => setWorkshopType(value)} style={[styles.statusButton, { backgroundColor: workshopType === value ? theme.primary : theme.surface, borderColor: workshopType === value ? theme.primary : theme.border }]}>
-                                            <ThemedText type="smallBold" style={{ color: workshopType === value ? theme.surface : theme.text, textAlign: 'center', fontSize: 13, lineHeight: 19 }}>{label}</ThemedText>
-                                        </Pressable>
-                                    ))}
-                                </View>
-                            </View>
+                            <WorkshopTypeSelector value={workshopType} onValueChange={setWorkshopType} />
                             {workshopType === 'classified' ? (
                                 <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                     <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>گروه شغلی</ThemedText>
@@ -414,16 +391,7 @@ export default function UnusedLeaveWageScreen() {
                                     </Menu>
                                 </View>
                             ) : null}
-                            <Pressable
-                                onPress={() => canUseSettlementPath && setSettledThrough1391((value) => !value)}
-                                style={[styles.settlementRow, { backgroundColor: theme.surfaceVariant, borderColor: theme.border, opacity: canUseSettlementPath ? 1 : 0.55 }]}
-                            >
-                                <MaterialCommunityIcons name={settledThrough1391 ? 'checkbox-marked' : 'checkbox-blank-outline'} size={22} color={settledThrough1391 ? theme.primary : theme.textSecondary} />
-                                <View style={styles.checkText}>
-                                    <ThemedText type="smallBold" style={[styles.optionTitle, { color: theme.text }]}>تصفیه حساب تا پایان سال ۱۳۹۱ انجام شده است</ThemedText>
-                                    <ThemedText type="small" style={[styles.optionDescription, { color: theme.textSecondary }]}>{canUseSettlementPath ? 'محاسبه سنوات از سال ۱۳۹۲ ادامه پیدا می‌کند.' : 'این گزینه برای استخدام‌های سال ۱۳۹۲ و بعد کاربرد ندارد.'}</ThemedText>
-                                </View>
-                            </Pressable>
+                            <SettlementThrough1391Field checked={settledThrough1391} enabled={canUseSettlementPath} onChange={setSettledThrough1391} />
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>وضعیت تأهل</ThemedText>
                                 <View style={styles.statusRow}>
@@ -466,7 +434,6 @@ export default function UnusedLeaveWageScreen() {
                             <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
                             <View style={styles.actionsGroup}>
                                 <Button mode="contained" onPress={handleCalculate} icon="cash-clock" buttonColor={theme.primary} textColor={theme.surface} style={styles.actionButton} labelStyle={styles.actionLabel} loading={isLoadingData} disabled={isLoadingData}>محاسبه</Button>
-                                {result ? <Button mode="outlined" onPress={handleReset} icon="refresh" textColor={theme.primary} style={styles.actionButton} labelStyle={styles.actionLabel}>بازنشانی</Button> : null}
                             </View>
                             {result ? <Card style={[styles.resultCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><Card.Content style={styles.resultContent}>
                                 <View style={[styles.summaryBox, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>مبلغ مزد مرخصی ذخیره شده کارگر</ThemedText><ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>{toPersianDigits(formatCurrency(result.unusedLeaveDays * result.dailyWage))}</ThemedText></View>

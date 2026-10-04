@@ -1,11 +1,12 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DateInputField } from '@/components/date-input-field';
+import { NumericInputField } from '@/components/numeric-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -100,7 +101,6 @@ export default function IllegalForeignWorkerPenaltyScreen() {
 
     const normalizeDigits = (value: string) => value.replace(/[۰-۹]/g, (digit) => latinDigits[persianDigits.indexOf(digit)]);
     const toPersianDigits = (value: string | number) => String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
-    const filterNumericInput = (value: string) => value.replace(/[^0-9۰-۹]/g, '');
     const formatCurrency = (value: number) => `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 
     const changeWorkerCount = (delta: number) => {
@@ -202,14 +202,6 @@ export default function IllegalForeignWorkerPenaltyScreen() {
         setShowDetails(false);
     };
 
-    const handleReset = () => {
-        setStartDate(defaultStartDate);
-        setEndDate(defaultEndDate);
-        setWorkerCount('1');
-        setResult(null);
-        setShowDetails(false);
-    };
-
     return (
         <ThemedView style={styles.container}>
             <ScrollView
@@ -267,9 +259,9 @@ export default function IllegalForeignWorkerPenaltyScreen() {
                                         <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
                                     </Pressable>
 
-                                    <TextInput
+                                    <NumericInputField
                                         value={workerCount}
-                                        onChangeText={(value) => setWorkerCount(filterNumericInput(value))}
+                                        onChangeText={setWorkerCount}
                                         onBlur={() => {
                                             const value = Number(normalizeDigits(workerCount.trim()));
                                             if (!Number.isFinite(value) || !Number.isInteger(value) || value < 1) {
@@ -278,8 +270,6 @@ export default function IllegalForeignWorkerPenaltyScreen() {
                                                 setSnackbarVisible(true);
                                             }
                                         }}
-                                        keyboardType="number-pad"
-                                        inputMode="numeric"
                                         placeholder="۱"
                                         placeholderTextColor={theme.textSecondary}
                                         style={[styles.textInput, { color: theme.text, direction: 'ltr' }]}
@@ -315,18 +305,6 @@ export default function IllegalForeignWorkerPenaltyScreen() {
                                 >
                                     محاسبه
                                 </Button>
-                                {result ? (
-                                    <Button
-                                        mode="outlined"
-                                        onPress={handleReset}
-                                        icon="refresh"
-                                        textColor={theme.primary}
-                                        style={styles.actionButton}
-                                        labelStyle={styles.actionLabel}
-                                    >
-                                        بازنشانی
-                                    </Button>
-                                ) : null}
                             </View>
 
                             {result ? (

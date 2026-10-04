@@ -228,11 +228,6 @@ export default function SpousalAllowanceScreen() {
         setShowDetailedBreakdown(false);
     };
 
-    const handleReset = () => {
-        setResult(null);
-        setShowDetailedBreakdown(false);
-    };
-
     const formattedResult = useMemo(() => {
         if (!result) {
             return '۰ ریال';
@@ -259,7 +254,7 @@ export default function SpousalAllowanceScreen() {
                             <View style={styles.headerRow}>
                                 <View style={styles.headerText}>
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
-                                        محاسبه حق تاهل استحقاقی
+                                        محاسبه حق تاهل
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
                                         محاسبه حق تاهل براساس تصریح مصوبات شورای عالی کار از سال ۱۴۰۳
@@ -331,19 +326,6 @@ export default function SpousalAllowanceScreen() {
                                     محاسبه
                                 </Button>
 
-                                {result ? (
-                                    <Button
-                                        mode="outlined"
-                                        onPress={handleReset}
-                                        icon="refresh"
-                                        style={[styles.actionButton, styles.resetButton]}
-                                        labelStyle={styles.actionLabel}
-                                        textColor={theme.primary}
-                                        disabled={isLoadingData}
-                                    >
-                                        بازنشانی
-                                    </Button>
-                                ) : null}
                             </View>
 
                             {result ? (
@@ -575,9 +557,6 @@ const styles = StyleSheet.create({
     actionLabel: {
         fontFamily: 'Vazirmatn-Bold',
         fontSize: 12,
-    },
-    resetButton: {
-        borderWidth: 1,
     },
     breakdownCard: {
         borderRadius: 12,

@@ -213,11 +213,6 @@ export default function MaximumBonusScreen() {
         setShowDetailedBreakdown(false);
     };
 
-    const handleReset = () => {
-        setResult(null);
-        setShowDetailedBreakdown(false);
-    };
-
     const formattedResult = useMemo(() => {
         if (!result) {
             return '۰ ریال';
@@ -244,7 +239,7 @@ export default function MaximumBonusScreen() {
                             <View style={styles.headerRow}>
                                 <View style={styles.headerText}>
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
-                                        محاسبه حداکثر عیدی و پاداش استحقاقی
+                                        محاسبه حداکثر عیدی و پاداش
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
                                         محاسبه حداکثر عیدی و پاداش ماهیانه براساس ماده واحده قانون تعیین عیدی و پاداش، مصوب مجلس در سال ۱۳۷۰
@@ -316,19 +311,6 @@ export default function MaximumBonusScreen() {
                                     محاسبه
                                 </Button>
 
-                                {result ? (
-                                    <Button
-                                        mode="outlined"
-                                        onPress={handleReset}
-                                        icon="refresh"
-                                        style={[styles.actionButton, styles.resetButton]}
-                                        labelStyle={styles.actionLabel}
-                                        textColor={theme.primary}
-                                        disabled={isLoadingData}
-                                    >
-                                        بازنشانی
-                                    </Button>
-                                ) : null}
                             </View>
 
                             {result ? (
@@ -567,9 +549,6 @@ const styles = StyleSheet.create({
     actionLabel: {
         fontSize: 13,
         fontFamily: 'Vazirmatn-Bold',
-    },
-    resetButton: {
-        borderWidth: 1,
     },
     breakdownCard: {
         borderRadius: 18,

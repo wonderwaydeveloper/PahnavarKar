@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, type AccessibilityRole, type AccessibilityState } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -12,7 +12,10 @@ interface ToolListItemProps {
     onPress: () => void;
     titleContent?: ReactNode;
     detailContent?: ReactNode;
+    trailingContent?: ReactNode;
     showBottomBorder?: boolean;
+    accessibilityRole?: AccessibilityRole;
+    accessibilityState?: AccessibilityState;
 }
 
 export function ToolListItem({
@@ -20,7 +23,10 @@ export function ToolListItem({
     onPress,
     titleContent,
     detailContent,
+    trailingContent,
     showBottomBorder = false,
+    accessibilityRole = 'button',
+    accessibilityState,
 }: ToolListItemProps) {
     const theme = useTheme();
 
@@ -35,7 +41,8 @@ export function ToolListItem({
                 },
                 showBottomBorder && styles.withBottomBorder,
             ]}
-            accessibilityRole="button"
+            accessibilityRole={accessibilityRole}
+            accessibilityState={accessibilityState}
             accessibilityLabel={tool.title}
         >
             <View style={[styles.icon, { backgroundColor: tool.accent, borderColor: tool.accent }]}>
@@ -53,6 +60,7 @@ export function ToolListItem({
                     </ThemedText>
                 )}
             </View>
+            {trailingContent}
         </Pressable>
     );
 }

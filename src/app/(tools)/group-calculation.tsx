@@ -1,0 +1,2230 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Asset } from 'expo-asset';
+import { jalaaliMonthLength, toGregorian, toJalaali } from 'jalaali-js';
+import { useEffect, useMemo, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { EncodingType, File, Paths } from 'expo-file-system';
+import { Button, Card, Checkbox, Menu, Snackbar, TextInput } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+
+import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
+import { DateInputField } from '@/components/date-input-field';
+import { NumericInputField } from '@/components/numeric-input-field';
+import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
+import { PersianTimePickerModal } from '@/components/persian-time-picker-modal';
+import { SettlementThrough1391Field } from '@/components/settlement-through-1391-field';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { ToolListItem } from '@/components/tool-list-item';
+import { getWorkshopTypeLabel, WorkshopTypeSelector } from '@/components/workshop-type-selector';
+import { Spacing } from '@/constants/theme';
+import { TOOL_DEFINITIONS } from '@/constants/tool-definitions';
+import { fetchJobGroups, fetchOfficialHolidaysBetweenDates, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
+import { useTheme } from '@/hooks/use-theme';
+import {
+    buildGroupCalculationPdfHtml,
+    type GroupCalculationPdfAssets,
+    type GroupCalculationPdfDetail,
+    type GroupCalculationPdfSection,
+} from '@/utils/group-calculation-pdf';
+import {
+    calculateGroupItems,
+    GROUP_CALCULATION_KEYS,
+    type GroupCalculationKey,
+    type GroupCalculationResult,
+} from '@/utils/group-calculation';
+import {
+    calculateAvailableFridaysByPeriod,
+    calculateUnusedLeaveMonths,
+    getMissionAllowancePeriodRanges,
+    parseDateInput,
+    type ParsedDateInput,
+    type SalaryPeriodBucket,
+} from '@/utils/salary-calculation';
+
+type DatePickerTarget = 'start' | 'end' | 'employment' | 'mission-start' | 'mission-end';
+const NIGHT_SHIFT_CONFLICT_MESSAGE = 'بر اساس ماده 58 قانون کار ، مجاز به دریافت همزمان نوبت کاری و شب کاری نمی باشید ';
+const SHIFT_TYPE_OPTIONS = [
+    { value: 'morning-evening', label: 'صبح و عصر', percentage: '۱۰٪' },
+    { value: 'morning-evening-night', label: 'صبح و عصر و شب', percentage: '۱۵٪' },
+    { value: 'morning-night-or-evening-night', label: 'صبح و شب یا عصر و شب', percentage: '۲۲.۵٪' },
+] as const;
+const CHILDREN_OPTIONS = Array.from({ length: 13 }, (_, index) => index);
+const MARITAL_OPTIONS = [
+    { value: 'single', label: 'مجرد' },
+    { value: 'married', label: 'متأهل' },
+] as const;
+
+const GROUP_TOOLS = TOOL_DEFINITIONS.filter((tool) =>
+    GROUP_CALCULATION_KEYS.includes(tool.key as GroupCalculationKey),
+);
+
+function getSelectedCalculationTitles(keys: readonly GroupCalculationKey[]) {
+    return GROUP_TOOLS
+        .filter((tool) => keys.includes(tool.key as GroupCalculationKey))
+        .map((tool) => tool.title)
+        .join('، ');
+}
+
+const DAYS_COVERAGE_KEYS: GroupCalculationKey[] = [
+    'family-allowance',
+    'housing-allowance',
+    'monthly-allowance',
+    'minimum-bonus',
+    'maximum-bonus',
+    'spousal-allowance',
+];
+const PAYROLL_DAILY_WORK_KEYS: GroupCalculationKey[] = [
+    'base-salary',
+    'family-allowance',
+    'housing-allowance',
+    'monthly-allowance',
+    'minimum-bonus',
+    'maximum-bonus',
+    'spousal-allowance',
+    'entitled-seniority',
+    'overtime-entitlement',
+    'night-shift-entitlement',
+    'monthly-shift-work',
+    'end-of-service-years',
+    'bonus-entitlement',
+    'official-holiday-work',
+    'friday-work',
+    'unused-leave-wage',
+];
+
+const RESULT_SUMMARY_LABELS: Record<GroupCalculationKey, string> = {
+    'base-salary': 'مبلغ کل حقوق پایه',
+    'family-allowance': 'مبلغ کل حق عائله‌مندی',
+    'housing-allowance': 'مبلغ کل حق مسکن ماهیانه',
+    'monthly-allowance': 'مبلغ کل بن ماهیانه',
+    'minimum-bonus': 'مبلغ کل حداقل عیدی و پاداش استحقاقی',
+    'maximum-bonus': 'مبلغ کل حداکثر عیدی و پاداش استحقاقی',
+    'spousal-allowance': 'مبلغ کل حق تاهل استحقاقی',
+    'official-holidays-in-range': 'تعداد تعطیلات رسمی در بازه',
+    'ordinary-work-hours': 'مجموع ساعات کارکرد موظفی',
+    'hazardous-work-hours': 'مجموع ساعات کارکرد موظفی',
+    'young-worker-work-hours': 'مجموع ساعات کارکرد موظفی',
+    'insurance-days-entitlement': 'مجموع کل روزهای بیمه استحقاقی',
+    'entitled-seniority': 'پایه سنوات استحقاقی روزانه',
+    'overtime-entitlement': 'مبلغ کل اضافه کاری استحقاقی',
+    'night-shift-entitlement': 'مبلغ کل شب کاری استحقاقی',
+    'monthly-shift-work': 'مبلغ کل نوبت کاری در بازه زمانی انتخاب شده',
+    'end-of-service-years': 'مبلغ کل سنوات پایان کار',
+    'bonus-entitlement': 'مبلغ نهایی عیدی و پاداش در بازهٔ زمانی انتخابی',
+    'official-holiday-work': 'مبلغ نهایی تعطیل کاری استحقاقی',
+    'friday-work': 'مبلغ کل جمعه کاری',
+    'mission-allowance': 'مبلغ فوق‌العاده مأموریت',
+    'unused-leave-entitlement': 'ذخیره نهایی مرخصی کارگر',
+    'unused-leave-wage': 'مبلغ مزد مرخصی ذخیره شده کارگر',
+};
+
+const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
+const latinDigits = '0123456789';
+
+function normalizeDigits(value: string) {
+    return value.replace(/[۰-۹]/g, (digit) => latinDigits[persianDigits.indexOf(digit)]);
+}
+
+function toPersianDigits(value: string | number) {
+    return String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
+}
+
+function clampDayCount(value: string | number, maximum: number) {
+    const normalized = typeof value === 'number' ? value : Number(normalizeDigits(value));
+    const dayCount = Number.isFinite(normalized) ? Math.trunc(normalized) : 0;
+    return toPersianDigits(Math.min(maximum, Math.max(0, dayCount)));
+}
+
+function addLeaveDays(value: string, delta: number) {
+    const currentValue = Number(normalizeDigits(value)) || 0;
+    const nextValue = Math.max(0, currentValue + delta);
+    return toPersianDigits(nextValue.toFixed(2).replace(/\.00$/, ''));
+}
+
+function formatDateParts(date: ParsedDateInput) {
+    return `${toPersianDigits(date.year)}/${toPersianDigits(String(date.month).padStart(2, '0'))}/${toPersianDigits(String(date.day).padStart(2, '0'))}`;
+}
+
+function getFullLeaveYearLabel(startDate: ParsedDateInput, segmentIndex: number) {
+    const year = startDate.year + segmentIndex - 1;
+    const firstDay = { year, month: startDate.month, day: Math.min(startDate.day, jalaaliMonthLength(year, startDate.month)) };
+    const anniversaryYear = year + 1;
+    const anniversary = {
+        year: anniversaryYear,
+        month: startDate.month,
+        day: Math.min(startDate.day, jalaaliMonthLength(anniversaryYear, startDate.month)),
+    };
+    const anniversaryGregorian = toGregorian(anniversary.year, anniversary.month, anniversary.day);
+    const previousGregorian = new Date(Date.UTC(anniversaryGregorian.gy, anniversaryGregorian.gm - 1, anniversaryGregorian.gd) - 86400000);
+    const lastDay = toJalaali(
+        previousGregorian.getUTCFullYear(),
+        previousGregorian.getUTCMonth() + 1,
+        previousGregorian.getUTCDate(),
+    );
+
+    return `سال کامل ${toPersianDigits(segmentIndex)} (${formatDateParts(firstDay)} تا ${formatDateParts({ year: lastDay.jy, month: lastDay.jm, day: lastDay.jd })})`;
+}
+
+function getPartialLeavePeriodLabel(startDate: ParsedDateInput, endDate: ParsedDateInput, fullYears: number, remainingMonths: number) {
+    const year = startDate.year + fullYears;
+    const partialStart = {
+        year,
+        month: startDate.month,
+        day: Math.min(startDate.day, jalaaliMonthLength(year, startDate.month)),
+    };
+
+    return `بازه ناکامل (${formatDateParts(partialStart)} تا ${formatDateParts(endDate)}، ${toPersianDigits(remainingMonths.toFixed(2))} ماه)`;
+}
+
+function formatDate(value: string) {
+    const parsed = parseDateInput(value);
+    if (!parsed) return '';
+
+    return `${toPersianDigits(parsed.year)}/${toPersianDigits(String(parsed.month).padStart(2, '0'))}/${toPersianDigits(String(parsed.day).padStart(2, '0'))}`;
+}
+
+type BreakdownFieldFormat = 'days' | 'months' | 'hours' | 'clock' | 'duration' | 'money' | 'number' | 'range' | 'phase' | 'shift' | 'coefficient' | 'calculation-type' | 'last-period';
+
+interface BreakdownField {
+    key: string;
+    label: string;
+    format: BreakdownFieldFormat;
+}
+
+const BREAKDOWN_FIELDS: Record<GroupCalculationKey, BreakdownField[]> = {
+    'base-salary': [
+        { key: 'daysCovered', label: 'تعداد روزهای پوشش', format: 'days' },
+        { key: 'dailyMinimumWage', label: 'حداقل مزد روزانه', format: 'money' },
+        { key: 'amount', label: 'مبلغ دوره', format: 'money' },
+    ],
+    'family-allowance': [
+        { key: 'monthsCovered', label: 'تعداد ماه‌های شمول', format: 'months' },
+        { key: 'childAllowance', label: 'مبلغ عائله مندی به یک فرزند واجد شرایط', format: 'money' },
+        { key: 'amount', label: 'مبلغ این دوره', format: 'money' },
+    ],
+    'housing-allowance': [
+        { key: 'monthsCovered', label: 'تعداد ماه‌های شمول', format: 'months' },
+        { key: 'monthlyAllowance', label: 'حق مسکن ماهیانه', format: 'money' },
+        { key: 'amount', label: 'مبلغ این دوره', format: 'money' },
+    ],
+    'monthly-allowance': [
+        { key: 'monthsCovered', label: 'تعداد ماه‌های شمول', format: 'months' },
+        { key: 'monthlyAllowance', label: 'بن ماهیانه', format: 'money' },
+        { key: 'amount', label: 'مبلغ این دوره', format: 'money' },
+    ],
+    'minimum-bonus': [
+        { key: 'monthsCovered', label: 'تعداد ماه‌های شمول', format: 'months' },
+        { key: 'dailyMinimumWage', label: 'حداقل مزد روزانه', format: 'money' },
+        { key: 'amount', label: 'مبلغ این دوره', format: 'money' },
+    ],
+    'maximum-bonus': [
+        { key: 'monthsCovered', label: 'تعداد ماه‌های شمول', format: 'months' },
+        { key: 'dailyMinimumWage', label: 'حداقل مزد روزانه', format: 'money' },
+        { key: 'amount', label: 'مبلغ این دوره', format: 'money' },
+    ],
+    'spousal-allowance': [
+        { key: 'monthsCovered', label: 'تعداد ماه‌های شمول', format: 'months' },
+        { key: 'spousalAllowance', label: 'حق تاهل ماهیانه', format: 'money' },
+        { key: 'amount', label: 'مبلغ این دوره', format: 'money' },
+    ],
+    'official-holidays-in-range': [
+        { key: 'range', label: 'بازهٔ زمانی دوره', format: 'range' },
+        { key: 'totalHolidays', label: 'تعداد تعطیلات این دوره', format: 'days' },
+    ],
+    'ordinary-work-hours': [
+        { key: 'daysCovered', label: 'کل روزهای بازه', format: 'days' },
+        { key: 'officialHolidays', label: 'تعطیلات رسمی', format: 'days' },
+        { key: 'fridays', label: 'جمعه‌ها', format: 'days' },
+        { key: 'workingDays', label: 'روزهای کارکرد موظفی', format: 'days' },
+        { key: 'requiredHours', label: 'ساعات موظفی این دوره', format: 'hours' },
+    ],
+    'hazardous-work-hours': [
+        { key: 'daysCovered', label: 'کل روزهای بازه', format: 'days' },
+        { key: 'officialHolidays', label: 'تعطیلات رسمی', format: 'days' },
+        { key: 'fridays', label: 'جمعه‌ها', format: 'days' },
+        { key: 'workingDays', label: 'روزهای کارکرد موظفی', format: 'days' },
+        { key: 'requiredHours', label: 'ساعات موظفی این دوره', format: 'hours' },
+    ],
+    'young-worker-work-hours': [
+        { key: 'daysCovered', label: 'کل روزهای بازه', format: 'days' },
+        { key: 'officialHolidays', label: 'تعطیلات رسمی', format: 'days' },
+        { key: 'fridays', label: 'جمعه‌ها', format: 'days' },
+        { key: 'workingDays', label: 'روزهای کارکرد موظفی', format: 'days' },
+        { key: 'requiredHours', label: 'ساعات موظفی این دوره', format: 'hours' },
+    ],
+    'insurance-days-entitlement': [
+        { key: 'daysCovered', label: 'روزهای پوشش', format: 'days' },
+        { key: 'dailyHours', label: 'ساعات کاری روزانه', format: 'clock' },
+        { key: 'calculationType', label: 'روش محاسبه', format: 'calculation-type' },
+        { key: 'daysCalculated', label: 'روزهای بیمه', format: 'number' },
+    ],
+    'entitled-seniority': [
+        { key: 'range', label: 'بازهٔ زمانی', format: 'range' },
+        { key: 'phase', label: 'نوع بازه', format: 'phase' },
+        { key: 'daysCovered', label: 'تعداد روزهای شمول', format: 'days' },
+        { key: 'currentBase', label: 'پایه سنوات جاری', format: 'money' },
+        { key: 'entitlement', label: 'پایه سنوات استحقاقی روزانه', format: 'money' },
+    ],
+    'overtime-entitlement': [
+        { key: 'range', label: 'بازهٔ زمانی', format: 'range' },
+        { key: 'phase', label: 'نوع بازه', format: 'phase' },
+        { key: 'daysCovered', label: 'تعداد روزهای شمول', format: 'days' },
+        { key: 'totalOvertimeHours', label: 'مجموع ساعات اضافه‌کاری دوره', format: 'duration' },
+        { key: 'dailySeniority', label: 'پایه سنوات استحقاقی روزانه', format: 'money' },
+        { key: 'dailyMinimumWage', label: 'حداقل مزد روزانه', format: 'money' },
+        { key: 'amount', label: 'مبلغ این دوره', format: 'money' },
+    ],
+    'night-shift-entitlement': [
+        { key: 'range', label: 'بازهٔ زمانی', format: 'range' },
+        { key: 'phase', label: 'نوع بازه', format: 'phase' },
+        { key: 'nightWorkDays', label: 'تعداد روزهای کارکرد در شب', format: 'days' },
+        { key: 'dailyMinimumWage', label: 'حداقل مزد روزانه', format: 'money' },
+        { key: 'dailySeniority', label: 'پایه سنوات استحقاقی روزانه', format: 'money' },
+        { key: 'nightShiftRate', label: 'مبلغ یک نوبت شب‌کاری', format: 'money' },
+        { key: 'amount', label: 'مبلغ این دوره', format: 'money' },
+    ],
+    'monthly-shift-work': [
+        { key: 'range', label: 'بازهٔ زمانی', format: 'range' },
+        { key: 'phase', label: 'نوع بازه', format: 'phase' },
+        { key: 'daysCovered', label: 'تعداد روزهای شمول', format: 'days' },
+        { key: 'dailySeniority', label: 'پایه سنوات استحقاقی روزانه', format: 'money' },
+        { key: 'coefficient', label: 'ضریب نوبت', format: 'coefficient' },
+        { key: 'dailyBase', label: 'حداقل مزد روزانه', format: 'money' },
+        { key: 'amount', label: 'مبلغ این دوره', format: 'money' },
+    ],
+    'end-of-service-years': [
+        { key: 'totalMonthEquivalent', label: 'تعداد ماه‌های کارکرد', format: 'months' },
+        { key: 'finalDailyMinimumWage', label: 'حداقل مزد روز آخر', format: 'money' },
+        { key: 'finalDailySeniority', label: 'پایه سنوات استحقاقی روزانه', format: 'money' },
+        { key: 'finalDailyWage', label: 'مزد ثابت روزانه', format: 'money' },
+    ],
+    'bonus-entitlement': [
+        { key: 'range', label: 'بازهٔ زمانی', format: 'range' },
+        { key: 'phase', label: 'نوع بازه', format: 'phase' },
+        { key: 'monthsCovered', label: 'ماه‌های کارکرد دوره', format: 'months' },
+        { key: 'dailyMinimumWage', label: 'حداقل مزد روزانه', format: 'money' },
+        { key: 'dailySeniority', label: 'پایه سنوات استحقاقی روزانه', format: 'money' },
+        { key: 'minimumAmount', label: 'حداقل عیدی و پاداش', format: 'money' },
+        { key: 'maximumAmount', label: 'حداکثر عیدی و پاداش', format: 'money' },
+        { key: 'entitlementAmount', label: 'سهم نهایی دوره', format: 'money' },
+    ],
+    'official-holiday-work': [
+        { key: 'range', label: 'بازه زمانی', format: 'range' },
+        { key: 'phase', label: 'نوع بازه', format: 'phase' },
+        { key: 'daysCovered', label: 'تعداد روزهای تعطیل', format: 'days' },
+        { key: 'dailyMinimumWage', label: 'حداقل مزد روزانه', format: 'money' },
+        { key: 'seniorityBase', label: 'پایه سنوات استحقاقی دوره', format: 'money' },
+        { key: 'holidayWorkRate', label: 'مبلغ هر روز تعطیل‌کاری', format: 'money' },
+        { key: 'amount', label: 'مبلغ نهایی', format: 'money' },
+    ],
+    'friday-work': [
+        { key: 'range', label: 'بازهٔ زمانی', format: 'range' },
+        { key: 'phase', label: 'نوع بازه', format: 'phase' },
+        { key: 'fridaysInPeriod', label: 'جمعه‌های موجود در این دوره', format: 'days' },
+        { key: 'fridayWorkDays', label: 'جمعه‌کاری واردشده', format: 'days' },
+        { key: 'dailyMinimumWage', label: 'حداقل مزد روزانه', format: 'money' },
+        { key: 'dailySeniority', label: 'پایه سنوات استحقاقی روزانه', format: 'money' },
+        { key: 'fridayWorkRate', label: 'مبلغ یک روز جمعه کاری', format: 'money' },
+        { key: 'amount', label: 'مبلغ این دوره', format: 'money' },
+    ],
+    'mission-allowance': [
+        { key: 'range', label: 'بازهٔ زمانی', format: 'range' },
+        { key: 'phase', label: 'نوع بازه', format: 'phase' },
+        { key: 'daysCovered', label: 'روزهای موجود در این بخش', format: 'days' },
+        { key: 'missionDays', label: 'روزهای مأموریت در این بخش', format: 'days' },
+        { key: 'dailyMinimumWage', label: 'حداقل مزد روزانه', format: 'money' },
+        { key: 'dailySeniority', label: 'پایه سنوات استحقاقی روزانه', format: 'money' },
+        { key: 'amount', label: 'مبلغ این بخش', format: 'money' },
+    ],
+    'unused-leave-entitlement': [
+        { key: 'entitlementDays', label: 'استحقاق این بخش', format: 'days' },
+        { key: 'usedLeaveDays', label: 'مرخصی استفاده‌شده', format: 'days' },
+        { key: 'savedLeaveDays', label: 'ذخیره این بخش', format: 'days' },
+        { key: 'excessUsedDays', label: 'مازاد کسرشده از ذخیره قبل', format: 'days' },
+        { key: 'carryAfter', label: 'ذخیره تجمعی پس از این بخش', format: 'days' },
+    ],
+    'unused-leave-wage': [
+        { key: 'unusedLeaveDays', label: 'روزهای مرخصی ذخیره شده', format: 'days' },
+        { key: 'calendarDaysInLastMonth', label: 'روزهای تقویمی ماه آخر کارکرد', format: 'days' },
+        { key: 'lastPeriod', label: '', format: 'last-period' },
+        { key: 'dailyMinimumWage', label: 'حداقل مزد روزانه', format: 'money' },
+        { key: 'dailySeniority', label: 'پایه سنوات استحقاقی روزانه', format: 'money' },
+        { key: 'dailyHousingAllowance', label: 'حق مسکن روزانه', format: 'money' },
+        { key: 'dailyChildAllowance', label: 'حق عائله‌مندی روزانه', format: 'money' },
+        { key: 'dailyMonthlyAllowance', label: 'بن کارگری روزانه', format: 'money' },
+        { key: 'dailyMaritalAllowance', label: 'حق تأهل روزانه', format: 'money' },
+        { key: 'dailyWage', label: 'مزد روزانه مشمول مرخصی', format: 'money' },
+    ],
+};
+
+const PERSIAN_MONTH_NAMES = [
+    'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+    'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند',
+];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function formatBreakdownNumber(value: number) {
+    return toPersianDigits(Number.isInteger(value) ? String(value) : value.toFixed(2));
+}
+
+function formatBreakdownRange(entry: Record<string, unknown>) {
+    const startDate = entry.startDate;
+    const endDate = entry.endDate;
+    if (!isRecord(startDate) || !isRecord(endDate)) return '—';
+
+    const start = `${startDate.year}/${startDate.month}/${startDate.day}`;
+    const end = `${endDate.year}/${endDate.month}/${endDate.day}`;
+    const formattedStart = formatDate(start);
+    const formattedEnd = formatDate(end);
+    return formattedStart && formattedEnd ? `${formattedStart} تا ${formattedEnd}` : '—';
+}
+
+function formatBreakdownDetail(field: BreakdownField, entry: Record<string, unknown>, key: GroupCalculationKey) {
+    if (field.format === 'range') return formatBreakdownRange(entry);
+    if (field.format === 'last-period') {
+        return `آخرین ماه کارکرد: سال ${toPersianDigits(String(entry.year))}، دوره ${toPersianDigits(String(entry.periodIndex))}`;
+    }
+
+    const value = entry[field.key];
+    if (value == null) {
+        if (key === 'base-salary' && field.key === 'dailyMinimumWage') {
+            return `${toPersianDigits(new Intl.NumberFormat('fa-IR').format(0))} ریال`;
+        }
+        return '-';
+    }
+
+    if (field.format === 'phase') {
+        const afterAnniversary = key === 'mission-allowance' ? 'پس از سالگرد استخدام' : 'بعد از سالگرد استخدام';
+        const phaseMap: Record<string, string> = {
+            'before-anniversary': 'پیش از سالگرد استخدام',
+            'after-anniversary': afterAnniversary,
+            'settled-through-1391': 'تصفیه‌شده تا پایان ۱۳۹۱',
+            'before-anniversary-settled-through-1391': 'پیش از سالگرد و تسویه تا پایان ۱۳۹۱',
+            'after-anniversary-settled-through-1391': key === 'mission-allowance'
+                ? 'تصفیه‌شده تا پایان ۱۳۹۱'
+                : 'پس از سالگرد و تسویه تا پایان ۱۳۹۱',
+        };
+        return typeof value === 'string' ? phaseMap[value] ?? value : '—';
+    }
+
+    if (field.format === 'shift') {
+        const shiftMap: Record<string, string> = {
+            'morning-evening': 'صبح و عصر',
+            'morning-evening-night': 'صبح و عصر و شب',
+            'morning-night-or-evening-night': 'صبح و شب یا عصر و شب',
+        };
+        return typeof value === 'string' ? shiftMap[value] ?? value : '—';
+    }
+
+    if (field.format === 'calculation-type') {
+        return value === 'month-full' ? 'فرمول ۱' : value === 'partial' ? 'فرمول ۲' : '—';
+    }
+
+    if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
+    if (field.format === 'money') {
+        return `${toPersianDigits(new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 0 }).format(Math.round(value)))} ریال`;
+    }
+    if (field.format === 'coefficient') return `${toPersianDigits((value * 100).toFixed(1))}٪`;
+    if (field.format === 'days') return `${formatBreakdownNumber(value)} روز`;
+    if (field.format === 'months') return `${formatBreakdownNumber(value)} ماه`;
+    if (field.format === 'clock') {
+        const minutes = Math.round(value * 60);
+        return `${toPersianDigits(String(Math.floor(minutes / 60)))}:${toPersianDigits(String(minutes % 60).padStart(2, '0'))}`;
+    }
+    if (field.format === 'duration') {
+        const minutes = Math.round(value * 60);
+        return `${toPersianDigits(String(Math.floor(minutes / 60)))} ساعت و ${toPersianDigits(String(minutes % 60))} دقیقه`;
+    }
+    if (field.format === 'hours') return `${formatBreakdownNumber(value)} ساعت`;
+    return formatBreakdownNumber(value);
+}
+
+function getBreakdownDetailFields(
+    key: GroupCalculationKey,
+    entry: Record<string, unknown>,
+    workshopType: 'classified' | 'unclassified',
+): BreakdownField[] {
+    return BREAKDOWN_FIELDS[key].filter((field) => {
+        if (field.key === 'range') return 'startDate' in entry && 'endDate' in entry;
+        if (field.format === 'last-period') return typeof entry.year === 'number' && typeof entry.periodIndex === 'number';
+        if (!(field.key in entry)) return false;
+        if (field.key === 'excessUsedDays') return typeof entry.excessUsedDays === 'number' && entry.excessUsedDays > 0;
+        return true;
+    }).map((field) => {
+        if (field.key === 'entitlement' && key === 'entitled-seniority' && workshopType === 'classified') {
+            return { ...field, label: 'پایه سنوات استحقاقی روزانه گروه شغلی' };
+        }
+        if (field.key === 'currentBase' && key === 'entitled-seniority' && workshopType === 'classified') {
+            return { ...field, label: 'پایه سنوات جاری گروه شغلی' };
+        }
+        if (field.key === 'dailySeniority' && workshopType === 'classified') {
+            return {
+                ...field,
+                label: key === 'mission-allowance'
+                    ? 'پایه سنوات استحقاقی گروه شغلی روزانه'
+                    : 'پایه سنوات استحقاقی روزانه گروه شغلی',
+            };
+        }
+        if (field.key === 'seniorityBase' && workshopType === 'classified') {
+            return { ...field, label: 'پایه سنوات استحقاقی دوره گروه شغلی' };
+        }
+        if (field.key === 'finalDailySeniority' && workshopType === 'classified') {
+            return { ...field, label: 'پایه سنوات استحقاقی روزانه گروه شغلی' };
+        }
+        if (field.key === 'finalDailyWage') {
+            return { ...field, label: workshopType === 'classified' ? 'مزد مبنا روزانه' : 'مزد ثابت روزانه' };
+        }
+        return field;
+    });
+}
+
+function formatBreakdownTitle(
+    key: GroupCalculationKey,
+    entry: Record<string, unknown>,
+    index: number,
+    startDateValue: string,
+    endDateValue: string,
+) {
+    if (key === 'unused-leave-wage') return 'جزئیات مزد روزانه';
+    if (key === 'end-of-service-years') return 'خلاصه محاسبه';
+
+    if (key === 'unused-leave-entitlement' && typeof entry.segmentIndex === 'number') {
+        if (entry.isPartial === true) {
+            const leaveStart = parseDateInput(startDateValue);
+            const leaveEnd = parseDateInput(endDateValue);
+            if (leaveStart && leaveEnd) {
+                const totalMonths = calculateUnusedLeaveMonths(leaveStart, leaveEnd);
+                const fullYears = totalMonths === null ? 0 : Math.floor(totalMonths / 12);
+                const remainingMonths = totalMonths === null ? 0 : totalMonths - fullYears * 12;
+                return getPartialLeavePeriodLabel(leaveStart, leaveEnd, fullYears, remainingMonths);
+            }
+        }
+        const leaveStart = parseDateInput(startDateValue);
+        if (leaveStart) return getFullLeaveYearLabel(leaveStart, entry.segmentIndex);
+    }
+
+    if (typeof entry.year === 'number' && typeof entry.periodIndex === 'number') {
+        if (key === 'insurance-days-entitlement') {
+            const monthName = PERSIAN_MONTH_NAMES[entry.periodIndex - 1];
+            return `سال ${toPersianDigits(entry.year)} · ماه ${toPersianDigits(entry.periodIndex)}${monthName ? ` (${monthName})` : ''}`;
+        }
+        if (key === 'ordinary-work-hours' || key === 'hazardous-work-hours' || key === 'young-worker-work-hours' || key === 'entitled-seniority' || key === 'official-holiday-work') {
+            return `سال ${toPersianDigits(entry.year)}، دوره ${toPersianDigits(entry.periodIndex)}`;
+        }
+        if (key === 'friday-work' || key === 'mission-allowance') {
+            return `سال ${toPersianDigits(entry.year)} · دورهٔ ${toPersianDigits(entry.periodIndex)}`;
+        }
+        return `سال ${toPersianDigits(entry.year)} · دوره ${toPersianDigits(entry.periodIndex)}`;
+    }
+    if (typeof entry.year === 'number') return `سال ${toPersianDigits(entry.year)}`;
+    return `${GROUP_TOOLS.find((tool) => tool.key === key)?.title ?? key} ${toPersianDigits(index + 1)}`;
+}
+
+function compareDates(left: string, right: string) {
+    const parsedLeft = parseDateInput(left);
+    const parsedRight = parseDateInput(right);
+    if (!parsedLeft || !parsedRight) return 0;
+
+    return parsedLeft.year * 10000 + parsedLeft.month * 100 + parsedLeft.day
+        - (parsedRight.year * 10000 + parsedRight.month * 100 + parsedRight.day);
+}
+
+function getInclusiveDayCount(start: ParsedDateInput, end: ParsedDateInput) {
+    const gregorianStart = toGregorian(start.year, start.month, start.day);
+    const gregorianEnd = toGregorian(end.year, end.month, end.day);
+    const startDay = Date.UTC(gregorianStart.gy, gregorianStart.gm - 1, gregorianStart.gd);
+    const endDay = Date.UTC(gregorianEnd.gy, gregorianEnd.gm - 1, gregorianEnd.gd);
+    return Math.round((endDay - startDay) / 86400000) + 1;
+}
+
+function parseTimeToDecimalHours(value: string): number | null {
+    const match = value.match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return null;
+
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes) || hours > 8 || minutes >= 60) return null;
+
+    return hours + minutes / 60;
+}
+
+async function getPdfAssetDataUri(moduleId: number, mimeType: string, label: string): Promise<string> {
+    const [asset] = await Asset.loadAsync(moduleId);
+    if (Platform.OS === 'web') {
+        const response = await fetch(asset.localUri ?? asset.uri);
+        if (!response.ok) throw new Error(`The ${label} could not be loaded.`);
+
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        let binary = '';
+        for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+            binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+        }
+        return `data:${mimeType};base64,${btoa(binary)}`;
+    }
+
+    if (!asset.localUri) throw new Error(`The ${label} is not available in local storage.`);
+    return `data:${mimeType};base64,${await new File(asset.localUri).base64()}`;
+}
+
+async function getGroupCalculationPdfAssets(): Promise<GroupCalculationPdfAssets> {
+    const [logo, regularFont, mediumFont, semiBoldFont, boldFont] = await Promise.all([
+        getPdfAssetDataUri(require('../../../assets/images/logo-white.png'), 'image/png', 'app logo'),
+        getPdfAssetDataUri(require('../../../assets/fonts/Vazirmatn-Regular.ttf'), 'font/ttf', 'Vazirmatn regular font'),
+        getPdfAssetDataUri(require('../../../assets/fonts/Vazirmatn-Medium.ttf'), 'font/ttf', 'Vazirmatn medium font'),
+        getPdfAssetDataUri(require('../../../assets/fonts/Vazirmatn-SemiBold.ttf'), 'font/ttf', 'Vazirmatn semibold font'),
+        getPdfAssetDataUri(require('../../../assets/fonts/Vazirmatn-Bold.ttf'), 'font/ttf', 'Vazirmatn bold font'),
+    ]);
+
+    return { logo, regularFont, mediumFont, semiBoldFont, boldFont };
+}
+
+export default function GroupCalculationScreen() {
+    const theme = useTheme();
+    const insets = useSafeAreaInsets();
+    const currentJalaliDate = useMemo(() => {
+        const today = new Date();
+        return toJalaali(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    }, []);
+    const currentYear = currentJalaliDate.jy;
+    const defaultStartDate = `${currentYear}/01/01`;
+    const defaultEndDate = `${currentYear}/12/${jalaaliMonthLength(currentYear, 12)}`;
+
+    const [startDate, setStartDate] = useState(defaultStartDate);
+    const [endDate, setEndDate] = useState(defaultEndDate);
+    const [employmentDate, setEmploymentDate] = useState(`${currentYear - 1}/01/01`);
+    const defaultMissionDate = `${currentYear}/${String(currentJalaliDate.jm).padStart(2, '0')}/${String(currentJalaliDate.jd).padStart(2, '0')}`;
+    const [missionStartDate, setMissionStartDate] = useState(defaultMissionDate);
+    const [missionEndDate, setMissionEndDate] = useState(defaultMissionDate);
+    const [pickerTarget, setPickerTarget] = useState<DatePickerTarget | null>(null);
+    const [selectedKeys, setSelectedKeys] = useState<GroupCalculationKey[]>([]);
+    const [includeDaysCovered, setIncludeDaysCovered] = useState(true);
+    const [maritalStatus, setMaritalStatus] = useState<'single' | 'married'>('single');
+    const [childrenCount, setChildrenCount] = useState(0);
+    const [childrenMenuVisible, setChildrenMenuVisible] = useState(false);
+    const [workshopType, setWorkshopType] = useState<'classified' | 'unclassified'>('unclassified');
+    const [jobGroups, setJobGroups] = useState<{ id: number; group_number: number; sort_order: number }[]>([]);
+    const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
+    const [groupMenuVisible, setGroupMenuVisible] = useState(false);
+    const [settledThrough1391, setSettledThrough1391] = useState(false);
+    const [dailyOvertimeHours, setDailyOvertimeHours] = useState('01:00');
+    const [timePickerVisible, setTimePickerVisible] = useState(false);
+    const [fridayWorkDays, setFridayWorkDays] = useState<Record<string, string>>({});
+    const [missionDays, setMissionDays] = useState<Record<string, string>>({});
+    const [usedLeaveDaysBySegment, setUsedLeaveDaysBySegment] = useState<Record<number, string>>({});
+    const [initialSavedLeaveDays, setInitialSavedLeaveDays] = useState('۰');
+    const [shiftType, setShiftType] = useState<'morning-evening' | 'morning-evening-night' | 'morning-night-or-evening-night'>('morning-evening');
+    const [dailyWorkTime, setDailyWorkTime] = useState('07:20');
+    const [insuranceDailyWorkTime, setInsuranceDailyWorkTime] = useState('07:20');
+    const [periodBuckets, setPeriodBuckets] = useState<SalaryPeriodBucket[]>([]);
+    const [holidayDates, setHolidayDates] = useState<string[]>([]);
+    const [availableYears, setAvailableYears] = useState<number[]>([]);
+    const [results, setResults] = useState<GroupCalculationResult[] | null>(null);
+    const [expandedResults, setExpandedResults] = useState<Record<string, boolean>>({});
+    const [loading, setLoading] = useState(true);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [conflictSnackbarVisible, setConflictSnackbarVisible] = useState(false);
+    const [isExportingPdf, setIsExportingPdf] = useState(false);
+    const [pdfSnackbarMessage, setPdfSnackbarMessage] = useState('');
+    const [pdfSnackbarVisible, setPdfSnackbarVisible] = useState(false);
+    const [includePdfDetails, setIncludePdfDetails] = useState(false);
+    const [employeeName, setEmployeeName] = useState('');
+    const [employeeNationalCode, setEmployeeNationalCode] = useState('');
+    const [employeePersonnelNumber, setEmployeePersonnelNumber] = useState('');
+    const [employeeJobTitle, setEmployeeJobTitle] = useState('');
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadData = async () => {
+            try {
+                await seedFromJsonAsset();
+                const [years, groups] = await Promise.all([fetchYears(), fetchJobGroups()]);
+                const buckets = await Promise.all(years.map(async (year) => {
+                    const periods = await fetchPeriodsByYearId(year.id);
+                    return {
+                        year: year.year,
+                        periods: await Promise.all(periods.map(async (period) => ({
+                            period_index: period.period_index,
+                            month_count: period.month_count,
+                            daily_minimum_wage: period.daily_minimum_wage,
+                            percent_increase: period.percent_increase,
+                            seniority_base: period.seniority_base,
+                            seniority_base_by_group: Object.fromEntries(
+                                (await fetchSeniorityBaseByGroup(period.id)).map((row) => [
+                                    groups.find((group) => group.id === row.job_group_id)?.group_number ?? row.job_group_id,
+                                    Number(row.base_value),
+                                ]),
+                            ),
+                            monthly_single_allowance: period.monthly_single_allowance,
+                            monthly_married_allowance: period.monthly_married_allowance,
+                            monthly_housing_single: period.monthly_housing_single,
+                            monthly_housing_married: period.monthly_housing_married,
+                            child_allowance: period.child_allowance,
+                            min_monthly_bonus: period.min_monthly_bonus,
+                            max_monthly_bonus: period.max_monthly_bonus,
+                            marital_allowance: period.marital_allowance,
+                        }))),
+                    };
+                }));
+                const firstYear = years[0]?.year ?? currentYear;
+                const lastYear = years.at(-1)?.year ?? currentYear;
+                const holidays = await fetchOfficialHolidaysBetweenDates(
+                    `${firstYear}/01/01`,
+                    `${lastYear}/12/${jalaaliMonthLength(lastYear, 12)}`,
+                );
+
+                if (isMounted) {
+                    setPeriodBuckets(buckets);
+                    setHolidayDates(holidays.map((holiday) => holiday.holiday_date));
+                    setAvailableYears(years.map((year) => year.year));
+                    setJobGroups(groups);
+                    setSelectedGroup(groups[0]?.group_number ?? null);
+                }
+            } catch {
+                if (isMounted) setErrorMessage('بارگذاری اطلاعات محاسبات انجام نشد.');
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        void loadData();
+        return () => { isMounted = false; };
+    }, [currentYear]);
+
+    const hasFamilyAllowance = selectedKeys.includes('family-allowance');
+    const allCompatibleCalculationsSelected = GROUP_CALCULATION_KEYS.every((key) => (
+        selectedKeys.includes(key)
+        || (key === 'night-shift-entitlement' && selectedKeys.includes('monthly-shift-work'))
+        || (key === 'monthly-shift-work' && selectedKeys.includes('night-shift-entitlement'))
+    ));
+    const hasMaritalAllowance = selectedKeys.includes('housing-allowance')
+        || selectedKeys.includes('monthly-allowance')
+        || selectedKeys.includes('unused-leave-wage');
+    const hasChildrenCount = hasFamilyAllowance || selectedKeys.includes('unused-leave-wage');
+    const childrenOptions = hasFamilyAllowance
+        ? CHILDREN_OPTIONS.filter((count) => count > 0)
+        : CHILDREN_OPTIONS;
+    const hasDaysCoverageOption = selectedKeys.some((key) => DAYS_COVERAGE_KEYS.includes(key));
+    const hasInsuranceDays = selectedKeys.includes('insurance-days-entitlement');
+    const hasPayrollDailyWorkTime = selectedKeys.some((key) => PAYROLL_DAILY_WORK_KEYS.includes(key));
+    const hasEmploymentBasedCalculation = selectedKeys.some((key) => [
+        'entitled-seniority',
+        'overtime-entitlement',
+        'night-shift-entitlement',
+        'monthly-shift-work',
+        'end-of-service-years',
+        'bonus-entitlement',
+        'official-holiday-work',
+        'friday-work',
+        'mission-allowance',
+        'unused-leave-wage',
+    ].includes(key));
+    const hasRangeBasedEmploymentCalculation = selectedKeys.some((key) => [
+        'entitled-seniority',
+        'overtime-entitlement',
+        'night-shift-entitlement',
+        'monthly-shift-work',
+        'end-of-service-years',
+        'bonus-entitlement',
+        'official-holiday-work',
+        'friday-work',
+        'unused-leave-wage',
+    ].includes(key));
+    const employmentMustPrecedeRangeStart = selectedKeys.some((key) => [
+        'overtime-entitlement',
+        'night-shift-entitlement',
+        'monthly-shift-work',
+        'bonus-entitlement',
+        'official-holiday-work',
+        'friday-work',
+    ].includes(key));
+    const hasShiftWork = selectedKeys.includes('monthly-shift-work');
+    const hasOvertime = selectedKeys.includes('overtime-entitlement');
+    const hasFridayWork = selectedKeys.includes('friday-work');
+    const hasMissionAllowance = selectedKeys.includes('mission-allowance');
+    const hasSharedDateRange = selectedKeys.some((key) => key !== 'mission-allowance');
+    const parsedRangeStart = parseDateInput(startDate);
+    const parsedRangeEnd = parseDateInput(endDate);
+    const parsedMissionStart = parseDateInput(missionStartDate);
+    const parsedMissionEnd = parseDateInput(missionEndDate);
+    const fridayPeriods = hasFridayWork && parsedRangeStart && parsedRangeEnd
+        ? calculateAvailableFridaysByPeriod(parsedRangeStart, parsedRangeEnd, periodBuckets)
+        : [];
+    const missionPeriods = hasMissionAllowance && parsedMissionStart && parsedMissionEnd
+        ? getMissionAllowancePeriodRanges(parsedMissionStart, parsedMissionEnd, periodBuckets)
+        : [];
+    const missionDaysTotal = missionPeriods.reduce((total, period) => (
+        total + (Number(normalizeDigits(missionDays[`${period.year}:${period.periodIndex}`] ?? '۰')) || 0)
+    ), 0);
+    const leaveMonthsWorked = parsedRangeStart && parsedRangeEnd
+        ? calculateUnusedLeaveMonths(parsedRangeStart, parsedRangeEnd)
+        : null;
+    const leaveFullYears = leaveMonthsWorked !== null && leaveMonthsWorked > 12
+        ? Math.floor(leaveMonthsWorked / 12)
+        : 0;
+    const leaveRemainingMonths = leaveMonthsWorked !== null && leaveMonthsWorked > 12
+        ? leaveMonthsWorked % 12
+        : leaveMonthsWorked ?? 0;
+    const leaveSegmentCount = leaveFullYears + (leaveRemainingMonths > 0 ? 1 : 0);
+    const hasLeaveCalculation = selectedKeys.includes('unused-leave-entitlement')
+        || selectedKeys.includes('unused-leave-wage');
+
+    const changeInitialSavedLeaveDays = (delta: number) => {
+        setInitialSavedLeaveDays((current) => addLeaveDays(current, delta));
+    };
+
+    const changeUsedLeaveDays = (segmentIndex: number, delta: number) => {
+        setUsedLeaveDaysBySegment((current) => ({
+            ...current,
+            [segmentIndex]: addLeaveDays(current[segmentIndex] ?? '۰', delta),
+        }));
+    };
+
+    const toggleCalculation = (key: GroupCalculationKey) => {
+        if (key === 'family-allowance' && !selectedKeys.includes(key) && childrenCount === 0) {
+            setChildrenCount(1);
+        }
+
+        const isSelecting = !selectedKeys.includes(key);
+        const conflictsWithNightShift = key === 'monthly-shift-work' && selectedKeys.includes('night-shift-entitlement');
+        const conflictsWithShiftWork = key === 'night-shift-entitlement' && selectedKeys.includes('monthly-shift-work');
+
+        if (isSelecting && (conflictsWithNightShift || conflictsWithShiftWork)) {
+            setErrorMessage('');
+            setConflictSnackbarVisible(true);
+            setResults(null);
+            return;
+        }
+
+        setSelectedKeys((current) => current.includes(key)
+            ? current.filter((item) => item !== key)
+            : [...current, key]);
+        setResults(null);
+        setErrorMessage('');
+    };
+
+    const toggleAllCalculations = () => {
+        if (allCompatibleCalculationsSelected) {
+            setSelectedKeys([]);
+            setResults(null);
+            setErrorMessage('');
+            return;
+        }
+
+        const selectedNightShift = selectedKeys.includes('night-shift-entitlement');
+        const excludedKey = selectedNightShift ? 'monthly-shift-work' : 'night-shift-entitlement';
+        setChildrenCount((current) => Math.max(1, current));
+        setSelectedKeys(GROUP_CALCULATION_KEYS.filter((key) => key !== excludedKey));
+        setResults(null);
+        setErrorMessage('');
+        setConflictSnackbarVisible(true);
+    };
+
+    const selectDate = (value: string) => {
+        if (pickerTarget === 'employment') {
+            if (hasRangeBasedEmploymentCalculation && compareDates(value, endDate) > 0) {
+                setErrorMessage('تاریخ استخدام باید برابر یا قبل از تاریخ پایان باشد.');
+                setPickerTarget(null);
+                return;
+            }
+            if (employmentMustPrecedeRangeStart && compareDates(value, startDate) > 0) {
+                setErrorMessage('تاریخ استخدام باید برابر یا قبل از شروع بازه باشد.');
+                setPickerTarget(null);
+                return;
+            }
+            if (hasMissionAllowance && compareDates(value, missionStartDate) > 0) {
+                setErrorMessage('تاریخ استخدام نمی‌تواند بعد از شروع مأموریت باشد.');
+                setPickerTarget(null);
+                return;
+            }
+            setEmploymentDate(value);
+            if (Number(normalizeDigits(value.split('/')[0] ?? '0')) > 1391) setSettledThrough1391(false);
+        } else if (pickerTarget === 'start') {
+            setStartDate(value);
+            if (compareDates(value, endDate) > 0) setEndDate(value);
+        } else if (pickerTarget === 'end') {
+            if (compareDates(value, startDate) < 0) {
+                setErrorMessage('تاریخ پایان باید برابر یا پس از تاریخ شروع باشد.');
+                setPickerTarget(null);
+                return;
+            }
+            setEndDate(value);
+        } else if (pickerTarget === 'mission-start') {
+            if (compareDates(value, employmentDate) < 0) {
+                setErrorMessage('شروع مأموریت نمی‌تواند پیش از تاریخ استخدام باشد.');
+                setPickerTarget(null);
+                return;
+            }
+            if (compareDates(value, missionEndDate) > 0) {
+                setErrorMessage('شروع مأموریت نمی‌تواند بعد از پایان آن باشد.');
+                setPickerTarget(null);
+                return;
+            }
+            setMissionStartDate(value);
+            setMissionDays({});
+        } else if (pickerTarget === 'mission-end') {
+            if (compareDates(value, missionStartDate) < 0) {
+                setErrorMessage('پایان مأموریت نمی‌تواند پیش از شروع آن باشد.');
+                setPickerTarget(null);
+                return;
+            }
+            setMissionEndDate(value);
+            setMissionDays({});
+        }
+        setPickerTarget(null);
+        setResults(null);
+        setErrorMessage('');
+    };
+
+    const handleCalculate = () => {
+        const start = parseDateInput(startDate);
+        const end = parseDateInput(endDate);
+        const employment = parseDateInput(employmentDate);
+        const missionStart = parseDateInput(missionStartDate);
+        const missionEnd = parseDateInput(missionEndDate);
+        const normalizedChildrenCount = childrenCount;
+        const normalizedOvertimeHours = parseTimeToDecimalHours(dailyOvertimeHours);
+        const insuranceDailyHours = parseTimeToDecimalHours(insuranceDailyWorkTime);
+
+        if (selectedKeys.includes('night-shift-entitlement') && selectedKeys.includes('monthly-shift-work')) {
+            setErrorMessage('');
+            setConflictSnackbarVisible(true);
+            setResults(null);
+            return;
+        }
+
+        if (selectedKeys.length === 0) {
+            setErrorMessage('حداقل یک محاسبه را انتخاب کنید.');
+            setResults(null);
+            return;
+        }
+        if (!start || !end || compareDates(startDate, endDate) > 0) {
+            setErrorMessage('بازهٔ زمانی واردشده معتبر نیست.');
+            setResults(null);
+            return;
+        }
+        if (
+            hasChildrenCount
+            && (!Number.isInteger(normalizedChildrenCount)
+                || normalizedChildrenCount < (hasFamilyAllowance ? 1 : 0)
+                || normalizedChildrenCount > 12)
+        ) {
+            setErrorMessage(`تعداد فرزند باید بین ${hasFamilyAllowance ? '۱' : '۰'} تا ۱۲ باشد.`);
+            setResults(null);
+            return;
+        }
+        if (hasRangeBasedEmploymentCalculation && (!employment || compareDates(employmentDate, endDate) > 0)) {
+            setErrorMessage('تاریخ استخدام باید معتبر و برابر یا قبل از تاریخ پایان باشد.');
+            setResults(null);
+            return;
+        }
+        if (employmentMustPrecedeRangeStart && compareDates(employmentDate, startDate) > 0) {
+            setErrorMessage('تاریخ استخدام باید برابر یا قبل از شروع بازه باشد.');
+            setResults(null);
+            return;
+        }
+        if (hasMissionAllowance && (
+            !missionStart
+            || !missionEnd
+            || compareDates(missionStartDate, missionEndDate) > 0
+            || compareDates(employmentDate, missionStartDate) > 0
+        )) {
+            setErrorMessage('بازهٔ مأموریت یا تاریخ استخدام معتبر نیست.');
+            setResults(null);
+            return;
+        }
+        if (hasEmploymentBasedCalculation && workshopType === 'classified' && selectedGroup == null) {
+            setErrorMessage('برای کارگاه طبقه‌بندی‌شده گروه شغلی را انتخاب کنید.');
+            setResults(null);
+            return;
+        }
+        if (hasOvertime && (normalizedOvertimeHours === null || normalizedOvertimeHours <= 0)) {
+            setErrorMessage('ساعات اضافه‌کاری روزانه باید بیشتر از صفر باشد.');
+            setResults(null);
+            return;
+        }
+        if (hasOvertime && normalizedOvertimeHours !== null && normalizedOvertimeHours > 8) {
+            setErrorMessage('تعداد ساعات اضافه‌کاری نمی‌تواند بیشتر از ۸ ساعت باشد.');
+            setResults(null);
+            return;
+        }
+        if (hasInsuranceDays && (
+            insuranceDailyHours === null
+            || insuranceDailyHours < 1 / 60
+            || insuranceDailyHours > 8
+        )) {
+            setErrorMessage('ساعات کاری روزانه بیمه باید بین ۰۰:۰۱ تا ۰۸:۰۰ باشد.');
+            setResults(null);
+            return;
+        }
+        const normalizedUsedLeaveDays = Array.from({ length: leaveSegmentCount }, (_, index) =>
+            Number(normalizeDigits(usedLeaveDaysBySegment[index] ?? '۰')),
+        );
+        const normalizedInitialSavedLeaveDays = Number(normalizeDigits(initialSavedLeaveDays));
+        if (hasLeaveCalculation && (
+            leaveMonthsWorked === null
+            || normalizedUsedLeaveDays.some((days) => !Number.isFinite(days) || days < 0)
+            || !Number.isFinite(normalizedInitialSavedLeaveDays)
+            || normalizedInitialSavedLeaveDays < 0
+        )) {
+            setErrorMessage('روزهای مرخصی مصرف‌شده و ذخیرهٔ انتقالی باید صفر یا بیشتر باشند.');
+            setResults(null);
+            return;
+        }
+        const fridayWorkDaysByPeriod = Object.fromEntries(fridayPeriods.map((period) => {
+            const key = `${period.year}:${period.periodIndex}`;
+            return [key, Number(normalizeDigits(fridayWorkDays[key] ?? toPersianDigits(period.availableFridays)))];
+        }));
+        if (hasFridayWork && (fridayPeriods.length === 0 || fridayPeriods.some((period) => {
+            const value = fridayWorkDaysByPeriod[`${period.year}:${period.periodIndex}`];
+            return !Number.isInteger(value) || value < 0 || value > period.availableFridays;
+        }))) {
+            setErrorMessage('تعداد جمعه‌کاری هر دوره باید بین صفر و جمعه‌های قابل‌دسترس همان دوره باشد.');
+            setResults(null);
+            return;
+        }
+        const missionDaysByPeriod = Object.fromEntries(missionPeriods.map((period) => {
+            const key = `${period.year}:${period.periodIndex}`;
+            return [key, Number(normalizeDigits(missionDays[key] ?? '۰'))];
+        }));
+        const missionPeriodDays = missionPeriods.reduce((total, period) => total + period.availableDays, 0);
+        if (hasMissionAllowance && (
+            missionPeriods.length === 0
+            || !employment
+            || !missionStart
+            || !missionEnd
+            || missionPeriodDays !== getInclusiveDayCount(missionStart, missionEnd)
+            || missionPeriods.some((period) => {
+                const value = missionDaysByPeriod[`${period.year}:${period.periodIndex}`];
+                return !Number.isInteger(value) || value < 0 || value > period.availableDays;
+            })
+            || !Object.values(missionDaysByPeriod).some((days) => days > 0)
+        )) {
+            setErrorMessage('برای هر دوره تعداد روز مأموریت را در بازهٔ مجاز وارد کنید.');
+            setResults(null);
+            return;
+        }
+
+        setResults(calculateGroupItems(selectedKeys, {
+            startDate: start,
+            endDate: end,
+            missionStartDate: missionStart ?? start,
+            missionEndDate: missionEnd ?? end,
+            periodBuckets,
+            officialHolidayDates: holidayDates,
+            maritalStatus,
+            childrenCount: normalizedChildrenCount || 0,
+            dailyWorkMinutes: getDailyWorkMinutes(dailyWorkTime),
+            dailyWorkHours: insuranceDailyHours ?? 0,
+            includeDaysCovered,
+            employmentStartDate: employment ?? start,
+            workshopType,
+            jobGroupNumber: selectedGroup ?? undefined,
+            settledThrough1391,
+            dailyOvertimeHours: normalizedOvertimeHours || 0,
+            shiftType,
+            fridayWorkDaysByPeriod,
+            missionDaysByPeriod,
+            usedLeaveDaysBySegment: normalizedUsedLeaveDays,
+            initialSavedLeaveDays: normalizedInitialSavedLeaveDays || 0,
+        }));
+        setErrorMessage('');
+    };
+
+    const handleExportPdf = async () => {
+        if (!results) return;
+
+        const pdfSections: GroupCalculationPdfSection[] = results.map((result) => {
+            const detailBreakdown = result.key === 'end-of-service-years' && result.breakdown.length > 0
+                ? (() => {
+                    const lastPeriod = result.breakdown.at(-1);
+                    if (!isRecord(lastPeriod)) return result.breakdown;
+                    const dailyMinimumWage = typeof lastPeriod.dailyMinimumWage === 'number'
+                        ? lastPeriod.dailyMinimumWage
+                        : 0;
+                    const dailySeniority = typeof lastPeriod.dailySeniority === 'number'
+                        ? lastPeriod.dailySeniority
+                        : 0;
+                    return [{
+                        totalMonthEquivalent: result.breakdown.reduce<number>(
+                            (total, item) => total + (isRecord(item) && typeof item.monthEquivalent === 'number' ? item.monthEquivalent : 0),
+                            0,
+                        ),
+                        finalDailyMinimumWage: dailyMinimumWage,
+                        finalDailySeniority: dailySeniority,
+                        finalDailyWage: dailyMinimumWage + dailySeniority,
+                    }];
+                })()
+                : result.breakdown;
+            const formattedValue = result.unit === 'ریال'
+                ? toPersianDigits(new Intl.NumberFormat('fa-IR').format(Math.round(result.value)))
+                : toPersianDigits(Number.isInteger(result.value) ? String(result.value) : result.value.toFixed(2));
+            const summaryLabel = result.key === 'monthly-shift-work'
+                ? `${RESULT_SUMMARY_LABELS[result.key]} (${SHIFT_TYPE_OPTIONS.find((option) => option.value === shiftType)?.label ?? 'صبح و عصر'})`
+                : result.key === 'entitled-seniority' && workshopType === 'classified'
+                    ? 'پایه سنوات استحقاقی روزانه گروه شغلی'
+                    : RESULT_SUMMARY_LABELS[result.key];
+            const detailsTitle = result.key === 'unused-leave-wage'
+                || result.key === 'unused-leave-entitlement'
+                || result.key === 'end-of-service-years'
+                || result.key === 'official-holidays-in-range'
+                ? 'جزئیات محاسبه'
+                : result.key === 'entitled-seniority'
+                    ? 'جزئیات بازه‌های محاسبه'
+                    : 'جزئیات دوره‌ها';
+            const details: GroupCalculationPdfDetail[] = [];
+
+            if (includePdfDetails && !result.error && result.key === 'unused-leave-entitlement') {
+                details.push({
+                    title: 'خلاصه محاسبه',
+                    rows: [
+                        {
+                            label: 'کل استحقاق',
+                            value: `${formatBreakdownNumber(result.breakdown.reduce<number>(
+                                (total, item) => total + (isRecord(item) && typeof item.entitlementDays === 'number' ? item.entitlementDays : 0),
+                                0,
+                            ))} روز`,
+                        },
+                        {
+                            label: 'کل مرخصی استفاده‌شده',
+                            value: `${formatBreakdownNumber(result.breakdown.reduce<number>(
+                                (total, item) => total + (isRecord(item) && typeof item.usedLeaveDays === 'number' ? item.usedLeaveDays : 0),
+                                0,
+                            ))} روز`,
+                        },
+                        { label: 'ذخیره نهایی', value: `${formatBreakdownNumber(result.value)} روز` },
+                    ],
+                });
+            }
+
+            if (includePdfDetails && !result.error) {
+                detailBreakdown.forEach((entry, index) => {
+                    const detailRecord = isRecord(entry) ? entry : null;
+                    const title = detailRecord
+                        ? formatBreakdownTitle(result.key, detailRecord, index, startDate, endDate)
+                        : `${result.title} ${toPersianDigits(index + 1)}`;
+                    const fields = detailRecord
+                        ? getBreakdownDetailFields(result.key, detailRecord, workshopType)
+                        : [];
+
+                    details.push({
+                        title,
+                        rows: detailRecord
+                            ? fields.map((field) => ({
+                                label: field.label,
+                                value: formatBreakdownDetail(field, detailRecord, result.key),
+                            }))
+                            : [],
+                    });
+                });
+            }
+
+            return {
+                title: result.title,
+                summaryLabel,
+                amount: `${formattedValue} ${result.unit}`,
+                error: result.error,
+                detailsTitle,
+                details,
+            };
+        });
+        const today = new Date();
+        const jalaliToday = toJalaali(today.getFullYear(), today.getMonth() + 1, today.getDate());
+        const employeeMetadata = [
+            { label: 'نام و نام خانوادگی', value: employeeName.trim() },
+            { label: 'کد ملی', value: employeeNationalCode.trim() },
+            { label: 'شمارهٔ پرسنلی', value: employeePersonnelNumber.trim() },
+            { label: 'عنوان شغلی', value: employeeJobTitle.trim() },
+        ].filter((item) => item.value.length > 0);
+        const metadata = [
+            { label: 'تاریخ تهیه', value: formatDate(`${jalaliToday.jy}/${jalaliToday.jm}/${jalaliToday.jd}`) },
+            ...employeeMetadata,
+            ...(hasSharedDateRange ? [{ label: 'بازهٔ محاسبه', value: `${formatDate(startDate)} تا ${formatDate(endDate)}` }] : []),
+            ...(hasMissionAllowance ? [{ label: 'بازهٔ مأموریت', value: `${formatDate(missionStartDate)} تا ${formatDate(missionEndDate)}` }] : []),
+            ...(hasEmploymentBasedCalculation ? [{ label: 'تاریخ استخدام', value: formatDate(employmentDate) }] : []),
+            ...(hasEmploymentBasedCalculation
+                ? [{ label: 'نوع کارگاه', value: getWorkshopTypeLabel(workshopType) }]
+                : []),
+            ...(hasEmploymentBasedCalculation && workshopType === 'classified' && selectedGroup !== null
+                ? [{ label: 'گروه شغلی', value: toPersianDigits(selectedGroup) }]
+                : []),
+        ];
+
+        setIsExportingPdf(true);
+        setPdfSnackbarVisible(false);
+        try {
+            const pdfAssets = await getGroupCalculationPdfAssets();
+            const html = buildGroupCalculationPdfHtml(pdfSections, metadata, includePdfDetails, pdfAssets);
+            const file = await Print.printToFileAsync({ html, base64: Platform.OS === 'android' });
+            if (Platform.OS !== 'web') {
+                if (await Sharing.isAvailableAsync()) {
+                    const sharedPdf = new File(Paths.cache, 'پهناور کار - فیش حقوقی.pdf');
+                    if (Platform.OS === 'android') {
+                        if (!file.base64) {
+                            throw new Error('The generated PDF did not include its file data.');
+                        }
+                        sharedPdf.create({ overwrite: true });
+                        sharedPdf.write(file.base64, { encoding: EncodingType.Base64 });
+                    } else {
+                        await new File(file.uri).copy(sharedPdf, { overwrite: true });
+                    }
+                    await Sharing.shareAsync(sharedPdf.uri, {
+                        mimeType: 'application/pdf',
+                        UTI: '.pdf',
+                        dialogTitle: 'اشتراک فیش محاسبات',
+                    });
+                } else {
+                    await Print.printAsync({ html });
+                }
+            }
+        } catch (error) {
+            console.error('Unable to export group calculation PDF:', error);
+            const reason = error instanceof Error && error.message ? ` (${error.message})` : '';
+            setPdfSnackbarMessage(`ساخت یا اشتراک PDF انجام نشد${reason}`);
+            setPdfSnackbarVisible(true);
+        } finally {
+            setIsExportingPdf(false);
+        }
+    };
+
+    return (
+        <ThemedView style={styles.container}>
+            <ScrollView
+                contentContainerStyle={[
+                    styles.content,
+                    { paddingTop: insets.top + Spacing.three, paddingBottom: insets.bottom + Spacing.four },
+                ]}
+                showsVerticalScrollIndicator={false}
+            >
+                <View style={styles.intro}>
+                    <View style={styles.introHeader}>
+                        <ThemedText type="bodyBold">انتخاب محاسبه‌ها</ThemedText>
+                        <Button
+                            mode="outlined"
+                            compact
+                            icon={allCompatibleCalculationsSelected ? 'checkbox-multiple-blank-outline' : 'checkbox-multiple-marked-outline'}
+                            onPress={toggleAllCalculations}
+                            labelStyle={styles.selectAllLabel}
+                        >
+                            {allCompatibleCalculationsSelected ? 'پاک‌کردن همه' : 'انتخاب همه'}
+                        </Button>
+                    </View>
+                    <ThemedText type="small" themeColor="textSecondary">
+                        {hasMissionAllowance && hasSharedDateRange
+                            ? 'بازهٔ مشترک برای سایر محاسبات است؛ بازهٔ فوق‌العاده مأموریت جداگانه تعیین می‌شود.'
+                            : hasMissionAllowance
+                                ? 'بازهٔ مأموریت را در بخش اختصاصی فوق‌العاده مأموریت وارد کنید.'
+                                : 'موارد موردنیاز را انتخاب کنید و بازهٔ مشترک را یک‌بار وارد کنید.'}
+                    </ThemedText>
+                </View>
+
+                <Card style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                    <Card.Content style={styles.selectionList}>
+                        {GROUP_TOOLS.map((tool, index) => {
+                            const key = tool.key as GroupCalculationKey;
+                            const checked = selectedKeys.includes(key);
+                            return (
+                                <View key={key}>
+                                    <ToolListItem
+                                        tool={tool}
+                                        onPress={() => toggleCalculation(key)}
+                                        accessibilityRole="checkbox"
+                                        accessibilityState={{ checked }}
+                                        detailContent={(
+                                            <ThemedText
+                                                type="small"
+                                                themeColor="textSecondary"
+                                                style={{ fontSize: 13, lineHeight: 19 }}
+                                            >
+                                                {tool.detail}
+                                            </ThemedText>
+                                        )}
+                                        trailingContent={(
+                                            <View
+                                                style={[
+                                                    styles.selectionCheckbox,
+                                                    {
+                                                        backgroundColor: checked ? theme.primary : theme.surface,
+                                                        borderColor: checked ? theme.primary : theme.borderStrong,
+                                                    },
+                                                ]}
+                                            >
+                                                {checked ? (
+                                                    <MaterialCommunityIcons name="check-bold" size={15} color="#FFFFFF" />
+                                                ) : null}
+                                            </View>
+                                        )}
+                                    />
+                                    {index < GROUP_TOOLS.length - 1 ? (
+                                        <View style={[styles.selectionSeparator, { backgroundColor: theme.border }]} />
+                                    ) : null}
+                                </View>
+                            );
+                        })}
+                    </Card.Content>
+                </Card>
+
+                <Card style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                    <Card.Content style={styles.form}>
+                        <View style={[styles.employeeInfoSection, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                            <View style={styles.inputSectionHeader}>
+                                <ThemedText type="smallBold" style={{ color: theme.text }}>مشخصات کارمند / کارگر</ThemedText>
+                                <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                    این اطلاعات اختیاری است و در صورت تکمیل، در فیش PDF درج می‌شود.
+                                </ThemedText>
+                            </View>
+                            <TextInput
+                                mode="outlined"
+                                dense
+                                label="نام و نام خانوادگی"
+                                value={employeeName}
+                                onChangeText={setEmployeeName}
+                                textColor={theme.text}
+                                outlineColor={theme.border}
+                                activeOutlineColor={theme.primary}
+                                style={styles.employeeTextInput}
+                                contentStyle={styles.employeeTextInputContent}
+                                autoCorrect={false}
+                                autoCapitalize="words"
+                            />
+                            <TextInput
+                                mode="outlined"
+                                dense
+                                label="کد ملی"
+                                value={employeeNationalCode}
+                                onChangeText={setEmployeeNationalCode}
+                                textColor={theme.text}
+                                outlineColor={theme.border}
+                                activeOutlineColor={theme.primary}
+                                style={styles.employeeTextInput}
+                                contentStyle={styles.employeeTextInputContent}
+                                keyboardType="number-pad"
+                                maxLength={10}
+                            />
+                            <TextInput
+                                mode="outlined"
+                                dense
+                                label="شمارهٔ پرسنلی"
+                                value={employeePersonnelNumber}
+                                onChangeText={setEmployeePersonnelNumber}
+                                textColor={theme.text}
+                                outlineColor={theme.border}
+                                activeOutlineColor={theme.primary}
+                                style={styles.employeeTextInput}
+                                contentStyle={styles.employeeTextInputContent}
+                                autoCorrect={false}
+                                autoCapitalize="characters"
+                            />
+                            <TextInput
+                                mode="outlined"
+                                dense
+                                label="عنوان شغلی"
+                                value={employeeJobTitle}
+                                onChangeText={setEmployeeJobTitle}
+                                textColor={theme.text}
+                                outlineColor={theme.border}
+                                activeOutlineColor={theme.primary}
+                                style={styles.employeeTextInput}
+                                contentStyle={styles.employeeTextInputContent}
+                                autoCorrect={false}
+                                autoCapitalize="words"
+                            />
+                        </View>
+
+                        {hasSharedDateRange ? (
+                            <View style={[styles.inputSection, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                <View style={styles.inputSectionHeader}>
+                                    <ThemedText type="smallBold" style={{ color: theme.text }}>بازهٔ مشترک محاسبات</ThemedText>
+                                    {hasMissionAllowance ? (
+                                        <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                            این بازه برای محاسبات دیگر است؛ مأموریت بازهٔ جداگانه دارد.
+                                        </ThemedText>
+                                    ) : null}
+                                </View>
+                                <View style={styles.dateRow}>
+                                    <DateInputField label="از تاریخ" value={startDate} onPress={() => setPickerTarget('start')} formatValue={formatDate} />
+                                    <DateInputField label="تا تاریخ" value={endDate} onPress={() => setPickerTarget('end')} formatValue={formatDate} />
+                                </View>
+                            </View>
+                        ) : null}
+
+                        {hasEmploymentBasedCalculation ? (
+                            <View style={[styles.specificCalculationSection, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                <View style={styles.inputSectionHeader}>
+                                    <ThemedText type="smallBold" style={{ color: theme.text }}>سابقه و پایه سنوات</ThemedText>
+                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                        برای {getSelectedCalculationTitles([
+                                            'entitled-seniority',
+                                            'overtime-entitlement',
+                                            'night-shift-entitlement',
+                                            'monthly-shift-work',
+                                            'end-of-service-years',
+                                            'bonus-entitlement',
+                                            'official-holiday-work',
+                                            'friday-work',
+                                            'mission-allowance',
+                                            'unused-leave-wage',
+                                        ])}.
+                                    </ThemedText>
+                                </View>
+                                <DateInputField
+                                    label="تاریخ استخدام"
+                                    value={employmentDate}
+                                    onPress={() => setPickerTarget('employment')}
+                                    formatValue={formatDate}
+                                    iconName="calendar-account-outline"
+                                    helperText="جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات"
+                                />
+                                <WorkshopTypeSelector value={workshopType} onValueChange={setWorkshopType} />
+                                {workshopType === 'classified' ? (
+                                    <View style={styles.formField}>
+                                        <ThemedText type="small" themeColor="textSecondary">گروه شغلی</ThemedText>
+                                        <Menu
+                                            visible={groupMenuVisible}
+                                            onDismiss={() => setGroupMenuVisible(false)}
+                                            anchor={(
+                                                <Pressable
+                                                    onPress={() => setGroupMenuVisible(true)}
+                                                    style={[styles.groupPicker, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                                                >
+                                                    <ThemedText type="smallBold">
+                                                        {selectedGroup == null ? 'انتخاب گروه شغلی' : `گروه ${toPersianDigits(selectedGroup)}`}
+                                                    </ThemedText>
+                                                    <MaterialCommunityIcons name="chevron-down" size={18} color={theme.primary} />
+                                                </Pressable>
+                                            )}
+                                        >
+                                            {jobGroups.map((group) => (
+                                                <Menu.Item
+                                                    key={group.id}
+                                                    title={`گروه ${toPersianDigits(group.group_number)}`}
+                                                    onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }}
+                                                />
+                                            ))}
+                                        </Menu>
+                                    </View>
+                                ) : null}
+                                <SettlementThrough1391Field
+                                    checked={settledThrough1391}
+                                    enabled={(parseDateInput(employmentDate)?.year ?? 0) <= 1391}
+                                    onChange={setSettledThrough1391}
+                                />
+                            </View>
+                        ) : null}
+
+                        {hasMaritalAllowance ? (
+                            <View style={[styles.specificCalculationSection, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                <View style={styles.inputSectionHeader}>
+                                    <ThemedText type="smallBold" style={{ color: theme.text }}>وضعیت تأهل</ThemedText>
+                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                        مبنای محاسبهٔ {getSelectedCalculationTitles(['housing-allowance', 'monthly-allowance', 'unused-leave-wage'])}.
+                                    </ThemedText>
+                                </View>
+                                <View style={styles.maritalOptionsRow}>
+                                    {MARITAL_OPTIONS.map((option) => {
+                                        const selected = maritalStatus === option.value;
+                                        return (
+                                            <Pressable
+                                                key={option.value}
+                                                onPress={() => setMaritalStatus(option.value)}
+                                                style={[
+                                                    styles.maritalOption,
+                                                    {
+                                                        backgroundColor: selected ? theme.primary : theme.surface,
+                                                        borderColor: selected ? theme.primary : theme.border,
+                                                    },
+                                                ]}
+                                                accessibilityRole="radio"
+                                                accessibilityState={{ selected }}
+                                                accessibilityLabel={option.label}
+                                            >
+                                                <ThemedText type="smallBold" style={{ color: selected ? theme.surface : theme.text }}>
+                                                    {option.label}
+                                                </ThemedText>
+                                            </Pressable>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+                        ) : null}
+
+                        {hasChildrenCount ? (
+                            <View style={[styles.specificCalculationSection, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                <View style={styles.inputSectionHeader}>
+                                    <ThemedText type="smallBold" style={{ color: theme.text }}>
+                                        تعداد فرزندان واجد شرایط
+                                    </ThemedText>
+                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                        برای {getSelectedCalculationTitles(['family-allowance', 'unused-leave-wage'])}.
+                                    </ThemedText>
+                                </View>
+                                <Menu
+                                    visible={childrenMenuVisible}
+                                    onDismiss={() => setChildrenMenuVisible(false)}
+                                    anchor={(
+                                        <Pressable onPress={() => setChildrenMenuVisible(true)}>
+                                            <View style={[styles.valuePicker, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                <ThemedText type="small" style={[styles.valuePickerText, { color: theme.text }]}>
+                                                    {`${toPersianDigits(childrenCount)} فرزند`}
+                                                </ThemedText>
+                                                <MaterialCommunityIcons name="account-group-outline" size={18} color={theme.primary} />
+                                            </View>
+                                        </Pressable>
+                                    )}
+                                    contentStyle={{ borderRadius: 16, backgroundColor: theme.surface }}
+                                >
+                                    {childrenOptions.map((count) => (
+                                        <Menu.Item
+                                            key={count}
+                                            onPress={() => {
+                                                setChildrenCount(count);
+                                                setChildrenMenuVisible(false);
+                                            }}
+                                            title={`${toPersianDigits(count)} فرزند`}
+                                            titleStyle={{ fontFamily: 'Vazirmatn-Regular', color: theme.text }}
+                                        />
+                                    ))}
+                                </Menu>
+                            </View>
+                        ) : null}
+
+                        {hasDaysCoverageOption ? (
+                            <View style={[styles.specificCalculationSection, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                <View style={styles.inputSectionHeader}>
+                                    <ThemedText type="smallBold" style={{ color: theme.text }}>
+                                        محاسبهٔ روزهای شمول
+                                    </ThemedText>
+                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                        برای {getSelectedCalculationTitles(DAYS_COVERAGE_KEYS)}.
+                                    </ThemedText>
+                                </View>
+                                <View style={[styles.daysCoverageBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                <View style={styles.daysCoverageCheckRow}>
+                                    <Checkbox
+                                        status={includeDaysCovered ? 'checked' : 'unchecked'}
+                                        onPress={() => setIncludeDaysCovered((value) => !value)}
+                                        color={theme.primary}
+                                    />
+                                    <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 10, lineHeight: 16 }}>
+                                        محاسبه تعداد روزهای شمول
+                                    </ThemedText>
+                                </View>
+                                <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' }}>
+                                    با فعال بودن این گزینه، روزهای جزئی شمول هم در محاسبه لحاظ می‌شوند. اگر غیرفعال باشد، فقط ماه‌های کامل حساب می‌شوند.
+                                </ThemedText>
+                                </View>
+                            </View>
+                        ) : null}
+
+                        {hasLeaveCalculation ? (
+                            <View style={[styles.specificCalculationSection, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                <View style={styles.inputSectionHeader}>
+                                    <ThemedText type="smallBold" style={{ color: theme.text }}>مرخصی ذخیره‌شده و مزد مرخصی</ThemedText>
+                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                        این ورودی‌ها برای {getSelectedCalculationTitles(['unused-leave-entitlement', 'unused-leave-wage'])} هستند.
+                                    </ThemedText>
+                                </View>
+                                <View style={[styles.leaveInitialBox, { backgroundColor: theme.surfaceVariant }]}>
+                                    <ThemedText type="small" style={[styles.fieldGroupLabel, { color: theme.textSecondary }]}>
+                                        ذخیره مرخصی از سال‌های قبل
+                                    </ThemedText>
+                                    <View style={[styles.dayCountStepper, { backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}>
+                                        <Pressable
+                                            onPress={() => changeInitialSavedLeaveDays(-1)}
+                                            disabled={(Number(normalizeDigits(initialSavedLeaveDays)) || 0) <= 0}
+                                            style={({ pressed }) => [styles.stepperButton, { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant }, (Number(normalizeDigits(initialSavedLeaveDays)) || 0) <= 0 && styles.stepperButtonDisabled]}
+                                            accessibilityRole="button"
+                                            accessibilityLabel="کاهش ذخیره مرخصی سال‌های قبل"
+                                        >
+                                            <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
+                                        </Pressable>
+                                        <NumericInputField
+                                            mode="decimal"
+                                            value={initialSavedLeaveDays}
+                                            onChangeText={setInitialSavedLeaveDays}
+                                            placeholder="۰"
+                                            placeholderTextColor={theme.textMuted}
+                                            style={[styles.stepperInput, { color: theme.text, direction: 'ltr' }]}
+                                            textAlign="center"
+                                            accessibilityLabel="ذخیره مرخصی از سال‌های قبل"
+                                        />
+                                        <Pressable
+                                            onPress={() => changeInitialSavedLeaveDays(1)}
+                                            style={({ pressed }) => [styles.stepperButton, { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant }]}
+                                            accessibilityRole="button"
+                                            accessibilityLabel="افزایش ذخیره مرخصی سال‌های قبل"
+                                        >
+                                            <MaterialCommunityIcons name="plus" size={20} color={theme.primary} />
+                                        </Pressable>
+                                    </View>
+                                </View>
+
+                                {leaveSegmentCount > 0 ? (
+                                    <View style={[styles.leaveSegmentsBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                        <ThemedText type="smallBold" style={[styles.fieldGroupLabel, { color: theme.text }]}>
+                                            مرخصی استفاده‌شده در هر بخش
+                                        </ThemedText>
+                                        {Array.from({ length: leaveSegmentCount }, (_, index) => {
+                                            const isPartial = index >= leaveFullYears;
+                                            const segmentLabel = isPartial && parsedRangeStart && parsedRangeEnd
+                                                ? getPartialLeavePeriodLabel(parsedRangeStart, parsedRangeEnd, leaveFullYears, leaveRemainingMonths)
+                                                : parsedRangeStart
+                                                    ? getFullLeaveYearLabel(parsedRangeStart, index + 1)
+                                                    : `سال کامل ${toPersianDigits(index + 1)}`;
+                                            const displayedValue = usedLeaveDaysBySegment[index] ?? '۰';
+                                            const normalizedValue = Number(normalizeDigits(displayedValue)) || 0;
+
+                                            return (
+                                                <View key={index} style={styles.leaveSegmentRow}>
+                                                    <ThemedText type="small" style={styles.leaveSegmentLabel}>{segmentLabel}</ThemedText>
+                                                    <View style={[styles.dayCountStepper, { backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}>
+                                                        <Pressable
+                                                            onPress={() => changeUsedLeaveDays(index, -1)}
+                                                            disabled={normalizedValue <= 0}
+                                                            style={({ pressed }) => [styles.stepperButton, { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant }, normalizedValue <= 0 && styles.stepperButtonDisabled]}
+                                                            accessibilityRole="button"
+                                                            accessibilityLabel="کاهش مرخصی استفاده‌شده"
+                                                        >
+                                                            <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
+                                                        </Pressable>
+                                                        <NumericInputField
+                                                            mode="decimal"
+                                                            value={displayedValue}
+                                                            onChangeText={(value) => setUsedLeaveDaysBySegment((current) => ({ ...current, [index]: value }))}
+                                                            placeholder="۰"
+                                                            placeholderTextColor={theme.textMuted}
+                                                            style={[styles.stepperInput, { color: theme.text, direction: 'ltr' }]}
+                                                            textAlign="center"
+                                                            accessibilityLabel={`مرخصی استفاده‌شده در بخش ${index + 1}`}
+                                                        />
+                                                        <Pressable
+                                                            onPress={() => changeUsedLeaveDays(index, 1)}
+                                                            style={({ pressed }) => [styles.stepperButton, { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant }]}
+                                                            accessibilityRole="button"
+                                                            accessibilityLabel="افزایش مرخصی استفاده‌شده"
+                                                        >
+                                                            <MaterialCommunityIcons name="plus" size={20} color={theme.primary} />
+                                                        </Pressable>
+                                                    </View>
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
+                                ) : null}
+                            </View>
+                        ) : null}
+
+                        {hasOvertime ? (
+                            <View style={[styles.specificCalculationSection, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                <View style={styles.inputSectionHeader}>
+                                    <ThemedText type="smallBold" style={{ color: theme.text }}>اضافه‌کاری استحقاقی</ThemedText>
+                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                        ساعت اضافه‌کاری روزانهٔ کارگر را وارد کنید.
+                                    </ThemedText>
+                                </View>
+                                <Pressable onPress={() => setTimePickerVisible(true)}>
+                                    <View style={[styles.valuePicker, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                        <ThemedText type="small" style={[styles.valuePickerText, { color: theme.text }]}>
+                                            {dailyOvertimeHours.replace(/\d/g, (digit) => persianDigits[Number(digit)])}
+                                        </ThemedText>
+                                        <MaterialCommunityIcons name="clock-outline" size={18} color={theme.primary} />
+                                    </View>
+                                </Pressable>
+                            </View>
+                        ) : null}
+
+                        {hasShiftWork ? (
+                            <View style={[styles.specificCalculationSection, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                <View style={styles.inputSectionHeader}>
+                                    <ThemedText type="smallBold" style={{ color: theme.text }}>نوبت‌کاری ماهانه</ThemedText>
+                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                        نوع نوبت کاری کارگر را انتخاب کنید.
+                                    </ThemedText>
+                                </View>
+                                <View style={[styles.shiftTypeField, { backgroundColor: theme.surfaceVariant }]}>
+                                    <ThemedText type="small" style={[styles.fieldGroupLabel, { color: theme.textSecondary }]}>
+                                        نوع نوبت کاری
+                                    </ThemedText>
+                                    <View style={styles.shiftOptionsGroup}>
+                                        {SHIFT_TYPE_OPTIONS.map((option) => {
+                                            const isSelected = option.value === shiftType;
+                                            return (
+                                                <Pressable
+                                                    key={option.value}
+                                                    onPress={() => setShiftType(option.value)}
+                                                    style={[
+                                                        styles.shiftOption,
+                                                        {
+                                                            backgroundColor: isSelected ? theme.primary : theme.surface,
+                                                            borderColor: isSelected ? theme.primary : theme.border,
+                                                        },
+                                                    ]}
+                                                    accessibilityRole="radio"
+                                                    accessibilityState={{ selected: isSelected }}
+                                                    accessibilityLabel={`${option.label} ${option.percentage}`}
+                                                >
+                                                    <ThemedText type="smallBold" style={{ color: isSelected ? theme.surface : theme.text }}>
+                                                        {option.label}
+                                                    </ThemedText>
+                                                    <ThemedText type="small" style={{ color: isSelected ? theme.surface : theme.textSecondary }}>
+                                                        {option.percentage}
+                                                    </ThemedText>
+                                                </Pressable>
+                                            );
+                                        })}
+                                    </View>
+                                </View>
+                            </View>
+                        ) : null}
+
+                        {hasFridayWork ? (
+                            <View style={[styles.specificCalculationSection, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                <View style={styles.inputSectionHeader}>
+                                    <ThemedText type="smallBold" style={{ color: theme.text }}>جمعه‌کاری</ThemedText>
+                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                        تعداد روزهای جمعه‌کاری را در هر دوره وارد کنید.
+                                    </ThemedText>
+                                </View>
+                                {fridayPeriods.map((period) => {
+                                    const key = `${period.year}:${period.periodIndex}`;
+                                    const displayedValue = fridayWorkDays[key] ?? toPersianDigits(period.availableFridays);
+                                    const normalizedValue = Number(normalizeDigits(displayedValue)) || 0;
+                                    return (
+                                        <View key={key} style={[styles.periodInputCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                            <View style={styles.periodInputHeader}>
+                                                <ThemedText type="smallBold" style={{ color: theme.text }}>
+                                                    سال {toPersianDigits(period.year)}، دورهٔ {toPersianDigits(period.periodIndex)}
+                                                </ThemedText>
+                                                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                                                    جمعه‌های موجود: {toPersianDigits(period.availableFridays)}
+                                                </ThemedText>
+                                            </View>
+                                            <View style={[styles.dayCountStepper, { backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}>
+                                                <Pressable
+                                                    onPress={() => setFridayWorkDays((current) => ({ ...current, [key]: clampDayCount(normalizedValue - 1, period.availableFridays) }))}
+                                                    disabled={normalizedValue <= 0}
+                                                    style={({ pressed }) => [styles.stepperButton, { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant }, normalizedValue <= 0 && styles.stepperButtonDisabled]}
+                                                    accessibilityRole="button"
+                                                    accessibilityLabel={`کاهش جمعه‌کاری سال ${period.year} دوره ${period.periodIndex}`}
+                                                >
+                                                    <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
+                                                </Pressable>
+                                                <NumericInputField
+                                                    value={displayedValue}
+                                                    onChangeText={(value) => setFridayWorkDays((current) => ({ ...current, [key]: value }))}
+                                                    onBlur={() => setFridayWorkDays((current) => ({ ...current, [key]: clampDayCount(current[key] ?? toPersianDigits(period.availableFridays), period.availableFridays) }))}
+                                                    mode="integer"
+                                                    placeholder={toPersianDigits(period.availableFridays)}
+                                                    placeholderTextColor={theme.textMuted}
+                                                    style={[styles.stepperInput, { color: theme.text }]}
+                                                    textAlign="center"
+                                                    accessibilityLabel={`تعداد جمعه‌کاری کارگر در سال ${period.year} دوره ${period.periodIndex}`}
+                                                />
+                                                <Pressable
+                                                    onPress={() => setFridayWorkDays((current) => ({ ...current, [key]: clampDayCount(normalizedValue + 1, period.availableFridays) }))}
+                                                    disabled={normalizedValue >= period.availableFridays}
+                                                    style={({ pressed }) => [styles.stepperButton, { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant }, normalizedValue >= period.availableFridays && styles.stepperButtonDisabled]}
+                                                    accessibilityRole="button"
+                                                    accessibilityLabel={`افزایش جمعه‌کاری سال ${period.year} دوره ${period.periodIndex}`}
+                                                >
+                                                    <MaterialCommunityIcons name="plus" size={20} color={theme.primary} />
+                                                </Pressable>
+                                            </View>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        ) : null}
+
+                        {hasMissionAllowance ? (
+                            <View style={[styles.specificCalculationSection, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                <View style={styles.inputSectionHeader}>
+                                    <ThemedText type="smallBold" style={{ color: theme.text }}>فوق‌العاده مأموریت</ThemedText>
+                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                        بازه و تعداد روزهای این بخش فقط برای محاسبهٔ مأموریت استفاده می‌شود.
+                                    </ThemedText>
+                                </View>
+                                <View style={styles.dateRow}>
+                                    <DateInputField
+                                        label="از تاریخ"
+                                        value={missionStartDate}
+                                        onPress={() => setPickerTarget('mission-start')}
+                                        formatValue={formatDate}
+                                        iconName="calendar-start"
+                                    />
+                                    <DateInputField
+                                        label="تا تاریخ"
+                                        value={missionEndDate}
+                                        onPress={() => setPickerTarget('mission-end')}
+                                        formatValue={formatDate}
+                                        iconName="calendar-end"
+                                    />
+                                </View>
+                                <ThemedText type="small" style={[styles.fieldGroupLabel, { color: theme.textSecondary }]}>
+                                    تعداد روزهای مأموریت در هر دورهٔ مزد
+                                </ThemedText>
+                                {missionPeriods.map((period) => {
+                                    const key = `${period.year}:${period.periodIndex}`;
+                                    const displayedValue = missionDays[key] ?? '۰';
+                                    const normalizedValue = Number(normalizeDigits(displayedValue)) || 0;
+                                    return (
+                                        <View key={key} style={[styles.periodInputCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                            <View style={styles.periodInputHeader}>
+                                                <ThemedText type="smallBold" style={{ color: theme.text }}>
+                                                    سال {toPersianDigits(period.year)} · دورهٔ {toPersianDigits(period.periodIndex)}
+                                                </ThemedText>
+                                                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                                                    {formatDate(`${period.startDate.year}/${period.startDate.month}/${period.startDate.day}`)} تا {formatDate(`${period.endDate.year}/${period.endDate.month}/${period.endDate.day}`)} · حداکثر {toPersianDigits(period.availableDays)} روز
+                                                </ThemedText>
+                                            </View>
+                                            <View style={[styles.dayCountStepper, { backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}>
+                                                <Pressable
+                                                    onPress={() => setMissionDays((current) => ({ ...current, [key]: clampDayCount(normalizedValue - 1, period.availableDays) }))}
+                                                    disabled={normalizedValue <= 0}
+                                                    style={({ pressed }) => [styles.stepperButton, { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant }, normalizedValue <= 0 && styles.stepperButtonDisabled]}
+                                                    accessibilityRole="button"
+                                                    accessibilityLabel={`کاهش روزهای مأموریت سال ${period.year} دوره ${period.periodIndex}`}
+                                                >
+                                                    <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
+                                                </Pressable>
+                                                <NumericInputField
+                                                    value={displayedValue}
+                                                    onChangeText={(value) => setMissionDays((current) => ({ ...current, [key]: value }))}
+                                                    onBlur={() => setMissionDays((current) => ({ ...current, [key]: clampDayCount(current[key] ?? '۰', period.availableDays) }))}
+                                                    mode="integer"
+                                                    placeholder="۰"
+                                                    placeholderTextColor={theme.textMuted}
+                                                    style={[styles.stepperInput, { color: theme.text }]}
+                                                    textAlign="center"
+                                                    accessibilityLabel={`تعداد روزهای مأموریت سال ${period.year} دوره ${period.periodIndex}`}
+                                                />
+                                                <Pressable
+                                                    onPress={() => setMissionDays((current) => ({ ...current, [key]: clampDayCount(normalizedValue + 1, period.availableDays) }))}
+                                                    disabled={normalizedValue >= period.availableDays}
+                                                    style={({ pressed }) => [styles.stepperButton, { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant }, normalizedValue >= period.availableDays && styles.stepperButtonDisabled]}
+                                                    accessibilityRole="button"
+                                                    accessibilityLabel={`افزایش روزهای مأموریت سال ${period.year} دوره ${period.periodIndex}`}
+                                                >
+                                                    <MaterialCommunityIcons name="plus" size={20} color={theme.primary} />
+                                                </Pressable>
+                                            </View>
+                                        </View>
+                                    );
+                                })}
+                                <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                    مجموع روزهای ثبت‌شده: {toPersianDigits(missionDaysTotal)} روز
+                                </ThemedText>
+                                <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                    اگر سالگرد استخدام داخل یک دوره باشد، روزهای مأموریت آن دوره به نسبت طول بخش‌های قبل و بعد از سالگرد تقسیم می‌شود.
+                                </ThemedText>
+                            </View>
+                        ) : null}
+
+                        {hasPayrollDailyWorkTime ? (
+                            <View style={[styles.specificCalculationSection, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                <View style={styles.inputSectionHeader}>
+                                    <ThemedText type="smallBold" style={{ color: theme.text }}>ساعات کار روزانهٔ محاسبات مزدی</ThemedText>
+                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                        برای {getSelectedCalculationTitles(PAYROLL_DAILY_WORK_KEYS)}.
+                                    </ThemedText>
+                                </View>
+                                <DailyWorkTimeField
+                                    value={dailyWorkTime}
+                                    onChange={setDailyWorkTime}
+                                />
+                            </View>
+                        ) : null}
+                        {hasInsuranceDays ? (
+                            <View style={[styles.specificCalculationSection, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                <View style={styles.inputSectionHeader}>
+                                    <ThemedText type="smallBold" style={{ color: theme.text }}>روزهای بیمهٔ استحقاقی</ThemedText>
+                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                        ساعات کاری روزانه فقط در محاسبهٔ تعداد روزهای بیمه استفاده می‌شود.
+                                    </ThemedText>
+                                </View>
+                                <DailyWorkTimeField
+                                    value={insuranceDailyWorkTime}
+                                    onChange={setInsuranceDailyWorkTime}
+                                    maxHours={8}
+                                    maxMinutesAtMaxHour={0}
+                                    label="ساعات کاری روزانه"
+                                    pickerTitle="انتخاب ساعات کاری روزانه"
+                                    showFullTimeHint={false}
+                                />
+                            </View>
+                        ) : null}
+
+                        {errorMessage ? <ThemedText type="small" style={{ color: theme.error }}>{errorMessage}</ThemedText> : null}
+                        <Button
+                            mode="contained"
+                            icon="calculator-variant"
+                            onPress={handleCalculate}
+                            loading={loading}
+                            disabled={loading || periodBuckets.length === 0}
+                            buttonColor={theme.primary}
+                            textColor={theme.surface}
+                        >
+                            محاسبهٔ انتخاب‌شده‌ها
+                        </Button>
+                    </Card.Content>
+                </Card>
+
+                {results ? (
+                    <View style={styles.results}>
+                        <ThemedText type="smallBold">نتایج</ThemedText>
+                        <View>
+                            <Button
+                                mode="contained"
+                                icon="file-pdf-box"
+                                onPress={handleExportPdf}
+                                loading={isExportingPdf}
+                                disabled={isExportingPdf}
+                                buttonColor={theme.primary}
+                                textColor={theme.surface}
+                            >
+                                {Platform.OS === 'web' ? 'چاپ / ذخیره به‌صورت PDF' : 'دریافت فیش PDF'}
+                            </Button>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' }}>
+                                <Checkbox
+                                    status={includePdfDetails ? 'checked' : 'unchecked'}
+                                    onPress={() => setIncludePdfDetails((value) => !value)}
+                                    disabled={isExportingPdf}
+                                    color={theme.primary}
+                                />
+                                <Pressable
+                                    onPress={() => setIncludePdfDetails((value) => !value)}
+                                    disabled={isExportingPdf}
+                                    accessibilityRole="checkbox"
+                                    accessibilityState={{ checked: includePdfDetails }}
+                                >
+                                    <ThemedText type="small">
+                                        افزودن جزئیات محاسبه به فیش PDF
+                                    </ThemedText>
+                                </Pressable>
+                            </View>
+                            {Platform.OS === 'web' ? (
+                                <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                    در پنجرهٔ چاپ مرورگر، گزینهٔ «ذخیره به‌صورت PDF» را انتخاب کنید.
+                                </ThemedText>
+                            ) : null}
+                        </View>
+                        {results.map((result) => {
+                            const isExpanded = !!expandedResults[result.key];
+                            const detailBreakdown = result.key === 'end-of-service-years' && result.breakdown.length > 0
+                                ? (() => {
+                                    const lastPeriod = result.breakdown.at(-1);
+                                    if (!isRecord(lastPeriod)) return result.breakdown;
+                                    const dailyMinimumWage = typeof lastPeriod.dailyMinimumWage === 'number'
+                                        ? lastPeriod.dailyMinimumWage
+                                        : 0;
+                                    const dailySeniority = typeof lastPeriod.dailySeniority === 'number'
+                                        ? lastPeriod.dailySeniority
+                                        : 0;
+                                    return [{
+                                        totalMonthEquivalent: result.breakdown.reduce<number>(
+                                            (total, item) => total + (isRecord(item) && typeof item.monthEquivalent === 'number' ? item.monthEquivalent : 0),
+                                            0,
+                                        ),
+                                        finalDailyMinimumWage: dailyMinimumWage,
+                                        finalDailySeniority: dailySeniority,
+                                        finalDailyWage: dailyMinimumWage + dailySeniority,
+                                    }];
+                                })()
+                                : result.breakdown;
+                            const formattedValue = result.unit === 'ریال'
+                                ? toPersianDigits(new Intl.NumberFormat('fa-IR').format(Math.round(result.value)))
+                                : toPersianDigits(Number.isInteger(result.value) ? String(result.value) : result.value.toFixed(2));
+                            const amountText = result.error ?? `${formattedValue} ${result.unit}`;
+                            const summaryLabelText = result.key === 'monthly-shift-work'
+                                ? `${RESULT_SUMMARY_LABELS[result.key]} (${SHIFT_TYPE_OPTIONS.find((option) => option.value === shiftType)?.label ?? 'صبح و عصر'})`
+                                : result.key === 'entitled-seniority' && workshopType === 'classified'
+                                    ? 'پایه سنوات استحقاقی روزانه گروه شغلی'
+                                    : RESULT_SUMMARY_LABELS[result.key];
+                            const toolInfo = GROUP_TOOLS.find((tool) => tool.key === result.key);
+                            return (
+                                <Card key={result.key} style={[styles.resultCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                    <Card.Content style={styles.resultContent}>
+                                        <View style={styles.resultHeading}>
+                                            <View style={styles.resultTitleRow}>
+                                                <View style={[styles.resultBadge, { backgroundColor: toolInfo?.accent ?? theme.primary }]}>
+                                                    <MaterialCommunityIcons name={toolInfo?.icon ?? 'calculator-variant'} size={16} color="#FFFFFF" />
+                                                </View>
+                                                <ThemedText type="smallBold" style={styles.resultTitle}>{result.title}</ThemedText>
+                                            </View>
+                                        </View>
+
+                                        <View style={styles.summaryBoxHeader}>
+                                            <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
+                                                    {summaryLabelText}
+                                                </ThemedText>
+                                                <ThemedText type="largeTitle" style={[styles.amountValue, { color: result.error ? theme.error : theme.primary }]}>
+                                                    {amountText}
+                                                </ThemedText>
+                                            </View>
+                                        </View>
+
+                                        <View style={styles.resultHeaderActions}>
+                                            <View style={{ flex: 1 }} />
+                                            <Pressable
+                                                onPress={() => setExpandedResults((current) => ({ ...current, [result.key]: !isExpanded }))}
+                                                style={[styles.toggleButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                                            >
+                                                <ThemedText type="smallBold" style={[styles.toggleButtonLabel, { color: theme.primary }]}>
+                                                    {isExpanded ? 'عدم نمایش' : 'نمایش جزئیات'}
+                                                </ThemedText>
+                                                <MaterialCommunityIcons
+                                                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                                                    size={18}
+                                                    color={theme.primary}
+                                                />
+                                            </Pressable>
+                                        </View>
+
+                                        {isExpanded ? (
+                                            <View style={styles.breakdownSection}>
+                                                <View style={styles.breakdownSectionHeader}>
+                                                    <ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.text }]} >
+                                                        {result.key === 'unused-leave-wage'
+                                                            || result.key === 'unused-leave-entitlement'
+                                                            || result.key === 'end-of-service-years'
+                                                            || result.key === 'official-holidays-in-range'
+                                                            ? 'جزئیات محاسبه'
+                                                            : result.key === 'entitled-seniority'
+                                                                ? 'جزئیات بازه‌های محاسبه'
+                                                                : 'جزئیات دوره‌ها'}
+                                                    </ThemedText>
+                                                </View>
+
+                                                {(!result.error && (detailBreakdown.length > 0 || result.key === 'unused-leave-entitlement')) ? (
+                                                    <View style={styles.breakdownGrid}>
+                                                        {result.key === 'unused-leave-entitlement' ? (
+                                                            <View style={[styles.breakdownItemCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                                <View style={styles.breakdownItemHeaderRow}>
+                                                                    <ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>
+                                                                        خلاصه محاسبه
+                                                                    </ThemedText>
+                                                                </View>
+                                                                <View style={styles.breakdownDetailGrid}>
+                                                                    <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                                                        <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>کل استحقاق</ThemedText>
+                                                                        <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
+                                                                            {formatBreakdownNumber(result.breakdown.reduce<number>((total, item) => total + (isRecord(item) && typeof item.entitlementDays === 'number' ? item.entitlementDays : 0), 0))} روز
+                                                                        </ThemedText>
+                                                                    </View>
+                                                                    <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                                                        <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>کل مرخصی استفاده‌شده</ThemedText>
+                                                                        <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
+                                                                            {formatBreakdownNumber(result.breakdown.reduce<number>((total, item) => total + (isRecord(item) && typeof item.usedLeaveDays === 'number' ? item.usedLeaveDays : 0), 0))} روز
+                                                                        </ThemedText>
+                                                                    </View>
+                                                                    <View style={[styles.breakdownDetailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
+                                                                        <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>ذخیره نهایی</ThemedText>
+                                                                        <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>
+                                                                            {formatBreakdownNumber(result.value)} روز
+                                                                        </ThemedText>
+                                                                    </View>
+                                                                </View>
+                                                            </View>
+                                                        ) : null}
+                                                        {detailBreakdown.map((entry, index) => {
+                                                            const detailRecord = isRecord(entry) ? entry : null;
+                                                            const title = detailRecord
+                                                                ? formatBreakdownTitle(result.key, detailRecord, index, startDate, endDate)
+                                                                : `${result.title} ${toPersianDigits(index + 1)}`;
+                                                            const detailFields = detailRecord
+                                                                ? getBreakdownDetailFields(result.key, detailRecord, workshopType)
+                                                                : [];
+
+                                                            return (
+                                                                <View key={`${result.key}-detail-${index}`} style={[styles.breakdownItemCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                                    <View style={styles.breakdownItemHeaderRow}>
+                                                                        <ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>
+                                                                            {title}
+                                                                        </ThemedText>
+                                                                    </View>
+                                                                    <View style={styles.breakdownDetailGrid}>
+                                                                        {detailFields.map((field) => {
+                                                                            if (field.format === 'last-period' && detailRecord) {
+                                                                                return (
+                                                                                    <ThemedText key={`${result.key}-${field.key}-${index}`} type="small" style={{ color: theme.textSecondary }}>
+                                                                                        {formatBreakdownDetail(field, detailRecord, result.key)}
+                                                                                    </ThemedText>
+                                                                                );
+                                                                            }
+                                                                            const isEmphasized = field.format === 'range'
+                                                                                || ['amount', 'dailyWage', 'entitlement', 'entitlementAmount', 'daysCalculated', 'savedLeaveDays', 'carryAfter', 'requiredHours', 'workingDays', 'unusedLeaveDays', 'finalDailyWage', 'fridayWorkRate'].includes(field.key);
+                                                                            const isWarning = field.key === 'excessUsedDays';
+                                                                            return (
+                                                                                <View key={`${result.key}-${field.key}-${index}`} style={[styles.breakdownDetailBox, { backgroundColor: isEmphasized ? theme.primaryContainer : theme.surfaceVariant, borderColor: isEmphasized ? theme.primary : theme.border }]}>
+                                                                                    <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                                                                                        {field.label}
+                                                                                    </ThemedText>
+                                                                                    <ThemedText type="smallBold" style={[styles.detailValue, { color: isWarning ? theme.error : isEmphasized ? theme.primary : theme.text }]}>
+                                                                                        {detailRecord ? formatBreakdownDetail(field, detailRecord, result.key) : '-'}
+                                                                                    </ThemedText>
+                                                                                </View>
+                                                                            );
+                                                                        })}
+                                                                    </View>
+                                                                </View>
+                                                            );
+                                                        })}
+                                                    </View>
+                                                ) : (
+                                                    <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                                                        {result.error ?? 'جزئیاتی برای این محاسبه ثبت نشده است.'}
+                                                    </ThemedText>
+                                                )}
+                                            </View>
+                                        ) : null}
+                                    </Card.Content>
+                                </Card>
+                            );
+                        })}
+                    </View>
+                ) : null}
+            </ScrollView>
+
+            <PersianDatePickerModal
+                visible={pickerTarget !== null}
+                value={
+                    pickerTarget === 'employment' ? employmentDate
+                        : pickerTarget === 'mission-start' ? missionStartDate
+                            : pickerTarget === 'mission-end' ? missionEndDate
+                                : pickerTarget === 'start' ? startDate : endDate
+                }
+                title={
+                    pickerTarget === 'employment' ? 'انتخاب تاریخ استخدام'
+                        : pickerTarget === 'mission-start' ? 'انتخاب شروع مأموریت'
+                            : pickerTarget === 'mission-end' ? 'انتخاب پایان مأموریت'
+                                : pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'
+                }
+                onClose={() => setPickerTarget(null)}
+                onSelect={selectDate}
+                availableYears={availableYears}
+            />
+            <PersianTimePickerModal
+                visible={timePickerVisible}
+                value={dailyOvertimeHours}
+                title="انتخاب زمان اضافه کاری"
+                onClose={() => setTimePickerVisible(false)}
+                onSelect={(value) => {
+                    setDailyOvertimeHours(value);
+                    setTimePickerVisible(false);
+                }}
+                maxHours={8}
+                maxMinutesAtMaxHour={0}
+            />
+            <Snackbar
+                visible={conflictSnackbarVisible}
+                onDismiss={() => setConflictSnackbarVisible(false)}
+                duration={4000}
+                style={{ backgroundColor: theme.error }}
+                action={{
+                    label: 'بستن',
+                    onPress: () => setConflictSnackbarVisible(false),
+                    labelStyle: { color: theme.surface },
+                }}
+            >
+                <ThemedText type="small" style={{ color: theme.surface }}>
+                    {NIGHT_SHIFT_CONFLICT_MESSAGE}
+                </ThemedText>
+            </Snackbar>
+            <Snackbar
+                visible={pdfSnackbarVisible}
+                onDismiss={() => setPdfSnackbarVisible(false)}
+                duration={6000}
+                style={{ backgroundColor: theme.error }}
+                action={{
+                    label: 'بستن',
+                    onPress: () => setPdfSnackbarVisible(false),
+                    labelStyle: { color: theme.surface },
+                }}
+            >
+                <ThemedText type="small" style={{ color: theme.surface }}>
+                    {pdfSnackbarMessage}
+                </ThemedText>
+            </Snackbar>
+        </ThemedView>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: { flex: 1 },
+    content: { flexGrow: 1, paddingHorizontal: Spacing.three, gap: Spacing.three },
+    intro: { gap: Spacing.one },
+    introHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
+    selectAllLabel: { fontFamily: 'Vazirmatn-Medium', fontSize: 12 },
+    card: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+    selectionList: { paddingVertical: 0, paddingHorizontal: 0 },
+    selectionSeparator: { height: StyleSheet.hairlineWidth, marginStart: Spacing.three + 50 + Spacing.two },
+    selectionCheckbox: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderRadius: 6 },
+    form: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
+    inputSection: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
+    employeeInfoSection: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
+    employeeTextInput: { backgroundColor: 'transparent' },
+    employeeTextInputContent: { textAlign: 'right', fontFamily: 'Vazirmatn-Regular' },
+    specificCalculationSection: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
+    inputSectionHeader: { gap: Spacing.one },
+    dateRow: { flexDirection: 'row', alignItems: 'stretch', gap: Spacing.two },
+    formField: { gap: Spacing.two },
+    maritalOptionsRow: { flexDirection: 'row', gap: Spacing.two },
+    maritalOption: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.one, paddingVertical: Spacing.two, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
+    fieldGroup: { gap: Spacing.one, padding: Spacing.two, borderRadius: 12 },
+    fieldGroupLabel: { fontSize: 11, lineHeight: 18 },
+    valuePicker: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 8, borderWidth: 1 },
+    valuePickerText: { flex: 1, fontSize: 13, fontFamily: 'Vazirmatn-Regular' },
+    daysCoverageBox: { gap: Spacing.one, borderRadius: 12, borderWidth: 1, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two },
+    daysCoverageCheckRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+    periodInputCard: { gap: Spacing.one, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
+    periodInputHeader: { gap: Spacing.half },
+    fieldHint: { fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
+    dayCountStepper: { minHeight: 50, flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.one, gap: Spacing.one },
+    leaveInitialBox: { gap: Spacing.one, borderRadius: 14, padding: Spacing.two },
+    leaveSegmentsBox: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
+    leaveSegmentRow: { flexDirection: 'column', alignItems: 'stretch', gap: Spacing.two },
+    leaveSegmentLabel: { flex: 1, fontSize: 12, lineHeight: 19 },
+    stepperButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
+    stepperButtonDisabled: { opacity: 0.4 },
+    stepperInput: { flex: 1, minHeight: 42, paddingVertical: 0, fontFamily: 'Vazirmatn-Bold', fontSize: 14 },
+    shiftTypeField: { gap: Spacing.one, padding: Spacing.two, borderRadius: 12 },
+    shiftOptionsGroup: { flexDirection: 'column', gap: Spacing.one },
+    shiftOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 12, borderWidth: 1 },
+    numberInput: { minHeight: 44, borderRadius: 8, paddingHorizontal: Spacing.two, fontFamily: 'Vazirmatn-Medium', textAlign: 'right' },
+    periodInputRow: { gap: Spacing.one },
+    groupPicker: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
+    results: { gap: Spacing.two },
+    resultCard: { borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
+    resultContent: { gap: Spacing.two, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
+    resultHeading: { alignItems: 'stretch', justifyContent: 'space-between', gap: Spacing.one },
+    resultTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: Spacing.one, flex: 1, minWidth: 0 },
+    resultBadge: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+    resultTitle: { textAlign: 'right', flexShrink: 1 },
+    resultHeaderActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
+    resultToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
+    resultToggleLabel: { fontSize: 12 },
+    summaryBoxHeader: { alignItems: 'center', marginBottom: Spacing.one },
+    summaryBoxContent: { width: '100%', borderRadius: 12, borderWidth: 1, padding: Spacing.two, gap: Spacing.one, alignItems: 'center' },
+    summaryLabel: { fontSize: 11 },
+    amountValue: { fontSize: 18 },
+    breakdownSection: { gap: Spacing.two },
+    breakdownSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.one, paddingVertical: Spacing.one, gap: Spacing.one },
+    breakdownSectionTitle: { fontSize: 13, fontFamily: 'Vazirmatn-Bold' },
+    toggleButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
+    toggleButtonLabel: { fontSize: 11 },
+    breakdownGrid: { gap: Spacing.two },
+    breakdownItemCard: { borderRadius: 12, borderWidth: 1, padding: Spacing.two, gap: Spacing.one },
+    breakdownItemHeaderRow: { paddingTop: 2, paddingBottom: 2, marginBottom: 2, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0, 0, 0, 0.12)' },
+    breakdownItemTitle: { fontSize: 12 },
+    breakdownDetailGrid: { gap: Spacing.one },
+    breakdownDetailBox: { borderRadius: 8, borderWidth: 1, padding: Spacing.one, gap: Spacing.half, alignItems: 'center' },
+    detailLabel: { fontSize: 10 },
+    detailValue: { fontSize: 12 },
+});

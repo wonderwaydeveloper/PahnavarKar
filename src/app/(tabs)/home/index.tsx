@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Fragment, memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, LayoutChangeEvent, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Button } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabView, type NavigationState, type SceneRendererProps } from 'react-native-tab-view';
 
@@ -14,7 +15,7 @@ import { TOOL_DEFINITIONS, type ToolDefinition } from '@/constants/tool-definiti
 import { getToolRoute } from '@/constants/tool-routes';
 import { useTheme } from '@/hooks/use-theme';
 
-type HomeTab = 'all' | 'wage' | 'nonWage' | 'yearlyInfo' | 'rules';
+type HomeTab = 'all' | 'wageContinuous' | 'wageNonContinuous' | 'nonWage' | 'yearlyInfo' | 'rules';
 
 type HomeRoute = {
     key: HomeTab;
@@ -30,9 +31,10 @@ type HomeTabBarProps = SceneRendererProps & {
 
 const HOME_ROUTES: HomeRoute[] = [
     { key: 'all', label: 'همه' },
-    { key: 'yearlyInfo', label: 'اطلاعات سال کارکرد' },
-    { key: 'wage', label: 'اقلام مزدی' },
+    { key: 'wageContinuous', label: 'اقلام مزدی مستمر' },
+    { key: 'wageNonContinuous', label: 'اقلام مزدی غیرمستمر' },
     { key: 'nonWage', label: 'اقلام غیر مزدی' },
+    { key: 'yearlyInfo', label: 'اطلاعات سال کارکرد' },
     { key: 'rules', label: 'قوانین و مقررات' },
 ];
 
@@ -45,7 +47,8 @@ function createHomeActions(router: ReturnType<typeof useRouter>): HomeAction[] {
 
 function filterActions(actions: HomeAction[], tab: HomeTab) {
     if (tab === 'all') return actions;
-    if (tab === 'wage') return actions.filter((action) => action.category === 'wage');
+    if (tab === 'wageContinuous') return actions.filter((action) => action.category === 'wageContinuous');
+    if (tab === 'wageNonContinuous') return actions.filter((action) => action.category === 'wageNonContinuous');
     if (tab === 'nonWage') return actions.filter((action) => action.category === 'nonWage');
     if (tab === 'yearlyInfo') return actions.filter((action) => action.category === 'yearlyInfo');
     return [];
@@ -158,7 +161,8 @@ type SceneProps = {
 
 const HomeScene = memo(function HomeScene({ tab, actions, theme, bottomInset }: SceneProps) {
     const tabActions = filterActions(actions, tab);
-    const wageActions = tabActions.filter((action) => action.category === 'wage');
+    const continuousWageActions = tabActions.filter((action) => action.category === 'wageContinuous');
+    const nonContinuousWageActions = tabActions.filter((action) => action.category === 'wageNonContinuous');
     const nonWageActions = tabActions.filter((action) => action.category === 'nonWage');
     const yearlyInfoActions = tabActions.filter((action) => action.category === 'yearlyInfo');
 
@@ -189,7 +193,8 @@ const HomeScene = memo(function HomeScene({ tab, actions, theme, bottomInset }: 
                 {tabActions.length > 0 ? (
                     <>
                         {tab === 'all' ? renderSection(yearlyInfoActions) : null}
-                        {renderSection(wageActions)}
+                        {renderSection(continuousWageActions)}
+                        {renderSection(nonContinuousWageActions)}
                         {renderSection(nonWageActions)}
                         {tab !== 'all' ? renderSection(yearlyInfoActions) : null}
                     </>
@@ -225,6 +230,15 @@ export default function HomeTabScreen() {
 
     return (
         <ThemedView style={styles.container}>
+            <Button
+                mode="contained-tonal"
+                icon="calculator-variant"
+                onPress={() => router.push('/group-calculation' as never)}
+                style={styles.groupCalculationButton}
+                labelStyle={styles.groupCalculationButtonLabel}
+            >
+                محاسبهٔ گروهی
+            </Button>
             <TabView
                 navigationState={{ index: tabIndex, routes: HOME_ROUTES }}
                 onIndexChange={setTabIndex}
@@ -245,6 +259,8 @@ export default function HomeTabScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
+    groupCalculationButton: { alignSelf: 'stretch', marginHorizontal: Spacing.three, marginTop: Spacing.two, marginBottom: Spacing.two, borderRadius: 10 },
+    groupCalculationButtonLabel: { fontFamily: 'Vazirmatn-Bold' },
     tabView: { flex: 1 },
     tabBar: { borderBottomWidth: StyleSheet.hairlineWidth },
     tabBarContent: { flexDirection: 'row' },

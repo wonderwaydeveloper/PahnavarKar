@@ -213,11 +213,6 @@ export default function YearlyBonusScreen() {
         setShowDetailedBreakdown(false);
     };
 
-    const handleReset = () => {
-        setResult(null);
-        setShowDetailedBreakdown(false);
-    };
-
     const formattedResult = useMemo(() => {
         if (!result) {
             return '۰ ریال';
@@ -244,7 +239,7 @@ export default function YearlyBonusScreen() {
                             <View style={styles.headerRow}>
                                 <View style={styles.headerText}>
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
-                                        محاسبه حداقل عیدی و پاداش استحقاقی
+                                        محاسبه حداقل عیدی و پاداش
                                     </ThemedText>
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
                                         محاسبه حداقل عیدی و پاداش ماهیانه براساس ماده واحده قانون تعیین عیدی و پاداش، مصوب مجلس در سال ۱۳۷۰
@@ -316,19 +311,6 @@ export default function YearlyBonusScreen() {
                                     محاسبه
                                 </Button>
 
-                                {result ? (
-                                    <Button
-                                        mode="outlined"
-                                        onPress={handleReset}
-                                        icon="refresh"
-                                        style={[styles.actionButton, styles.resetButton]}
-                                        labelStyle={styles.actionLabel}
-                                        textColor={theme.primary}
-                                        disabled={isLoadingData}
-                                    >
-                                        بازنشانی
-                                    </Button>
-                                ) : null}
                             </View>
 
                             {result ? (
@@ -566,9 +548,6 @@ const styles = StyleSheet.create({
     actionLabel: {
         fontSize: 13,
         fontFamily: 'Vazirmatn-Bold',
-    },
-    resetButton: {
-        borderWidth: 1,
     },
     breakdownCard: {
         borderRadius: 18,

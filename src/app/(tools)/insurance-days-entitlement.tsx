@@ -238,11 +238,6 @@ export default function InsuranceDaysEntitlementScreen() {
         setShowDetailedBreakdown(false);
     };
 
-    const handleReset = () => {
-        setResult(null);
-        setShowDetailedBreakdown(false);
-    };
-
     const formattedResult = result ? formatNumber(result.totalDays) : '۰';
 
     return (
@@ -330,16 +325,6 @@ export default function InsuranceDaysEntitlementScreen() {
                                     محاسبه
                                 </Button>
 
-                                <Button
-                                    mode="outlined"
-                                    onPress={handleReset}
-                                    icon="refresh"
-                                    textColor={theme.primary}
-                                    style={[styles.actionButton, styles.resetButton, { borderColor: theme.border }]}
-                                    labelStyle={styles.actionLabel}
-                                >
-                                    بازنشانی
-                                </Button>
                             </View>
 
                             {result ? (
@@ -569,9 +554,6 @@ const styles = StyleSheet.create({
     actionLabel: {
         fontFamily: 'Vazirmatn-Bold',
         fontSize: 12,
-    },
-    resetButton: {
-        borderWidth: 1,
     },
     breakdownCard: {
         borderRadius: 12,

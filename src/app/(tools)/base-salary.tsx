@@ -202,12 +202,6 @@ export default function BaseSalaryScreen() {
         setShowDetailedBreakdown(false);
     };
 
-    const handleReset = () => {
-        setResult(null);
-        setShowDetailedBreakdown(false);
-        setDailyWorkTime('07:20');
-    };
-
     const formattedResult = useMemo(() => {
         if (!result) {
             return '۰ ریال';
@@ -275,19 +269,6 @@ export default function BaseSalaryScreen() {
                                     محاسبه
                                 </Button>
 
-                                {result && result.breakdown.length > 0 ? (
-                                    <Button
-                                        mode="outlined"
-                                        onPress={handleReset}
-                                        icon="refresh"
-                                        style={[styles.actionButton, styles.resetButton]}
-                                        labelStyle={styles.actionLabel}
-                                        textColor={theme.primary}
-                                        disabled={isLoadingData}
-                                    >
-                                        بازنشانی
-                                    </Button>
-                                ) : null}
                             </View>
 
                             {result && result.breakdown.length > 0 ? (
@@ -485,9 +466,6 @@ const styles = StyleSheet.create({
     actionButton: {
         flex: 1,
         borderRadius: 12,
-    },
-    resetButton: {
-        borderWidth: 1,
     },
     actionLabel: {
         fontFamily: 'Vazirmatn-Bold',

@@ -343,6 +343,226 @@ export function calculateEntitledSeniorityFromPeriodData(
     };
 }
 
+export interface MissionAllowanceCalculationBreakdownItem {
+    year: number;
+    periodIndex: number;
+    phase: 'before-anniversary' | 'after-anniversary' | 'settled-through-1391';
+    startDate: ParsedDateInput;
+    endDate: ParsedDateInput;
+    daysCovered: number;
+    missionDays: number;
+    dailyMinimumWage: number;
+    dailySeniority: number;
+    amount: number;
+}
+
+export interface MissionAllowanceCalculationResult {
+    totalMissionDays: number;
+    totalAmount: number;
+    breakdown: MissionAllowanceCalculationBreakdownItem[];
+}
+
+export interface MissionAllowancePeriodRange {
+    year: number;
+    periodIndex: number;
+    startDate: ParsedDateInput;
+    endDate: ParsedDateInput;
+    availableDays: number;
+}
+
+export function getMissionAllowancePeriodRanges(
+    missionStartDate: ParsedDateInput,
+    missionEndDate: ParsedDateInput,
+    periodBuckets: SalaryPeriodBucket[],
+): MissionAllowancePeriodRange[] {
+    if (compareParsedDates(missionStartDate, missionEndDate) > 0) {
+        return [];
+    }
+
+    const ranges: MissionAllowancePeriodRange[] = [];
+    for (const bucket of [...periodBuckets].sort((left, right) => left.year - right.year)) {
+        for (const periodSegment of getPeriodSegments(bucket)) {
+            const startDate = getLaterDate(missionStartDate, periodSegment.start);
+            const endDate = getEarlierDate(missionEndDate, periodSegment.end);
+            if (compareParsedDates(startDate, endDate) > 0) {
+                continue;
+            }
+
+            ranges.push({
+                year: bucket.year,
+                periodIndex: periodSegment.period.period_index,
+                startDate,
+                endDate,
+                availableDays: Math.round(toDayNumber(endDate) - toDayNumber(startDate) + 1),
+            });
+        }
+    }
+
+    return ranges;
+}
+
+export function calculateMissionAllowanceFromPeriodData(
+    employmentStartDate: ParsedDateInput,
+    missionStartDate: ParsedDateInput,
+    missionEndDate: ParsedDateInput,
+    missionDaysByPeriod: Record<string, number>,
+    periodBuckets: SalaryPeriodBucket[],
+    workshopType: EntitledSeniorityWorkshopType,
+    jobGroupNumber?: number,
+    settledThrough1391 = false,
+): MissionAllowanceCalculationResult | null {
+    if (
+        compareParsedDates(employmentStartDate, missionStartDate) > 0
+        || compareParsedDates(missionStartDate, missionEndDate) > 0
+    ) {
+        return null;
+    }
+
+    const seniorityCalculation = calculateEntitledSeniorityFromPeriodData(
+        employmentStartDate,
+        missionEndDate,
+        periodBuckets,
+        workshopType,
+        jobGroupNumber,
+        settledThrough1391,
+    );
+    const appliesSettlementPath = settledThrough1391 && employmentStartDate.year <= 1391;
+    const breakdown: MissionAllowanceCalculationBreakdownItem[] = [];
+
+    for (const bucket of [...periodBuckets].sort((left, right) => left.year - right.year)) {
+        for (const periodSegment of getPeriodSegments(bucket)) {
+            const overlapStart = getLaterDate(missionStartDate, periodSegment.start);
+            const overlapEnd = getEarlierDate(missionEndDate, periodSegment.end);
+            if (compareParsedDates(overlapStart, overlapEnd) > 0) {
+                continue;
+            }
+
+            const dailyMinimumWage = Number(periodSegment.period.daily_minimum_wage ?? 0);
+            if (dailyMinimumWage <= 0) {
+                continue;
+            }
+
+            const addBreakdownItem = (
+                startDate: ParsedDateInput,
+                endDate: ParsedDateInput,
+                dailySeniority: number,
+                phase: MissionAllowanceCalculationBreakdownItem['phase'],
+            ) => {
+                const daysCovered = Math.round(toDayNumber(endDate) - toDayNumber(startDate) + 1);
+                if (daysCovered <= 0) {
+                    return;
+                }
+
+                breakdown.push({
+                    year: bucket.year,
+                    periodIndex: periodSegment.period.period_index,
+                    phase,
+                    startDate,
+                    endDate,
+                    daysCovered,
+                    missionDays: 0,
+                    dailyMinimumWage,
+                    dailySeniority,
+                    amount: 0,
+                });
+            };
+
+            if (appliesSettlementPath && bucket.year <= 1391) {
+                addBreakdownItem(overlapStart, overlapEnd, 0, 'settled-through-1391');
+                continue;
+            }
+
+            for (const senioritySegment of seniorityCalculation.breakdown) {
+                if (
+                    senioritySegment.year !== bucket.year
+                    || senioritySegment.periodIndex !== periodSegment.period.period_index
+                ) {
+                    continue;
+                }
+
+                const segmentStart = getLaterDate(overlapStart, senioritySegment.startDate);
+                const segmentEnd = getEarlierDate(overlapEnd, senioritySegment.endDate);
+                if (compareParsedDates(segmentStart, segmentEnd) <= 0) {
+                    addBreakdownItem(
+                        segmentStart,
+                        segmentEnd,
+                        Math.max(0, Number(senioritySegment.entitlement) || 0),
+                        senioritySegment.phase,
+                    );
+                }
+            }
+        }
+    }
+
+    const periodRanges = getMissionAllowancePeriodRanges(missionStartDate, missionEndDate, periodBuckets);
+    const totalAvailableDays = periodRanges.reduce((total, range) => total + range.availableDays, 0);
+    const totalRangeDays = Math.round(toDayNumber(missionEndDate) - toDayNumber(missionStartDate) + 1);
+    if (totalAvailableDays !== totalRangeDays) {
+        return null;
+    }
+
+    let totalMissionDays = 0;
+    for (const periodRange of periodRanges) {
+        const periodKey = `${periodRange.year}:${periodRange.periodIndex}`;
+        const missionDays = Number(missionDaysByPeriod[periodKey]);
+        const periodSegments = breakdown.filter((item) => (
+            item.year === periodRange.year && item.periodIndex === periodRange.periodIndex
+        ));
+        const coveredDays = periodSegments.reduce((total, item) => total + item.daysCovered, 0);
+
+        if (
+            coveredDays !== periodRange.availableDays
+            || !Number.isInteger(missionDays)
+            || missionDays < 0
+            || missionDays > periodRange.availableDays
+        ) {
+            return null;
+        }
+
+        totalMissionDays += missionDays;
+        if (missionDays === 0) continue;
+
+        const allocations = periodSegments.map((item) => ({
+            item,
+            exact: missionDays * item.daysCovered / periodRange.availableDays,
+        }));
+        let allocatedDays = 0;
+
+        for (const allocation of allocations) {
+            allocation.item.missionDays = Math.floor(allocation.exact);
+            allocatedDays += allocation.item.missionDays;
+        }
+
+        const remainingDays = missionDays - allocatedDays;
+        allocations
+            .sort((left, right) => {
+                const leftRemainder = left.exact - Math.floor(left.exact);
+                const rightRemainder = right.exact - Math.floor(right.exact);
+                return rightRemainder - leftRemainder
+                    || compareParsedDates(left.item.startDate, right.item.startDate);
+            })
+            .slice(0, remainingDays)
+            .forEach((allocation) => {
+                allocation.item.missionDays += 1;
+            });
+    }
+
+    if (totalMissionDays === 0) return null;
+
+    const breakdownWithMissionDays = breakdown
+        .filter((item) => item.missionDays > 0)
+        .map((item) => ({
+            ...item,
+            amount: Math.round(item.missionDays * (item.dailyMinimumWage + item.dailySeniority)),
+        }));
+
+    return {
+        totalMissionDays,
+        totalAmount: breakdownWithMissionDays.reduce((total, item) => total + item.amount, 0),
+        breakdown: breakdownWithMissionDays,
+    };
+}
+
 export interface FamilyAllowanceCalculationBreakdownItem {
     year: number;
     periodIndex: number;
@@ -1007,6 +1227,50 @@ export function calculateAvailableFridaysByYear(
     return availableFridaysByYear;
 }
 
+export interface AvailableFridaysByPeriod {
+    year: number;
+    periodIndex: number;
+    availableFridays: number;
+}
+
+export function calculateAvailableFridaysByPeriod(
+    startDate: ParsedDateInput,
+    endDate: ParsedDateInput,
+    periodBuckets: SalaryPeriodBucket[],
+): AvailableFridaysByPeriod[] {
+    if (compareParsedDates(startDate, endDate) > 0) {
+        return [];
+    }
+
+    const availableFridaysByPeriod: AvailableFridaysByPeriod[] = [];
+
+    for (const bucket of [...periodBuckets].sort((left, right) => left.year - right.year)) {
+        for (const periodSegment of getPeriodSegments(bucket)) {
+            const overlapStart = getLaterDate(startDate, periodSegment.start);
+            const overlapEnd = getEarlierDate(endDate, periodSegment.end);
+
+            if (compareParsedDates(overlapStart, overlapEnd) > 0) {
+                continue;
+            }
+
+            let availableFridays = 0;
+            for (let monthIndex = periodSegment.start.month; monthIndex <= periodSegment.end.month; monthIndex += 1) {
+                const calendarYear = bucket.year + Math.floor((monthIndex - 1) / 12);
+                const calendarMonth = ((monthIndex - 1) % 12) + 1;
+                availableFridays += getFridaysInMonthOverlap(overlapStart, overlapEnd, calendarYear, calendarMonth);
+            }
+
+            availableFridaysByPeriod.push({
+                year: bucket.year,
+                periodIndex: periodSegment.period.period_index,
+                availableFridays,
+            });
+        }
+    }
+
+    return availableFridaysByPeriod;
+}
+
 export function calculateSalaryFromPeriodData(
     startDate: ParsedDateInput,
     endDate: ParsedDateInput,
@@ -1564,7 +1828,7 @@ export function calculateFridayWorkFromPeriodData(
     endDate: ParsedDateInput,
     employmentStartDate: ParsedDateInput,
     periodBuckets: SalaryPeriodBucket[],
-    fridayWorkDaysByYear: Record<number, number>,
+    fridayWorkDaysByPeriod: Record<string, number>,
     workshopType: EntitledSeniorityWorkshopType = 'unclassified',
     jobGroupNumber?: number,
     settledThrough1391 = false,
@@ -1586,20 +1850,6 @@ export function calculateFridayWorkFromPeriodData(
     for (const bucket of [...periodBuckets].sort((a, b) => a.year - b.year)) {
         const sortedPeriods = [...bucket.periods].sort((a, b) => a.period_index - b.period_index);
         let monthOffset = 0;
-        const annualFridayWorkDays = Number(fridayWorkDaysByYear[bucket.year] ?? 0);
-        if (!Number.isInteger(annualFridayWorkDays) || annualFridayWorkDays < 0) {
-            continue;
-        }
-        const periodDetails: {
-            period: SalaryPeriodBucket['periods'][number];
-            phase: 'before-anniversary' | 'after-anniversary';
-            daysCovered: number;
-            fridaysInPeriod: number;
-            fridayWorkDays: number;
-            dailySeniority: number;
-            segmentStart: ParsedDateInput;
-            segmentEnd: ParsedDateInput;
-        }[] = [];
 
         for (const period of sortedPeriods) {
             const periodLength = Number(period.month_count ?? 0);
@@ -1613,6 +1863,16 @@ export function calculateFridayWorkFromPeriodData(
             const senioritySegments = seniorityResult.breakdown.filter((segment) => (
                 segment.year === bucket.year && segment.periodIndex === period.period_index
             ));
+            const periodDetails: {
+                period: SalaryPeriodBucket['periods'][number];
+                phase: 'before-anniversary' | 'after-anniversary';
+                daysCovered: number;
+                fridaysInPeriod: number;
+                fridayWorkDays: number;
+                dailySeniority: number;
+                segmentStart: ParsedDateInput;
+                segmentEnd: ParsedDateInput;
+            }[] = [];
 
             for (const segment of senioritySegments) {
                 const segmentStart = getLaterDate(startDate, segment.startDate);
@@ -1641,56 +1901,62 @@ export function calculateFridayWorkFromPeriodData(
                 }
             }
 
-            monthOffset = periodEndMonth;
-        }
+            const totalAvailableFridays = periodDetails.reduce((sum, item) => sum + item.fridaysInPeriod, 0);
+            const periodKey = `${bucket.year}:${period.period_index}`;
+            const requestedFridayWorkDays = Number(fridayWorkDaysByPeriod[periodKey] ?? 0);
 
-        const totalAvailableFridays = periodDetails.reduce((sum, item) => sum + item.fridaysInPeriod, 0);
-        if (annualFridayWorkDays <= 0 || totalAvailableFridays <= 0) {
-            continue;
-        }
+            if (
+                totalAvailableFridays > 0
+                && Number.isInteger(requestedFridayWorkDays)
+                && requestedFridayWorkDays > 0
+            ) {
+                const cappedFridayWorkDays = Math.min(requestedFridayWorkDays, totalAvailableFridays);
+                const allocations = periodDetails.map((item) => ({
+                    item,
+                    exact: cappedFridayWorkDays * item.fridaysInPeriod / totalAvailableFridays,
+                }));
+                let allocatedDays = 0;
 
-        const cappedAnnualDays = Math.min(annualFridayWorkDays, totalAvailableFridays);
-        const allocations = periodDetails.map((item) => ({
-            item,
-            exact: cappedAnnualDays * item.fridaysInPeriod / totalAvailableFridays,
-        }));
-        let allocatedDays = 0;
+                for (const allocation of allocations) {
+                    allocation.item.fridayWorkDays = Math.floor(allocation.exact);
+                    allocatedDays += allocation.item.fridayWorkDays;
+                }
 
-        for (const allocation of allocations) {
-            allocation.item.fridayWorkDays = Math.floor(allocation.exact);
-            allocatedDays += allocation.item.fridayWorkDays;
-        }
+                const remainingDays = cappedFridayWorkDays - allocatedDays;
+                allocations
+                    .sort((left, right) => {
+                        const fractionalDifference = (right.exact - Math.floor(right.exact)) - (left.exact - Math.floor(left.exact));
+                        return fractionalDifference
+                            || compareParsedDates(left.item.segmentStart, right.item.segmentStart);
+                    })
+                    .slice(0, remainingDays)
+                    .forEach((allocation) => {
+                        allocation.item.fridayWorkDays += 1;
+                    });
 
-        const remainingDays = cappedAnnualDays - allocatedDays;
-        allocations
-            .sort((left, right) => {
-                const fractionalDifference = (right.exact - Math.floor(right.exact)) - (left.exact - Math.floor(left.exact));
-                return fractionalDifference || left.item.period.period_index - right.item.period.period_index;
-            })
-            .slice(0, remainingDays)
-            .forEach((allocation) => {
-                allocation.item.fridayWorkDays += 1;
-            });
-
-        for (const item of periodDetails) {
-            const dailyMinimumWage = Number(item.period.daily_minimum_wage ?? 0);
-            const fridayWorkRate = Math.round(0.4 * (dailyMinimumWage + item.dailySeniority));
-            if (item.fridayWorkDays > 0 && fridayWorkRate > 0) {
-                breakdown.push({
-                    year: bucket.year,
-                    periodIndex: item.period.period_index,
-                    phase: item.phase,
-                    startDate: item.segmentStart,
-                    endDate: item.segmentEnd,
-                    daysCovered: item.daysCovered,
-                    fridaysInPeriod: item.fridaysInPeriod,
-                    fridayWorkDays: item.fridayWorkDays,
-                    fridayWorkRate,
-                    dailyMinimumWage,
-                    dailySeniority: item.dailySeniority,
-                    amount: Math.round(item.fridayWorkDays * fridayWorkRate),
-                });
+                for (const item of periodDetails) {
+                    const dailyMinimumWage = Number(item.period.daily_minimum_wage ?? 0);
+                    const fridayWorkRate = 0.4 * (dailyMinimumWage + item.dailySeniority);
+                    if (item.fridayWorkDays > 0 && fridayWorkRate > 0) {
+                        breakdown.push({
+                            year: bucket.year,
+                            periodIndex: item.period.period_index,
+                            phase: item.phase,
+                            startDate: item.segmentStart,
+                            endDate: item.segmentEnd,
+                            daysCovered: item.daysCovered,
+                            fridaysInPeriod: item.fridaysInPeriod,
+                            fridayWorkDays: item.fridayWorkDays,
+                            fridayWorkRate,
+                            dailyMinimumWage,
+                            dailySeniority: item.dailySeniority,
+                            amount: Math.round(item.fridayWorkDays * 0.4 * (dailyMinimumWage + item.dailySeniority)),
+                        });
+                    }
+                }
             }
+
+            monthOffset = periodEndMonth;
         }
     }
 

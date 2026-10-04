@@ -1,9 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { NumericInputField } from '@/components/numeric-input-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -23,17 +24,6 @@ export default function Article87Screen() {
 
     const normalizeDigits = (value: string) => value.replace(/[۰-۹]/g, (digit) => latinDigits[persianDigits.indexOf(digit)]);
     const toPersianDigits = (value: string | number) => String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
-    const filterNumericInput = (value: string) => {
-        const normalized = normalizeDigits(value);
-        const sanitized = normalized.replace(/[^0-9.]/g, '');
-        const parts = sanitized.split('.');
-
-        if (parts.length > 2) {
-            return toPersianDigits(`${parts[0]}.${parts.slice(1).join('')}`);
-        }
-
-        return toPersianDigits(sanitized === '' ? '0' : sanitized);
-    };
     const formatCurrency = (value: number) => `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 
     const changeArea = (delta: number) => {
@@ -53,11 +43,6 @@ export default function Article87Screen() {
         }
 
         setResult(calculateArticle87WorkPermitFee(numericValue));
-    };
-
-    const handleReset = () => {
-        setArea('1');
-        setResult(null);
     };
 
     return (
@@ -112,11 +97,10 @@ export default function Article87Screen() {
                                         <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
                                     </Pressable>
 
-                                    <TextInput
+                                    <NumericInputField
+                                        mode="decimal"
                                         value={area}
-                                        onChangeText={(value) => setArea(filterNumericInput(value))}
-                                        keyboardType="decimal-pad"
-                                        inputMode="decimal"
+                                        onChangeText={setArea}
                                         placeholder="۰"
                                         placeholderTextColor={theme.textSecondary}
                                         style={[styles.textInput, { color: theme.text, direction: 'ltr' }]}
@@ -151,16 +135,6 @@ export default function Article87Screen() {
                                     محاسبه
                                 </Button>
 
-                                <Button
-                                    mode="outlined"
-                                    onPress={handleReset}
-                                    icon="refresh"
-                                    textColor={theme.primary}
-                                    style={styles.actionButton}
-                                    labelStyle={styles.actionLabel}
-                                >
-                                    بازنشانی
-                                </Button>
                             </View>
 
                             {result !== null ? (

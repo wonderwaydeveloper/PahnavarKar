@@ -143,13 +143,6 @@ export default function OrdinaryWorkHoursScreen() {
         setShowDetails(false);
     };
 
-    const handleReset = () => {
-        setStartDate(defaultStartDate);
-        setEndDate(defaultEndDate);
-        setResult(null);
-        setShowDetails(false);
-    };
-
     return (
         <ThemedView style={styles.container}>
             <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.three, paddingBottom: insets.bottom + Spacing.four }]} showsVerticalScrollIndicator={false}>
@@ -173,7 +166,6 @@ export default function OrdinaryWorkHoursScreen() {
 
                             <View style={styles.actionsGroup}>
                                 <Button mode="contained" onPress={handleCalculate} icon="calendar-check-outline" buttonColor={theme.primary} textColor={theme.surface} style={styles.actionButton} labelStyle={styles.actionLabel} loading={isLoadingData} disabled={isLoadingData}>محاسبه</Button>
-                                {result ? <Button mode="outlined" onPress={handleReset} icon="refresh" textColor={theme.primary} style={styles.actionButton} labelStyle={styles.actionLabel}>بازنشانی</Button> : null}
                             </View>
 
                             {result ? <Card style={[styles.resultCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><Card.Content style={styles.resultContent}>

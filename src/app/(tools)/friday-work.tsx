@@ -1,21 +1,22 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
+import { NumericInputField } from '@/components/numeric-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
+import { SettlementThrough1391Field } from '@/components/settlement-through-1391-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { WorkshopTypeSelector } from '@/components/workshop-type-selector';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
-import { getDailyWorkRatio, scaleWageCalculationResult } from '@/utils/daily-work-ratio';
 import {
-    calculateAvailableFridaysByYear,
+    calculateAvailableFridaysByPeriod,
     calculateFridayWorkFromPeriodData,
     parseDateInput,
     type EntitledSeniorityWorkshopType,
@@ -44,14 +45,13 @@ export default function FridayWorkScreen() {
     const [jobGroups, setJobGroups] = useState<{ id: number; group_number: number; sort_order: number }[]>([]);
     const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
     const [groupMenuVisible, setGroupMenuVisible] = useState(false);
-    const [fridayWorkDaysByYear, setFridayWorkDaysByYear] = useState<Record<number, string>>({});
+    const [fridayWorkDaysByPeriod, setFridayWorkDaysByPeriod] = useState<Record<string, string>>({});
     const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | 'employment' | null>(null);
     const [pickerVisible, setPickerVisible] = useState(false);
     const [periodBuckets, setPeriodBuckets] = useState<SalaryPeriodBucket[]>([]);
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [result, setResult] = useState<FridayWorkCalculationResult | null>(null);
-    const [dailyWorkTime, setDailyWorkTime] = useState('07:20');
     const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -123,7 +123,6 @@ export default function FridayWorkScreen() {
 
     const normalizeDigits = (value: string) => value.replace(/[۰-۹]/g, (digit) => latinDigits[persianDigits.indexOf(digit)]);
     const toPersianDigits = (value: string | number) => String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
-    const filterFridayWorkDaysInput = (value: string) => value.replace(/[^0-9۰-۹]/g, '');
     const formatCurrency = (value: number) => `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 
     const formatDisplayedDate = (value: string) => {
@@ -190,59 +189,49 @@ export default function FridayWorkScreen() {
         closePicker();
     };
 
-    const selectedYears = (() => {
+    const availableFridaysByPeriod = (() => {
         const parsedStartDate = parseDateInput(startDate);
         const parsedEndDate = parseDateInput(endDate);
         if (!parsedStartDate || !parsedEndDate || compareDates(startDate, endDate) > 0) {
             return [];
         }
 
-        return Array.from(
-            { length: parsedEndDate.year - parsedStartDate.year + 1 },
-            (_, index) => parsedStartDate.year + index,
-        );
-    })();
-    const availableFridaysByYear = (() => {
-        const parsedStartDate = parseDateInput(startDate);
-        const parsedEndDate = parseDateInput(endDate);
-        if (!parsedStartDate || !parsedEndDate) {
-            return {};
-        }
-
-        return calculateAvailableFridaysByYear(parsedStartDate, parsedEndDate);
+        return calculateAvailableFridaysByPeriod(parsedStartDate, parsedEndDate, periodBuckets);
     })();
     const canUseSettlementPath = (parseDateInput(employmentDate)?.year ?? 0) <= 1391;
 
-    const updateFridayWorkDays = (year: number, value: string) => {
-        setFridayWorkDaysByYear((currentValues) => ({
+    const getFridayWorkPeriodKey = (year: number, periodIndex: number) => `${year}:${periodIndex}`;
+
+    const updateFridayWorkDays = (periodKey: string, value: string) => {
+        setFridayWorkDaysByPeriod((currentValues) => ({
             ...currentValues,
-            [year]: filterFridayWorkDaysInput(value),
+            [periodKey]: value,
         }));
     };
 
-    const changeFridayWorkDays = (year: number, amount: number) => {
+    const changeFridayWorkDays = (year: number, periodIndex: number, available: number, amount: number) => {
+        const periodKey = getFridayWorkPeriodKey(year, periodIndex);
         const currentValue = Number(normalizeDigits(
-            fridayWorkDaysByYear[year] ?? String(availableFridaysByYear[year] ?? 0),
+            fridayWorkDaysByPeriod[periodKey] ?? String(available),
         )) || 0;
-        const available = availableFridaysByYear[year] ?? 0;
         const nextValue = Math.min(available, Math.max(0, currentValue + amount));
 
-        setFridayWorkDaysByYear((currentValues) => ({
+        setFridayWorkDaysByPeriod((currentValues) => ({
             ...currentValues,
-            [year]: toPersianDigits(String(nextValue)),
+            [periodKey]: toPersianDigits(String(nextValue)),
         }));
     };
 
-    const validateFridayWorkDays = (year: number) => {
-        const value = Number(normalizeDigits((fridayWorkDaysByYear[year] ?? '').trim()));
-        const available = availableFridaysByYear[year] ?? 0;
+    const validateFridayWorkDays = (year: number, periodIndex: number, available: number) => {
+        const periodKey = getFridayWorkPeriodKey(year, periodIndex);
+        const value = Number(normalizeDigits((fridayWorkDaysByPeriod[periodKey] ?? '').trim()));
 
         if (Number.isInteger(value) && value > available) {
-            setFridayWorkDaysByYear((currentValues) => ({
+            setFridayWorkDaysByPeriod((currentValues) => ({
                 ...currentValues,
-                [year]: toPersianDigits(String(available)),
+                [periodKey]: toPersianDigits(String(available)),
             }));
-            setSnackbarMessage(`تعداد جمعه کاری وارده در سال ${toPersianDigits(year)} بیش تر از تعداد جمعه کاری موجود است`);
+            setSnackbarMessage(`تعداد جمعه‌کاری واردشده در سال ${toPersianDigits(year)} و دورهٔ ${toPersianDigits(periodIndex)} از جمعه‌های موجود بیشتر است.`);
             setSnackbarVisible(true);
         }
     };
@@ -271,28 +260,29 @@ export default function FridayWorkScreen() {
             return;
         }
 
-        const parsedFridayWorkDaysByYear: Record<number, number> = {};
-        for (const year of selectedYears) {
-            const displayedValue = fridayWorkDaysByYear[year] ?? toPersianDigits(availableFridaysByYear[year] ?? 0);
+        const parsedFridayWorkDaysByPeriod: Record<string, number> = {};
+        for (const period of availableFridaysByPeriod) {
+            const periodKey = getFridayWorkPeriodKey(period.year, period.periodIndex);
+            const displayedValue = fridayWorkDaysByPeriod[periodKey] ?? toPersianDigits(period.availableFridays);
             const normalizedValue = normalizeDigits(displayedValue.trim());
             const value = Number(normalizedValue);
-            const available = availableFridaysByYear[year] ?? 0;
+            const available = period.availableFridays;
 
             if (!/^\d+$/.test(normalizedValue) || !Number.isInteger(value) || value < 0) {
                 setResult(null);
-                setSnackbarMessage(`تعداد جمعه کاری سال ${toPersianDigits(year)} باید یک عدد صحیح صفر یا بزرگ‌تر باشد.`);
+                setSnackbarMessage(`تعداد جمعه‌کاری سال ${toPersianDigits(period.year)} و دورهٔ ${toPersianDigits(period.periodIndex)} باید عدد صحیح صفر یا بزرگ‌تر باشد.`);
                 setSnackbarVisible(true);
                 return;
             }
 
             if (value > available) {
                 setResult(null);
-                setSnackbarMessage(`تعداد جمعه کاری وارده در سال ${toPersianDigits(year)} بیش تر از تعداد جمعه کاری موجود است`);
+                setSnackbarMessage(`تعداد جمعه‌کاری واردشده در سال ${toPersianDigits(period.year)} و دورهٔ ${toPersianDigits(period.periodIndex)} از جمعه‌های موجود بیشتر است.`);
                 setSnackbarVisible(true);
                 return;
             }
 
-            parsedFridayWorkDaysByYear[year] = value;
+            parsedFridayWorkDaysByPeriod[periodKey] = value;
         }
 
         const calculation = calculateFridayWorkFromPeriodData(
@@ -300,7 +290,7 @@ export default function FridayWorkScreen() {
             parsedEnd,
             parsedEmployment,
             periodBuckets,
-            parsedFridayWorkDaysByYear,
+            parsedFridayWorkDaysByPeriod,
             workshopType,
             selectedGroup ?? undefined,
             settledThrough1391,
@@ -313,28 +303,14 @@ export default function FridayWorkScreen() {
             return;
         }
 
-        setResult(scaleWageCalculationResult(calculation, getDailyWorkRatio(getDailyWorkMinutes(dailyWorkTime))));
-        setShowDetailedBreakdown(false);
-    };
-
-    const handleReset = () => {
-        setStartDate(defaultStartDate);
-        setEndDate(defaultEndDate);
-        setEmploymentDate(defaultEmploymentDate);
-        setWorkshopType('unclassified');
-        setSettledThrough1391(false);
-        setSelectedGroup(jobGroups[0]?.group_number ?? null);
-        setFridayWorkDaysByYear(
-            Object.fromEntries(selectedYears.map((year) => [year, toPersianDigits(String(availableFridaysByYear[year] ?? 0))])),
-        );
-        setResult(null);
+        setResult(calculation);
         setShowDetailedBreakdown(false);
     };
 
     const formattedResult = useMemo(() => (
         result ? toPersianDigits(formatCurrency(result.totalAmount)) : '۰ ریال'
     ), [result]);
-    const totalFridaysInRange = Object.values(availableFridaysByYear).reduce((sum, value) => sum + value, 0);
+    const totalFridaysInRange = availableFridaysByPeriod.reduce((sum, period) => sum + period.availableFridays, 0);
 
     return (
         <ThemedView style={styles.container}>
@@ -386,16 +362,7 @@ export default function FridayWorkScreen() {
                                 helperText="جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات"
                             />
 
-                            <View style={styles.optionSection}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>نوع کارگاه</ThemedText>
-                                <View style={styles.optionsRow}>
-                                    {([['unclassified', 'فاقد طرح طبقه‌بندی'], ['classified', 'دارای طرح طبقه‌بندی']] as const).map(([value, label]) => (
-                                        <Pressable key={value} onPress={() => setWorkshopType(value)} style={[styles.optionButton, { backgroundColor: workshopType === value ? theme.primary : theme.surface, borderColor: workshopType === value ? theme.primary : theme.border }]}>
-                                            <ThemedText type="smallBold" style={{ color: workshopType === value ? theme.surface : theme.text }}>{label}</ThemedText>
-                                        </Pressable>
-                                    ))}
-                                </View>
-                            </View>
+                            <WorkshopTypeSelector value={workshopType} onValueChange={setWorkshopType} />
 
                             {workshopType === 'classified' ? <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                 <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>گروه شغلی</ThemedText>
@@ -404,63 +371,57 @@ export default function FridayWorkScreen() {
                                 </Menu>
                             </View> : null}
 
-                            <Pressable onPress={() => canUseSettlementPath && setSettledThrough1391((value) => !value)} style={[styles.checkRow, { backgroundColor: theme.surfaceVariant, borderColor: theme.border, opacity: canUseSettlementPath ? 1 : 0.55 }]}>
-                                <MaterialCommunityIcons name={settledThrough1391 ? 'checkbox-marked' : 'checkbox-blank-outline'} size={22} color={settledThrough1391 ? theme.primary : theme.textSecondary} />
-                                <View style={styles.checkText}>
-                                    <ThemedText type="smallBold" style={[styles.optionTitle, { color: theme.text }]}>تصفیه حساب تا پایان سال ۱۳۹۱ انجام شده است</ThemedText>
-                                    <ThemedText type="small" style={[styles.optionDescription, { color: theme.textSecondary }]}>{canUseSettlementPath ? 'در این حالت شروع محاسبه از سال ۱۳۹۲ خواهد بود.' : 'این گزینه برای استخدام‌های سال ۱۳۹۲ و بعد از آن کاربرد ندارد.'}</ThemedText>
-                                </View>
-                            </Pressable>
+                            <SettlementThrough1391Field checked={settledThrough1391} enabled={canUseSettlementPath} onChange={setSettledThrough1391} />
 
                             <View style={styles.yearFieldsGroup}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تعداد جمعه کاری کارگر در هر سال</ThemedText>
-                                {selectedYears.map((year) => {
-                                    const availableFridays = availableFridaysByYear[year] ?? 0;
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>تعداد جمعه‌کاری کارگر در هر دوره</ThemedText>
+                                {availableFridaysByPeriod.map(({ year, periodIndex, availableFridays }) => {
+                                    const periodKey = getFridayWorkPeriodKey(year, periodIndex);
+                                    const fridayWorkDays = fridayWorkDaysByPeriod[periodKey] ?? toPersianDigits(availableFridays);
                                     return (
-                                        <View key={year} style={[styles.yearField, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                        <View key={periodKey} style={[styles.yearField, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                             <View style={styles.yearFieldHeader}>
                                                 <ThemedText type="smallBold" style={{ color: theme.text }}>
-                                                    تعداد جمعه کاری کارگر در سال {toPersianDigits(year)}
+                                                    سال {toPersianDigits(year)}، دورهٔ {toPersianDigits(periodIndex)}
                                                 </ThemedText>
                                                 <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                                                    موجود: {toPersianDigits(availableFridays)} جمعه
+                                                    جمعه‌های موجود: {toPersianDigits(availableFridays)}
                                                 </ThemedText>
                                             </View>
                                             <View style={[styles.stepper, { backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}>
                                                 <Pressable
-                                                    onPress={() => changeFridayWorkDays(year, -1)}
-                                                    disabled={Number(normalizeDigits(fridayWorkDaysByYear[year] ?? String(availableFridays))) <= 0}
+                                                    onPress={() => changeFridayWorkDays(year, periodIndex, availableFridays, -1)}
+                                                    disabled={Number(normalizeDigits(fridayWorkDays)) <= 0}
                                                     style={({ pressed }) => [
                                                         styles.stepperButton,
                                                         { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant },
-                                                        Number(normalizeDigits(fridayWorkDaysByYear[year] ?? String(availableFridays))) <= 0 && styles.stepperButtonDisabled,
+                                                        Number(normalizeDigits(fridayWorkDays)) <= 0 && styles.stepperButtonDisabled,
                                                     ]}
                                                     accessibilityRole="button"
-                                                    accessibilityLabel={`کاهش تعداد جمعه کاری سال ${year}`}
+                                                    accessibilityLabel={`کاهش جمعه‌کاری سال ${year} دوره ${periodIndex}`}
                                                 >
                                                     <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
                                                 </Pressable>
-                                                <TextInput
-                                                    value={fridayWorkDaysByYear[year] ?? toPersianDigits(availableFridays)}
-                                                    onChangeText={(value) => updateFridayWorkDays(year, value)}
-                                                    onBlur={() => validateFridayWorkDays(year)}
-                                                    keyboardType="number-pad"
+                                                <NumericInputField
+                                                    value={fridayWorkDays}
+                                                    onChangeText={(value) => updateFridayWorkDays(periodKey, value)}
+                                                    onBlur={() => validateFridayWorkDays(year, periodIndex, availableFridays)}
                                                     placeholder={toPersianDigits(availableFridays)}
                                                     placeholderTextColor={theme.textMuted}
                                                     style={[styles.textInput, { color: theme.text, direction: 'ltr' }]}
                                                     textAlign="center"
-                                                    accessibilityLabel={`تعداد جمعه کاری کارگر در سال ${year}`}
+                                                    accessibilityLabel={`تعداد جمعه‌کاری کارگر در سال ${year} دوره ${periodIndex}`}
                                                 />
                                                 <Pressable
-                                                    onPress={() => changeFridayWorkDays(year, 1)}
-                                                    disabled={Number(normalizeDigits(fridayWorkDaysByYear[year] ?? String(availableFridays))) >= availableFridays}
+                                                    onPress={() => changeFridayWorkDays(year, periodIndex, availableFridays, 1)}
+                                                    disabled={Number(normalizeDigits(fridayWorkDays)) >= availableFridays}
                                                     style={({ pressed }) => [
                                                         styles.stepperButton,
                                                         { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant },
-                                                        Number(normalizeDigits(fridayWorkDaysByYear[year] ?? String(availableFridays))) >= availableFridays && styles.stepperButtonDisabled,
+                                                        Number(normalizeDigits(fridayWorkDays)) >= availableFridays && styles.stepperButtonDisabled,
                                                     ]}
                                                     accessibilityRole="button"
-                                                    accessibilityLabel={`افزایش تعداد جمعه کاری سال ${year}`}
+                                                    accessibilityLabel={`افزایش جمعه‌کاری سال ${year} دوره ${periodIndex}`}
                                                 >
                                                     <MaterialCommunityIcons name="plus" size={20} color={theme.primary} />
                                                 </Pressable>
@@ -470,10 +431,8 @@ export default function FridayWorkScreen() {
                                 })}
                             </View>
 
-                            <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
                             <View style={styles.actionsGroup}>
                                 <Button mode="contained" onPress={handleCalculate} icon="calendar-star" style={styles.actionButton} labelStyle={styles.actionLabel} buttonColor={theme.primary} textColor={theme.surface} loading={isLoadingData} disabled={isLoadingData}>محاسبه</Button>
-                                {result ? <Button mode="outlined" onPress={handleReset} icon="refresh" style={[styles.actionButton, styles.resetButton]} labelStyle={styles.actionLabel} textColor={theme.primary} disabled={isLoadingData}>بازنشانی</Button> : null}
                             </View>
 
                             {result ? (
@@ -567,7 +526,6 @@ const styles = StyleSheet.create({
     optionDescription: { fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
     actionsGroup: { flexDirection: 'row', gap: Spacing.two },
     actionButton: { flex: 1, borderRadius: 12 },
-    resetButton: { borderWidth: 1 },
     actionLabel: { fontFamily: 'Vazirmatn-Bold', fontSize: 12 },
     breakdownCard: { borderRadius: 12, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' },
     breakdownContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two },

@@ -1,9 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { NumericInputField } from '@/components/numeric-input-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
@@ -23,11 +24,6 @@ function normalizeDigits(value: string) {
 
 function toPersianDigits(value: string | number) {
     return String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
-}
-
-function sanitizeMonths(value: string) {
-    const normalized = normalizeDigits(value).replace(/[^0-9]/g, '');
-    return toPersianDigits(normalized);
 }
 
 function changeMonths(value: string, delta: number) {
@@ -68,13 +64,6 @@ export default function UnemploymentInsuranceEntitlementScreen() {
             normalizedUsedMonths,
             maritalStatus,
         ));
-    };
-
-    const handleReset = () => {
-        setInsuranceMonths('۶');
-        setUsedMonths('۰');
-        setMaritalStatus('single');
-        setResult(null);
     };
 
     return (
@@ -132,11 +121,9 @@ export default function UnemploymentInsuranceEntitlementScreen() {
                                     >
                                         <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
                                     </Pressable>
-                                    <TextInput
+                                    <NumericInputField
                                         value={insuranceMonths}
-                                        onChangeText={(value) => setInsuranceMonths(sanitizeMonths(value))}
-                                        keyboardType="number-pad"
-                                        inputMode="numeric"
+                                        onChangeText={setInsuranceMonths}
                                         placeholder="۰"
                                         placeholderTextColor={theme.textSecondary}
                                         style={[styles.textInput, { color: theme.text, direction: 'ltr' }]}
@@ -175,11 +162,9 @@ export default function UnemploymentInsuranceEntitlementScreen() {
                                     >
                                         <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
                                     </Pressable>
-                                    <TextInput
+                                    <NumericInputField
                                         value={usedMonths}
-                                        onChangeText={(value) => setUsedMonths(sanitizeMonths(value))}
-                                        keyboardType="number-pad"
-                                        inputMode="numeric"
+                                        onChangeText={setUsedMonths}
                                         placeholder="۰"
                                         placeholderTextColor={theme.textSecondary}
                                         style={[styles.textInput, { color: theme.text, direction: 'ltr' }]}
@@ -250,16 +235,6 @@ export default function UnemploymentInsuranceEntitlementScreen() {
                                     labelStyle={styles.actionLabel}
                                 >
                                     محاسبه
-                                </Button>
-                                <Button
-                                    mode="outlined"
-                                    onPress={handleReset}
-                                    icon="refresh"
-                                    textColor={theme.primary}
-                                    style={styles.actionButton}
-                                    labelStyle={styles.actionLabel}
-                                >
-                                    بازنشانی
                                 </Button>
                             </View>
 

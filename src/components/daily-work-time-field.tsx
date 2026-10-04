@@ -11,9 +11,22 @@ import { ThemedText } from './themed-text';
 interface DailyWorkTimeFieldProps {
     value: string;
     onChange: (value: string) => void;
+    maxHours?: number;
+    maxMinutesAtMaxHour?: number;
+    label?: string;
+    pickerTitle?: string;
+    showFullTimeHint?: boolean;
 }
 
-export function DailyWorkTimeField({ value, onChange }: DailyWorkTimeFieldProps) {
+export function DailyWorkTimeField({
+    value,
+    onChange,
+    maxHours = 7,
+    maxMinutesAtMaxHour = 20,
+    label,
+    pickerTitle = 'انتخاب ساعات کارکرد روزانه',
+    showFullTimeHint = true,
+}: DailyWorkTimeFieldProps) {
     const theme = useTheme();
     const [visible, setVisible] = useState(false);
     const isFullTime = parseDailyWorkTime(value) === FULL_TIME_DAILY_MINUTES;
@@ -22,7 +35,7 @@ export function DailyWorkTimeField({ value, onChange }: DailyWorkTimeFieldProps)
         <>
             <View style={{ backgroundColor: theme.surfaceVariant, borderRadius: 14, padding: Spacing.two, gap: Spacing.one }}>
                 <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11, lineHeight: 18 }}>
-                    {isFullTime ? 'ساعات کارکرد روزانه بر اساس ماده ۵۱ قانون کار' : 'ساعات کارکرد روزانه بر اساس ماده ۳۹ قانون کار'}
+                    {label ?? (isFullTime ? 'ساعات کارکرد روزانه بر اساس ماده ۵۱ قانون کار' : 'ساعات کارکرد روزانه بر اساس ماده ۳۹ قانون کار')}
                 </ThemedText>
                 <Pressable
                     onPress={() => setVisible(true)}
@@ -31,14 +44,16 @@ export function DailyWorkTimeField({ value, onChange }: DailyWorkTimeFieldProps)
                     <ThemedText type="smallBold" style={{ color: theme.text }}>{value.replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)])}</ThemedText>
                     <MaterialCommunityIcons name="clock-outline" size={18} color={theme.primary} />
                 </Pressable>
-                <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11, lineHeight: 18 }}>مبنای تمام‌وقت: ۷ ساعت و ۲۰ دقیقه در روز</ThemedText>
+                {showFullTimeHint ? (
+                    <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11, lineHeight: 18 }}>مبنای تمام‌وقت: ۷ ساعت و ۲۰ دقیقه در روز</ThemedText>
+                ) : null}
             </View>
             <PersianTimePickerModal
                 visible={visible}
                 value={value}
-                title="انتخاب ساعات کارکرد روزانه"
-                maxHours={7}
-                maxMinutesAtMaxHour={20}
+                title={pickerTitle}
+                maxHours={maxHours}
+                maxMinutesAtMaxHour={maxMinutesAtMaxHour}
                 onClose={() => setVisible(false)}
                 onSelect={(nextValue) => {
                     onChange(nextValue);

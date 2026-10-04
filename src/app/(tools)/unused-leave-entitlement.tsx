@@ -1,11 +1,12 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toGregorian, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DateInputField } from '@/components/date-input-field';
+import { NumericInputField } from '@/components/numeric-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -133,8 +134,7 @@ export default function UnusedLeaveEntitlementScreen() {
     };
 
     const updateUsedLeaveDays = (segmentIndex: number, value: string) => {
-        const normalized = value.replace(/[^0-9۰-۹.]/g, '');
-        setUsedLeaveDaysBySegment((current) => ({ ...current, [segmentIndex]: normalized }));
+        setUsedLeaveDaysBySegment((current) => ({ ...current, [segmentIndex]: value }));
     };
 
     const changeInitialSavedLeaveDays = (delta: number) => {
@@ -262,16 +262,6 @@ export default function UnusedLeaveEntitlementScreen() {
         setShowDetailedBreakdown(false);
     };
 
-    const handleReset = () => {
-        setStartDate(defaultStartDate);
-        setEndDate(defaultEndDate);
-        setUsedLeaveDaysBySegment({});
-        setInitialSavedLeaveDays('۰');
-        setResult(null);
-        setCalculationDetails(null);
-        setShowDetailedBreakdown(false);
-    };
-
     return (
         <ThemedView style={styles.container}>
             <ScrollView
@@ -342,11 +332,10 @@ export default function UnusedLeaveEntitlementScreen() {
                                     >
                                         <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
                                     </Pressable>
-                                    <TextInput
+                                    <NumericInputField
+                                        mode="decimal"
                                         value={initialSavedLeaveDays}
-                                        onChangeText={(value) => setInitialSavedLeaveDays(value.replace(/[^0-9۰-۹.]/g, ''))}
-                                        keyboardType="decimal-pad"
-                                        inputMode="decimal"
+                                        onChangeText={setInitialSavedLeaveDays}
                                         placeholder="۰"
                                         placeholderTextColor={theme.textMuted}
                                         style={[styles.stepperInput, { color: theme.text, direction: 'ltr' }]}
@@ -391,10 +380,10 @@ export default function UnusedLeaveEntitlementScreen() {
                                                     >
                                                         <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
                                                     </Pressable>
-                                                    <TextInput
+                                                    <NumericInputField
+                                                        mode="decimal"
                                                         value={usedLeaveDaysBySegment[index] ?? ''}
                                                         onChangeText={(value) => updateUsedLeaveDays(index, value)}
-                                                        keyboardType="decimal-pad"
                                                         placeholder="۰"
                                                         placeholderTextColor={theme.textMuted}
                                                         style={[styles.stepperInput, { color: theme.text, direction: 'ltr' }]}
@@ -434,16 +423,6 @@ export default function UnusedLeaveEntitlementScreen() {
                                     محاسبه
                                 </Button>
 
-                                <Button
-                                    mode="outlined"
-                                    onPress={handleReset}
-                                    icon="refresh"
-                                    textColor={theme.primary}
-                                    style={[styles.actionButton, styles.resetButton, { borderColor: theme.border }]}
-                                    labelStyle={styles.actionLabel}
-                                >
-                                    بازنشانی
-                                </Button>
                             </View>
 
                             {result !== null ? (
@@ -676,9 +655,6 @@ const styles = StyleSheet.create({
     actionButton: {
         flex: 1,
         borderRadius: 12,
-    },
-    resetButton: {
-        borderWidth: 1,
     },
     actionLabel: {
         fontFamily: 'Vazirmatn-Bold',

@@ -216,11 +216,6 @@ export default function FamilyAllowanceScreen() {
         setResult(scaleWageCalculationResult(calculation, getDailyWorkRatio(getDailyWorkMinutes(dailyWorkTime))));
     };
 
-    const handleReset = () => {
-        setResult(null);
-        setShowDetailedBreakdown(false);
-    };
-
     const formattedResult = useMemo(() => {
         if (!result) {
             return '۰ ریال';
@@ -343,19 +338,6 @@ export default function FamilyAllowanceScreen() {
                                     محاسبه
                                 </Button>
 
-                                {result ? (
-                                    <Button
-                                        mode="outlined"
-                                        onPress={handleReset}
-                                        icon="refresh"
-                                        style={[styles.actionButton, styles.resetButton]}
-                                        labelStyle={styles.actionLabel}
-                                        textColor={theme.primary}
-                                        disabled={isLoadingData}
-                                    >
-                                        بازنشانی
-                                    </Button>
-                                ) : null}
                             </View>
 
                             {result ? (
@@ -576,9 +558,6 @@ const styles = StyleSheet.create({
     actionButton: {
         flex: 1,
         borderRadius: 12,
-    },
-    resetButton: {
-        borderWidth: 1,
     },
     actionLabel: {
         fontFamily: 'Vazirmatn-Bold',
