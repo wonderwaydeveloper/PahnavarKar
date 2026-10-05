@@ -95,7 +95,7 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
       case 'official-holiday-work':
         return { title: 'مبلغ تعطیل کاری' };
       case 'official-holidays-in-range':
-        return { title: 'تعداد تعطیلات رسمی در بازه زمانی دلخواه' };
+        return { title: 'تعداد تعطیلات رسمی در بازه زمانی انتخاب شده' };
       case 'illegal-foreign-worker-penalty':
         return { title: 'مبلغ جریمه به‌کارگیری اتباع بیگانه غیرمجاز' };
       case 'article-87':

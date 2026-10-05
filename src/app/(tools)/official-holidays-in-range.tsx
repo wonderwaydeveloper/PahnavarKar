@@ -125,7 +125,7 @@ export default function OfficialHolidaysInRangeScreen() {
                     <Card elevation={1} style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                         <Card.Content style={styles.cardContent}>
                             <View style={styles.headerText}>
-                                <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>محاسبه تعداد تعطیلات رسمی در بازه زمانی دلخواه</ThemedText>
+                                <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>محاسبه تعداد تعطیلات رسمی در بازه زمانی انتخاب شده</ThemedText>
                                 <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>تعیین تعداد روزهای تعطیل موضوع ماده ۶۳ قانون کار</ThemedText>
                             </View>
 

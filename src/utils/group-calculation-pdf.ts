@@ -15,6 +15,7 @@ export interface GroupCalculationPdfSection {
 export interface GroupCalculationPdfMetadata {
     label: string;
     value: string;
+    section?: string;
 }
 
 export interface GroupCalculationPdfAssets {
@@ -23,6 +24,12 @@ export interface GroupCalculationPdfAssets {
     mediumFont: string;
     semiBoldFont: string;
     boldFont: string;
+}
+
+export interface GroupCalculationPdfWageTotal {
+    amount: string;
+    error?: string;
+    excludedBonusItems: string[];
 }
 
 function escapeHtml(value: string) {
@@ -43,6 +50,7 @@ export function buildGroupCalculationPdfHtml(
     metadata: GroupCalculationPdfMetadata[],
     includeDetails: boolean,
     assets: GroupCalculationPdfAssets,
+    wageTotal?: GroupCalculationPdfWageTotal,
 ) {
     const summaryRows = sections.map((section) => `
         <tr>
@@ -50,43 +58,63 @@ export function buildGroupCalculationPdfHtml(
             <td class="${section.error ? 'error-text' : 'amount'}">${escapeHtml(section.error ?? section.amount)}</td>
         </tr>
     `).join('');
+    const wageTotalRow = wageTotal ? `
+        <tr class="wage-total-row">
+            <th>جمع نتایج اقلام مزدی</th>
+            <td class="${wageTotal.error ? 'error-text' : 'amount'}">${escapeHtml(wageTotal.error ?? wageTotal.amount)}</td>
+        </tr>
+        ${wageTotal.excludedBonusItems.length > 0 ? `
+            <tr class="wage-total-note-row">
+                <td colspan="2">این جمع شامل ${wageTotal.excludedBonusItems.map((title) => `«${escapeHtml(title)}»`).join(' و ')} نمی‌شود.</td>
+            </tr>
+        ` : ''}
+    ` : '';
     const sectionDetails = includeDetails ? sections.map((section) => {
-        const detailCards = section.details.map((detail) => `
-            <div class="detail-card">
-                <h3>${escapeHtml(detail.title)}</h3>
-                <table class="detail-table">
-                    <tbody>
-                        ${detail.rows.map((row) => `
-                            <tr>
-                                ${row.label
-                                    ? `<th>${escapeHtml(row.label)}</th><td>${escapeHtml(row.value)}</td>`
-                                    : `<td colspan="2">${escapeHtml(row.value)}</td>`}
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
+        const detailRows = section.details.map((detail) => `
+            <tr class="detail-period-heading">
+                <th colspan="2">${escapeHtml(detail.title)}</th>
+            </tr>
+            ${detail.rows.map((row) => `
+                <tr>
+                    ${row.label
+                        ? `<th scope="row">${escapeHtml(row.label)}</th><td>${escapeHtml(row.value)}</td>`
+                        : `<td colspan="2">${escapeHtml(row.value)}</td>`}
+                </tr>
+            `).join('')}
         `).join('');
 
         return `
             <section class="calculation-section">
-                <div class="calculation-heading">
-                    <h2>${escapeHtml(section.title)}</h2>
-                    <div class="calculation-amount ${section.error ? 'error-text' : ''}">
-                        <span>${escapeHtml(section.summaryLabel)}</span>
-                        <strong>${escapeHtml(section.error ?? section.amount)}</strong>
-                    </div>
-                </div>
-                ${section.details.length > 0 ? `<h3 class="details-title">${escapeHtml(section.detailsTitle)}</h3>` : ''}
-                ${detailCards}
+                ${section.details.length > 0 ? `
+                    <h3 class="details-title">${escapeHtml(section.title)} · ${escapeHtml(section.detailsTitle)}</h3>
+                    <table class="detail-table">
+                        <thead><tr><th>عنوان</th><th>مقدار</th></tr></thead>
+                        <tbody>${detailRows}</tbody>
+                    </table>
+                ` : ''}
             </section>
         `;
     }).join('') : '';
-    const metadataItems = metadata.map((item) => `
-        <div class="metadata-item">
-            <span>${escapeHtml(item.label)}</span>
-            <strong>${escapeHtml(item.value)}</strong>
-        </div>
+    const inputMetadata = metadata.filter((item) => item.section !== 'تاریخ تهیه');
+    const metadataGroups = inputMetadata.reduce<{ section?: string; items: GroupCalculationPdfMetadata[] }[]>((groups, item) => {
+        const currentGroup = groups[groups.length - 1];
+        if (currentGroup && currentGroup.section === item.section) {
+            currentGroup.items.push(item);
+        } else {
+            groups.push({ section: item.section, items: [item] });
+        }
+        return groups;
+    }, []);
+    const metadataRows = metadataGroups.map((group) => `
+        <tbody>
+            ${group.section ? `<tr class="metadata-section-row"><th colspan="2">${escapeHtml(group.section)}</th></tr>` : ''}
+            ${group.items.map((item) => `
+                <tr>
+                    <th scope="row">${escapeHtml(item.label)}</th>
+                    <td>${escapeHtml(item.value)}</td>
+                </tr>
+            `).join('')}
+        </tbody>
     `).join('');
 
     return `<!doctype html>
@@ -143,7 +171,7 @@ export function buildGroupCalculationPdfHtml(
             background-position: center;
             background-size: contain;
             background-repeat: no-repeat;
-            border-radius: 24px;
+            border-radius: 50%;
             opacity: 0.09;
             pointer-events: none;
         }
@@ -168,21 +196,54 @@ export function buildGroupCalculationPdfHtml(
         .header-logo { width: 100%; height: 100%; object-fit: contain; }
         .brand { color: #087e8b; font-size: 21px; font-weight: bold; }
         h1 { margin: 2px 0 0; font-size: 18px; }
-        .generated { position: absolute; top: 0; left: 0; color: #5b6d75; text-align: left; font-size: 9px; }
-        .metadata {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 8px;
-            margin: 18px 0;
-        }
-        .metadata-item {
-            padding: 8px 10px;
+        .generated {
+            position: absolute;
+            top: 0;
+            left: 0;
+            max-width: 150px;
+            padding: 6px 9px;
             border: 1px solid #d9e3e6;
             border-radius: 7px;
+            color: #4b6275;
             background: #f5f9fa;
+            text-align: right;
+            direction: rtl;
+            font-size: 8px;
+            line-height: 1.7;
         }
-        .metadata-item span { display: block; color: #5b6d75; font-size: 10px; }
-        .metadata-item strong { display: block; margin-top: 2px; }
+        .generated-label { display: block; margin-bottom: 2px; color: #087e8b; font-weight: bold; }
+        .generated strong { display: block; white-space: nowrap; font-weight: normal; }
+        .metadata-table {
+            width: 100%;
+            margin: 14px 0;
+            border-collapse: collapse;
+            page-break-inside: auto;
+        }
+        .metadata-table th, .metadata-table td {
+            padding: 6px 9px;
+            border: 1px solid #d9e3e6;
+            text-align: right;
+            vertical-align: top;
+            overflow-wrap: anywhere;
+        }
+        .metadata-table thead { display: table-header-group; }
+        .metadata-table thead th { color: #fff; background: #087e8b; }
+        .metadata-table tbody tr:nth-child(even) { background: #f5f9fa; }
+        .metadata-table tbody th[scope="row"] { width: 38%; color: #5b6d75; font-weight: normal; }
+        .metadata-table .metadata-section-row th {
+            color: #087e8b;
+            background: #edf6f7;
+            font-weight: bold;
+        }
+        .metadata-table tr { page-break-inside: avoid; }
+        .pdf-section-title {
+            margin: 18px 0 7px;
+            padding-right: 8px;
+            border-right: 3px solid #087e8b;
+            color: #173d4a;
+            font-size: 13px;
+            line-height: 1.7;
+        }
         .summary { width: 100%; border-collapse: collapse; margin: 12px 0 22px; }
         .summary th, .summary td {
             padding: 8px 10px;
@@ -194,28 +255,46 @@ export function buildGroupCalculationPdfHtml(
         .summary th { color: #fff; background: #087e8b; }
         .summary tbody tr:nth-child(even) { background: #f5f9fa; }
         .summary td:last-child { width: 42%; }
+        .summary .wage-total-note-row td { color: #5b6d75; font-size: 9px; }
         .amount { color: #087e8b; font-weight: bold; }
         .error-text { color: #b42318; }
-        .calculation-section { margin: 18px 0; page-break-inside: avoid; }
-        .calculation-heading {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 9px 11px;
-            border-right: 4px solid #087e8b;
-            background: #edf6f7;
+        .calculation-section { margin: 12px 0; }
+        .details-title {
+            margin: 10px 0 4px;
+            padding-right: 7px;
+            border-right: 2px solid #087e8b;
+            color: #173d4a;
+            font-size: 10px;
+            line-height: 1.6;
         }
-        h2 { margin: 0; font-size: 14px; }
-        .calculation-amount { text-align: left; }
-        .calculation-amount span { display: block; color: #5b6d75; font-size: 9px; }
-        .calculation-amount strong { display: block; font-size: 12px; }
-        .details-title { margin: 9px 0 0; font-size: 11px; }
-        .detail-card { margin-top: 9px; border: 1px solid #d9e3e6; border-radius: 6px; overflow: hidden; }
-        .detail-card h3 { margin: 0; padding: 6px 9px; background: #f5f9fa; font-size: 11px; }
-        .detail-table { width: 100%; border-collapse: collapse; }
-        .detail-table th, .detail-table td { width: 50%; padding: 5px 9px; border-top: 1px solid #e8eef0; text-align: right; }
-        .detail-table th { color: #5b6d75; font-weight: normal; }
+        .detail-table { width: 100%; border-collapse: collapse; page-break-inside: auto; font-size: 9px; line-height: 1.5; }
+        .detail-table thead { display: table-header-group; }
+        .detail-table thead th {
+            padding: 3px 6px;
+            border: 1px solid #d9e3e6;
+            color: #fff;
+            background: #087e8b;
+            text-align: right;
+            font-weight: normal;
+        }
+        .detail-table th, .detail-table td {
+            width: 50%;
+            padding: 2px 6px;
+            border: 1px solid #e2e9eb;
+            text-align: right;
+            vertical-align: top;
+            overflow-wrap: anywhere;
+        }
+        .detail-table tbody tr:nth-child(even) { background: #f5f9fa; }
+        .detail-table tbody th[scope="row"] { color: #5b6d75; font-weight: normal; }
+        .detail-table .detail-period-heading th {
+            padding: 3px 6px;
+            color: #087e8b;
+            background: #edf6f7;
+            font-weight: bold;
+            text-align: right;
+        }
+        .detail-table tbody tr { page-break-inside: avoid; }
         .note {
             margin-top: 22px;
             padding: 10px 12px;
@@ -225,16 +304,22 @@ export function buildGroupCalculationPdfHtml(
             background: #fff9e9;
         }
         .about-section {
-            margin-top: 24px;
-            padding-top: 14px;
-            border-top: 2px solid #087e8b;
+            margin-top: 20px;
+            padding: 12px;
+            border: 1px solid #d9e3e6;
+            border-top: 3px solid #087e8b;
+            border-radius: 8px;
+            background: #f5f9fa;
+            page-break-inside: avoid;
         }
-        .about-section h2 { margin-bottom: 6px; color: #087e8b; }
-        .about-intro { margin: 0 0 12px; color: #4b6275; }
-        .about-item { margin-top: 10px; page-break-inside: avoid; }
-        .about-item h3 { margin: 0; font-size: 12px; }
-        .about-item p { margin: 3px 0 0; color: #4b6275; }
-        footer { margin-top: 16px; color: #697a81; font-size: 9px; text-align: center; }
+        .about-section h2 { margin: 0 0 4px; color: #087e8b; font-size: 14px; }
+        .about-intro { margin: 0 0 10px; color: #4b6275; font-size: 10px; }
+        .about-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+        .about-item { padding: 7px 9px; border: 1px solid #d9e3e6; border-radius: 6px; background: #fff; page-break-inside: avoid; }
+        .about-item:last-child:nth-child(odd) { grid-column: 1 / -1; }
+        .about-item h3 { margin: 0; color: #173d4a; font-size: 10px; }
+        .about-item p { margin: 2px 0 0; color: #4b6275; font-size: 9px; line-height: 1.7; }
+        footer { margin-top: 12px; color: #697a81; font-size: 9px; text-align: center; }
     </style>
 </head>
 <body>
@@ -250,17 +335,26 @@ export function buildGroupCalculationPdfHtml(
                 <h1>فیش محاسبات حقوق و مزایا</h1>
             </div>
         </div>
-        <div class="generated">تاریخ تهیه<br><strong>${escapeHtml(metadata.find((item) => item.label === 'تاریخ تهیه')?.value ?? '')}</strong></div>
+        <div class="generated">
+            <span class="generated-label">تاریخ تهیه</span>
+            <strong>شمسی: ${escapeHtml(metadata.find((item) => item.label === 'تاریخ شمسی')?.value ?? '')}</strong>
+            <strong>میلادی: ${escapeHtml(metadata.find((item) => item.label === 'تاریخ میلادی')?.value ?? '')}</strong>
+            <strong>ساعت: ${escapeHtml(metadata.find((item) => item.label === 'ساعت تهیه')?.value ?? '')}</strong>
+        </div>
     </header>
-    <div class="metadata">${metadataItems}</div>
+    <h2 class="pdf-section-title">ورودی‌های محاسبه</h2>
+    <table class="metadata-table">
+        <thead><tr><th>عنوان</th><th>مقدار</th></tr></thead>
+        ${metadataRows}
+    </table>
+    <h2 class="pdf-section-title">نتایج محاسبات</h2>
     <table class="summary">
         <thead><tr><th>عنوان محاسبه</th><th>نتیجه نهایی</th></tr></thead>
-        <tbody>${summaryRows}</tbody>
+        <tbody>${summaryRows}${wageTotalRow}</tbody>
     </table>
     ${sectionDetails}
     <div class="note">
         این سند گزارش محاسبات گروهی است و جایگزین فیش صادرشده از سوی کارفرما نیست.
-        مبالغ هر محاسبه جداگانه گزارش شده‌اند و با یکدیگر جمع نشده‌اند؛ ممکن است برخی اقلام هم‌پوشانی داشته باشند.
     </div>
     <footer>این گزارش به‌صورت خودکار از نتایج محاسبه‌شده در پهناور کار تهیه شده است.</footer>
     <section class="about-section">
@@ -268,17 +362,19 @@ export function buildGroupCalculationPdfHtml(
         <p class="about-intro">
             ما با هدف ساده‌سازی محاسبات حقوق و دستمزد، ابزارهایی کاربردی و قابل اعتماد برای کاربران فراهم کرده‌ایم.
         </p>
-        <div class="about-item">
-            <h3>ماموریت ما</h3>
-            <p>ایجاد یک تجربه ساده، دقیق و قابل اعتماد برای محاسبه حقوق و مزایای کارکنان در مسیر مدیریت منابع انسانی و برنامه‌ریزی.</p>
-        </div>
-        <div class="about-item">
-            <h3>چرا ما</h3>
-            <p>با تمرکز بر دقت، رابط کاربری روان و سازگاری با نیازهای ایرانی، ابزارهایی طراحی کرده‌ایم که محاسبات را سریع‌تر و شفاف‌تر می‌کنند.</p>
-        </div>
-        <div class="about-item">
-            <h3>ارزش‌های ما</h3>
-            <p>شفافیت، دقت در داده‌ها، سادگی استفاده و پشتیبانی از تجربه‌ی فارسی برای کاربران ایرانی.</p>
+        <div class="about-items">
+            <div class="about-item">
+                <h3>ماموریت ما</h3>
+                <p>ایجاد تجربه‌ای ساده و قابل اعتماد برای محاسبهٔ حقوق و مزایا و کمک به برنامه‌ریزی منابع انسانی.</p>
+            </div>
+            <div class="about-item">
+                <h3>چرا پهناور کار؟</h3>
+                <p>ابزارهایی کاربردی با تمرکز بر دقت محاسبات، تجربهٔ روان و سازگاری با نیازهای کاربران ایرانی.</p>
+            </div>
+            <div class="about-item">
+                <h3>ارزش‌های ما</h3>
+                <p>شفافیت، دقت، سادگی و توجه به تجربهٔ فارسی کاربران.</p>
+            </div>
         </div>
     </section>
     </main>
