@@ -1,0 +1,13 @@
+{
+  "name": "pahnavar-file-storage",
+  "version": "1.0.0",
+  "description": "Save files to platform-default locations.",
+  "license": "UNLICENSED",
+  "main": "src/index.ts",
+  "peerDependencies": {
+    "expo": "*",
+    "expo-modules-core": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

@@ -8,8 +8,10 @@ import { Button, Card, Checkbox, Menu, Snackbar, TextInput } from 'react-native-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { NativeFileStorageUnavailableError } from 'pahnavar-file-storage';
 
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
+import { PdfHtmlPreview } from '@/components/pdf-html-preview';
 import { DateInputField } from '@/components/date-input-field';
 import { NumericInputField } from '@/components/numeric-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -23,6 +25,7 @@ import { Spacing } from '@/constants/theme';
 import { TOOL_DEFINITIONS } from '@/constants/tool-definitions';
 import { fetchJobGroups, fetchOfficialHolidaysBetweenDates, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { saveFileToDefaultLocation } from '@/services/file-storage';
 import {
     buildGroupCalculationPdfHtml,
     type GroupCalculationPdfAssets,
@@ -594,7 +597,9 @@ function parseTimeToDecimalHours(value: string): number | null {
 }
 
 async function getPdfAssetDataUri(moduleId: number, mimeType: string, label: string): Promise<string> {
-    const [asset] = await Asset.loadAsync(moduleId);
+    const asset = Asset.fromModule(moduleId);
+    await asset.downloadAsync();
+
     if (Platform.OS === 'web') {
         const response = await fetch(asset.localUri ?? asset.uri);
         if (!response.ok) throw new Error(`The ${label} could not be loaded.`);
@@ -607,8 +612,26 @@ async function getPdfAssetDataUri(moduleId: number, mimeType: string, label: str
         return `data:${mimeType};base64,${btoa(binary)}`;
     }
 
-    if (!asset.localUri) throw new Error(`The ${label} is not available in local storage.`);
-    return `data:${mimeType};base64,${await new File(asset.localUri).base64()}`;
+    const localUri = asset.localUri;
+    if (!localUri) {
+        throw new Error(`The ${label} is not available in local storage.`);
+    }
+
+    // Asset.localUri should normally be a file:// URI on Android/iOS.
+    // Normalize path-only values before passing them to the native FileSystem API.
+    const absoluteFileUri = /^[a-z][a-z0-9+.-]*:/i.test(localUri)
+        ? localUri
+        : localUri.startsWith('/')
+            ? `file://${localUri}`
+            : `file:///${localUri}`;
+
+    try {
+        const base64 = await new File(absoluteFileUri).base64();
+        return `data:${mimeType};base64,${base64}`;
+    } catch (error) {
+        const reason = error instanceof Error && error.message ? `: ${error.message}` : '';
+        throw new Error(`Unable to read ${label} from local storage${reason}`);
+    }
 }
 
 async function getGroupCalculationPdfAssets(): Promise<GroupCalculationPdfAssets> {
@@ -668,9 +691,12 @@ export default function GroupCalculationScreen() {
     const [loading, setLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState('');
     const [conflictSnackbarVisible, setConflictSnackbarVisible] = useState(false);
-    const [isExportingPdf, setIsExportingPdf] = useState(false);
+    const [pdfAction, setPdfAction] = useState<'preview' | 'share' | 'save' | null>(null);
+    const [pdfPreviewHtml, setPdfPreviewHtml] = useState<string | null>(null);
+    const [pdfPreviewVisible, setPdfPreviewVisible] = useState(false);
     const [pdfSnackbarMessage, setPdfSnackbarMessage] = useState('');
     const [pdfSnackbarVisible, setPdfSnackbarVisible] = useState(false);
+    const [pdfSnackbarIsError, setPdfSnackbarIsError] = useState(true);
     const [includePdfDetails, setIncludePdfDetails] = useState(false);
     const [employeeName, setEmployeeName] = useState('');
     const [employeeNationalCode, setEmployeeNationalCode] = useState('');
@@ -746,9 +772,7 @@ export default function GroupCalculationScreen() {
         || selectedKeys.includes('monthly-allowance')
         || selectedKeys.includes('unused-leave-wage');
     const hasChildrenCount = hasFamilyAllowance || selectedKeys.includes('unused-leave-wage');
-    const childrenOptions = hasFamilyAllowance
-        ? CHILDREN_OPTIONS.filter((count) => count > 0)
-        : CHILDREN_OPTIONS;
+    const childrenOptions = CHILDREN_OPTIONS;
     const hasDaysCoverageOption = selectedKeys.some((key) => DAYS_COVERAGE_KEYS.includes(key));
     const hasInsuranceDays = selectedKeys.includes('insurance-days-entitlement');
     const hasPayrollDailyWorkTime = selectedKeys.some((key) => PAYROLL_DAILY_WORK_KEYS.includes(key));
@@ -826,10 +850,6 @@ export default function GroupCalculationScreen() {
     };
 
     const toggleCalculation = (key: GroupCalculationKey) => {
-        if (key === 'family-allowance' && !selectedKeys.includes(key) && childrenCount === 0) {
-            setChildrenCount(1);
-        }
-
         const isSelecting = !selectedKeys.includes(key);
         const conflictsWithNightShift = key === 'monthly-shift-work' && selectedKeys.includes('night-shift-entitlement');
         const conflictsWithShiftWork = key === 'night-shift-entitlement' && selectedKeys.includes('monthly-shift-work');
@@ -858,7 +878,6 @@ export default function GroupCalculationScreen() {
 
         const selectedNightShift = selectedKeys.includes('night-shift-entitlement');
         const excludedKey = selectedNightShift ? 'monthly-shift-work' : 'night-shift-entitlement';
-        setChildrenCount((current) => Math.max(1, current));
         setSelectedKeys(GROUP_CALCULATION_KEYS.filter((key) => key !== excludedKey));
         setResults(null);
         setErrorMessage('');
@@ -951,10 +970,10 @@ export default function GroupCalculationScreen() {
         if (
             hasChildrenCount
             && (!Number.isInteger(normalizedChildrenCount)
-                || normalizedChildrenCount < (hasFamilyAllowance ? 1 : 0)
+                || normalizedChildrenCount < 0
                 || normalizedChildrenCount > 12)
         ) {
-            setErrorMessage(`تعداد فرزند باید بین ${hasFamilyAllowance ? '۱' : '۰'} تا ۱۲ باشد.`);
+            setErrorMessage('تعداد فرزند باید بین ۰ تا ۱۲ باشد.');
             setResults(null);
             return;
         }
@@ -1076,8 +1095,9 @@ export default function GroupCalculationScreen() {
         setErrorMessage('');
     };
 
-    const handleExportPdf = async () => {
+    const handleExportPdf = async (action: 'preview' | 'share' | 'save' = 'share') => {
         if (!results) return;
+        if (action !== 'preview') setPdfPreviewVisible(false);
 
         const wageTotalResults = results.filter((result) => (
             result.unit === 'ریال'
@@ -1362,24 +1382,48 @@ export default function GroupCalculationScreen() {
             });
         }
 
-        setIsExportingPdf(true);
+        setPdfAction(action);
         setPdfSnackbarVisible(false);
         try {
             const pdfAssets = await getGroupCalculationPdfAssets();
             const html = buildGroupCalculationPdfHtml(pdfSections, metadata, includePdfDetails, pdfAssets, wageTotal);
-            const file = await Print.printToFileAsync({ html, base64: Platform.OS === 'android' });
+            if (action === 'preview') {
+                setPdfPreviewHtml(html);
+                setPdfPreviewVisible(true);
+                return;
+            }
+            const canShare = Platform.OS !== 'web' && await Sharing.isAvailableAsync();
+            const file = await Print.printToFileAsync({
+                html,
+                base64: Platform.OS === 'android' && action === 'share' && canShare,
+            });
+
             if (Platform.OS !== 'web') {
-                if (await Sharing.isAvailableAsync()) {
+                if (action === 'save') {
+                    const savedFile = await saveFileToDefaultLocation(file.uri, {
+                        fileName: `pahnavar-kar-payslip-${new Date().toISOString().replace(/[:.]/g, '-')}.pdf`,
+                        mimeType: 'application/pdf',
+                    });
+                    if (savedFile.location === 'downloads') {
+                        setPdfSnackbarMessage('فیش PDF در پوشهٔ Downloads/PahnavarKar ذخیره شد.');
+                    } else {
+                        setPdfSnackbarMessage('فیش PDF در پوشهٔ پهناورکار در برنامهٔ Files ذخیره شد.');
+                    }
+                    setPdfSnackbarIsError(false);
+                    setPdfSnackbarVisible(true);
+                } else if (canShare) {
                     let shareUri = file.uri;
                     if (Platform.OS === 'android') {
                         if (!file.base64) {
                             throw new Error('The generated PDF did not include its file data.');
                         }
-                        const shareFile = new File(Paths.cache, 'pahnavar-kar-calculation.pdf');
+
+                        const shareFile = new File(Paths.document, 'pahnavar-kar-calculation.pdf');
                         shareFile.create({ overwrite: true });
                         shareFile.write(file.base64, { encoding: EncodingType.Base64 });
                         shareUri = shareFile.uri;
                     }
+
                     await Sharing.shareAsync(shareUri, {
                         mimeType: 'application/pdf',
                         UTI: '.pdf',
@@ -1390,12 +1434,27 @@ export default function GroupCalculationScreen() {
                 }
             }
         } catch (error) {
-            console.error('Unable to export group calculation PDF:', error);
+            if (action === 'save' && error instanceof NativeFileStorageUnavailableError) {
+                setPdfSnackbarMessage('ذخیرهٔ مستقیم در این نسخه در دسترس نیست. برای ذخیره در Downloads، Development Build جدید نصب کنید؛ در Expo Go از «اشتراک‌گذاری» استفاده کنید.');
+                setPdfSnackbarIsError(true);
+                setPdfSnackbarVisible(true);
+                return;
+            }
+
+            console.error(
+                action === 'save' ? 'Unable to save group calculation PDF:' : 'Unable to export group calculation PDF:',
+                error,
+            );
             const reason = error instanceof Error && error.message ? ` (${error.message})` : '';
-            setPdfSnackbarMessage(`ساخت یا اشتراک PDF انجام نشد${reason}`);
+            setPdfSnackbarMessage(
+                action === 'save'
+                    ? `ذخیرهٔ فیش PDF انجام نشد${reason}`
+                    : `ساخت یا اشتراک PDF انجام نشد${reason}`,
+            );
+            setPdfSnackbarIsError(true);
             setPdfSnackbarVisible(true);
         } finally {
-            setIsExportingPdf(false);
+            setPdfAction(null);
         }
     };
 
@@ -1657,7 +1716,10 @@ export default function GroupCalculationScreen() {
                                         return (
                                             <Pressable
                                                 key={option.value}
-                                                onPress={() => setMaritalStatus(option.value)}
+                                                onPress={() => {
+                                                    setMaritalStatus(option.value);
+                                                    if (option.value === 'single') setChildrenCount(0);
+                                                }}
                                                 style={[
                                                     styles.maritalOption,
                                                     {
@@ -2094,6 +2156,8 @@ export default function GroupCalculationScreen() {
                             disabled={loading || periodBuckets.length === 0}
                             buttonColor={theme.primary}
                             textColor={theme.surface}
+                            style={styles.calculateButton}
+                            labelStyle={styles.calculateButtonLabel}
                         >
                             محاسبهٔ انتخاب‌شده‌ها
                         </Button>
@@ -2103,41 +2167,87 @@ export default function GroupCalculationScreen() {
                 {results ? (
                     <View style={styles.results}>
                         <ThemedText type="smallBold">نتایج</ThemedText>
-                        <View>
-                            <Button
-                                mode="contained"
-                                icon="file-pdf-box"
-                                onPress={handleExportPdf}
-                                loading={isExportingPdf}
-                                disabled={isExportingPdf}
-                                buttonColor={theme.primary}
-                                textColor={theme.surface}
-                            >
-                                {Platform.OS === 'web' ? 'چاپ / ذخیره به‌صورت PDF' : 'دریافت فیش PDF'}
-                            </Button>
-                            <View style={styles.pdfDetailsOption}>
+                        <View style={[styles.pdfExportSection, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+                            <View style={styles.pdfExportHeader}>
+                                <ThemedText type="smallBold">خروجی فیش PDF</ThemedText>
+                                <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                    روش دریافت فایل را انتخاب کنید.
+                                </ThemedText>
+                            </View>
+                            <View style={[styles.pdfDetailsOption, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                 <Checkbox
                                     status={includePdfDetails ? 'checked' : 'unchecked'}
                                     onPress={() => setIncludePdfDetails((value) => !value)}
-                                    disabled={isExportingPdf}
+                                    disabled={pdfAction !== null}
                                     color={theme.primary}
                                 />
                                 <Pressable
+                                    style={styles.pdfDetailsLabel}
                                     onPress={() => setIncludePdfDetails((value) => !value)}
-                                    disabled={isExportingPdf}
+                                    disabled={pdfAction !== null}
                                     accessibilityRole="checkbox"
                                     accessibilityState={{ checked: includePdfDetails }}
                                 >
-                                    <ThemedText type="small">
-                                        افزودن جزئیات محاسبه به فیش PDF
+                                    <ThemedText type="smallBold">
+                                        درج جزئیات محاسبه
+                                    </ThemedText>
+                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
+                                        اطلاعات تفصیلی محاسبات نیز به PDF اضافه شود.
                                     </ThemedText>
                                 </Pressable>
                             </View>
-                            {Platform.OS === 'web' ? (
-                                <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
-                                    در پنجرهٔ چاپ مرورگر، گزینهٔ «ذخیره به‌صورت PDF» را انتخاب کنید.
-                                </ThemedText>
-                            ) : null}
+                            <View style={styles.pdfActions}>
+                                {Platform.OS !== 'web' ? (
+                                    <View style={styles.pdfActionItem}>
+                                        <Button
+                                            mode="outlined"
+                                            icon="eye-outline"
+                                            onPress={() => void handleExportPdf('preview')}
+                                            loading={pdfAction === 'preview'}
+                                            disabled={pdfAction !== null}
+                                            textColor={theme.primary}
+                                            style={[styles.pdfActionButton, { borderColor: theme.borderStrong }]}
+                                            contentStyle={styles.pdfActionButtonContent}
+                                            labelStyle={styles.pdfActionButtonLabel}
+                                        >
+                                            پیش‌نمایش فیش PDF
+                                        </Button>
+                                    </View>
+                                ) : null}
+                                <View style={styles.pdfActionItem}>
+                                    <Button
+                                        mode="contained"
+                                        icon={Platform.OS === 'web' ? 'printer' : 'share-variant'}
+                                        onPress={() => void handleExportPdf()}
+                                        loading={pdfAction === 'share'}
+                                        disabled={pdfAction !== null}
+                                        buttonColor={theme.primary}
+                                        textColor={theme.surface}
+                                        style={styles.pdfActionButton}
+                                        contentStyle={styles.pdfActionButtonContent}
+                                        labelStyle={styles.pdfActionButtonLabel}
+                                    >
+                                        {Platform.OS === 'web' ? 'چاپ یا ذخیره به‌صورت PDF' : 'اشتراک‌گذاری فیش PDF'}
+                                    </Button>
+                                </View>
+                                {Platform.OS !== 'web' ? (
+                                    <View style={styles.pdfActionItem}>
+                                        <Button
+                                            mode="outlined"
+                                            icon="download"
+                                            onPress={() => void handleExportPdf('save')}
+                                            loading={pdfAction === 'save'}
+                                            disabled={pdfAction !== null}
+                                            textColor={theme.primary}
+                                            style={[styles.pdfActionButton, { borderColor: theme.borderStrong }]}
+                                            contentStyle={styles.pdfActionButtonContent}
+                                            labelStyle={styles.pdfActionButtonLabel}
+                                        >
+                                            {Platform.OS === 'ios' ? 'ذخیره در Files' : 'ذخیره در Downloads'}
+                                        </Button>
+                                    </View>
+                                ) : null}
+                            </View>
                         </View>
                         {(() => {
                             const wageTotalResults = results.filter((result) => (
@@ -2355,6 +2465,15 @@ export default function GroupCalculationScreen() {
                 ) : null}
             </ScrollView>
 
+            <PdfHtmlPreview
+                visible={pdfPreviewVisible}
+                html={pdfPreviewHtml}
+                action={pdfAction}
+                onClose={() => setPdfPreviewVisible(false)}
+                onShare={() => void handleExportPdf('share')}
+                onSave={() => void handleExportPdf('save')}
+            />
+
             <PersianDatePickerModal
                 visible={pickerTarget !== null}
                 value={
@@ -2404,7 +2523,7 @@ export default function GroupCalculationScreen() {
                 visible={pdfSnackbarVisible}
                 onDismiss={() => setPdfSnackbarVisible(false)}
                 duration={6000}
-                style={{ backgroundColor: theme.error }}
+                style={{ backgroundColor: pdfSnackbarIsError ? theme.error : theme.success }}
                 action={{
                     label: 'بستن',
                     onPress: () => setPdfSnackbarVisible(false),
@@ -2432,6 +2551,8 @@ const styles = StyleSheet.create({
     selectionSeparator: { height: StyleSheet.hairlineWidth, marginStart: Spacing.three + 50 + Spacing.two },
     selectionCheckbox: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderRadius: 6 },
     form: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
+    calculateButton: { borderRadius: 10 },
+    calculateButtonLabel: { fontFamily: 'Vazirmatn-Bold', fontSize: 12 },
     inputSection: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
     employeeInfoSection: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.three },
     employeeInfoHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
@@ -2472,7 +2593,15 @@ const styles = StyleSheet.create({
     periodInputRow: { gap: Spacing.one },
     groupPicker: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
     results: { gap: Spacing.two },
-    pdfDetailsOption: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: Spacing.two },
+    pdfExportSection: { gap: Spacing.three, padding: Spacing.three, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth },
+    pdfExportHeader: { gap: Spacing.half },
+    pdfDetailsOption: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, paddingEnd: Spacing.two },
+    pdfDetailsLabel: { flex: 1, gap: Spacing.half, paddingVertical: Spacing.two },
+    pdfActions: { gap: Spacing.two },
+    pdfActionItem: {},
+    pdfActionButton: { borderRadius: 10 },
+    pdfActionButtonContent: { minHeight: 48 },
+    pdfActionButtonLabel: { fontFamily: 'Vazirmatn-Medium', fontSize: 13, lineHeight: 20 },
     wageTotalNote: { fontSize: 11, lineHeight: 16, textAlign: 'center' },
     resultCard: { borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
     resultContent: { gap: Spacing.two, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },

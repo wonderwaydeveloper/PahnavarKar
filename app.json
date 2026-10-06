@@ -2,7 +2,7 @@
   "expo": {
     "name": "پهناور کار",
     "slug": "PahnavarKar",
-    "version": "1.5.6",
+    "version": "1.5.7",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "pahnavarkar",
@@ -45,6 +45,13 @@
         "expo-navigation-bar",
         {
           "enforceContrast": false
+        }
+      ],
+      [
+        "expo-file-system",
+        {
+          "supportsOpeningDocumentsInPlace": true,
+          "enableFileSharing": true
         }
       ],
       "expo-status-bar",
