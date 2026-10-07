@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import expo.modules.kotlin.functions.Coroutine
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import kotlinx.coroutines.Dispatchers
@@ -23,7 +24,7 @@ class PahnavarFileStorageModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("PahnavarFileStorage")
 
-    AsyncFunction("saveToDownloadsAsync") {
+    AsyncFunction("saveToDownloadsAsync") Coroutine {
       sourceUri: String,
       requestedFileName: String,
       mimeType: String,
