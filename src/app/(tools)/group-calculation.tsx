@@ -612,21 +612,18 @@ async function getPdfAssetDataUri(moduleId: number, mimeType: string, label: str
         return `data:${mimeType};base64,${btoa(binary)}`;
     }
 
-    const localUri = asset.localUri;
+    let localUri = asset.localUri;
+    if (Platform.OS === 'android' && localUri && !/^[a-z][a-z0-9+.-]*:/i.test(localUri)) {
+        const cachedAsset = Asset.fromURI(asset.uri);
+        await cachedAsset.downloadAsync();
+        localUri = cachedAsset.localUri;
+    }
     if (!localUri) {
         throw new Error(`The ${label} is not available in local storage.`);
     }
 
-    // Asset.localUri should normally be a file:// URI on Android/iOS.
-    // Normalize path-only values before passing them to the native FileSystem API.
-    const absoluteFileUri = /^[a-z][a-z0-9+.-]*:/i.test(localUri)
-        ? localUri
-        : localUri.startsWith('/')
-            ? `file://${localUri}`
-            : `file:///${localUri}`;
-
     try {
-        const base64 = await new File(absoluteFileUri).base64();
+        const base64 = await new File(localUri).base64();
         return `data:${mimeType};base64,${base64}`;
     } catch (error) {
         const reason = error instanceof Error && error.message ? `: ${error.message}` : '';
