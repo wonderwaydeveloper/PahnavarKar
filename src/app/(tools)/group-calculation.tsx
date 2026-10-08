@@ -4,12 +4,14 @@ import { jalaaliMonthLength, toGregorian, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { EncodingType, File, Paths } from 'expo-file-system';
-import { Button, Card, Checkbox, Menu, Snackbar, TextInput } from 'react-native-paper';
+import { Card, Checkbox, Menu, Snackbar } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { NativeFileStorageUnavailableError } from 'pahnavar-file-storage';
 
+import { FontAwareButton as Button, FontAwareMenuItem, FontAwarePaperTextInput as TextInput } from '@/components/font-aware-paper';
+import type { FontPreference } from '@/context/app.context';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { PdfHtmlPreview } from '@/components/pdf-html-preview';
 import { DateInputField } from '@/components/date-input-field';
@@ -25,6 +27,7 @@ import { Spacing } from '@/constants/theme';
 import { TOOL_DEFINITIONS } from '@/constants/tool-definitions';
 import { fetchJobGroups, fetchOfficialHolidaysBetweenDates, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { useAppContext } from '@/hooks/use-app-context';
 import { saveFileToDefaultLocation } from '@/services/file-storage';
 import {
     buildGroupCalculationPdfHtml,
@@ -631,13 +634,26 @@ async function getPdfAssetDataUri(moduleId: number, mimeType: string, label: str
     }
 }
 
-async function getGroupCalculationPdfAssets(): Promise<GroupCalculationPdfAssets> {
+async function getGroupCalculationPdfAssets(fontPreference: FontPreference): Promise<GroupCalculationPdfAssets> {
+    const fontFiles = fontPreference === 'iransans'
+        ? {
+            regular: require('../../../assets/fonts/iransans/IRANSansX-Regular.ttf'),
+            medium: require('../../../assets/fonts/iransans/IRANSansX-Medium.ttf'),
+            semiBold: require('../../../assets/fonts/iransans/IRANSansX-DemiBold.ttf'),
+            bold: require('../../../assets/fonts/iransans/IRANSansX-Bold.ttf'),
+        }
+        : {
+            regular: require('../../../assets/fonts/vazir/Vazirmatn-Regular.ttf'),
+            medium: require('../../../assets/fonts/vazir/Vazirmatn-Medium.ttf'),
+            semiBold: require('../../../assets/fonts/vazir/Vazirmatn-SemiBold.ttf'),
+            bold: require('../../../assets/fonts/vazir/Vazirmatn-Bold.ttf'),
+        };
     const [logo, regularFont, mediumFont, semiBoldFont, boldFont] = await Promise.all([
         getPdfAssetDataUri(require('../../../assets/images/logo-white.png'), 'image/png', 'app logo'),
-        getPdfAssetDataUri(require('../../../assets/fonts/Vazirmatn-Regular.ttf'), 'font/ttf', 'Vazirmatn regular font'),
-        getPdfAssetDataUri(require('../../../assets/fonts/Vazirmatn-Medium.ttf'), 'font/ttf', 'Vazirmatn medium font'),
-        getPdfAssetDataUri(require('../../../assets/fonts/Vazirmatn-SemiBold.ttf'), 'font/ttf', 'Vazirmatn semibold font'),
-        getPdfAssetDataUri(require('../../../assets/fonts/Vazirmatn-Bold.ttf'), 'font/ttf', 'Vazirmatn bold font'),
+        getPdfAssetDataUri(fontFiles.regular, 'font/ttf', 'regular font'),
+        getPdfAssetDataUri(fontFiles.medium, 'font/ttf', 'medium font'),
+        getPdfAssetDataUri(fontFiles.semiBold, 'font/ttf', 'semibold font'),
+        getPdfAssetDataUri(fontFiles.bold, 'font/ttf', 'bold font'),
     ]);
 
     return { logo, regularFont, mediumFont, semiBoldFont, boldFont };
@@ -645,6 +661,7 @@ async function getGroupCalculationPdfAssets(): Promise<GroupCalculationPdfAssets
 
 export default function GroupCalculationScreen() {
     const theme = useTheme();
+    const { fontPreference } = useAppContext();
     const insets = useSafeAreaInsets();
     const currentJalaliDate = useMemo(() => {
         const today = new Date();
@@ -1382,7 +1399,7 @@ export default function GroupCalculationScreen() {
         setPdfAction(action);
         setPdfSnackbarVisible(false);
         try {
-            const pdfAssets = await getGroupCalculationPdfAssets();
+            const pdfAssets = await getGroupCalculationPdfAssets(fontPreference);
             const html = buildGroupCalculationPdfHtml(pdfSections, metadata, includePdfDetails, pdfAssets, wageTotal);
             if (action === 'preview') {
                 setPdfPreviewHtml(html);
@@ -1682,7 +1699,7 @@ export default function GroupCalculationScreen() {
                                             )}
                                         >
                                             {jobGroups.map((group) => (
-                                                <Menu.Item
+                                                <FontAwareMenuItem
                                                     key={group.id}
                                                     title={`گروه ${toPersianDigits(group.group_number)}`}
                                                     onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }}
@@ -1764,14 +1781,14 @@ export default function GroupCalculationScreen() {
                                     contentStyle={{ borderRadius: 16, backgroundColor: theme.surface }}
                                 >
                                     {childrenOptions.map((count) => (
-                                        <Menu.Item
+                                        <FontAwareMenuItem
                                             key={count}
                                             onPress={() => {
                                                 setChildrenCount(count);
                                                 setChildrenMenuVisible(false);
                                             }}
                                             title={`${toPersianDigits(count)} فرزند`}
-                                            titleStyle={{ fontFamily: 'Vazirmatn-Regular', color: theme.text }}
+                                            titleStyle={{ fontFamily: 'AppFont-Regular', color: theme.text }}
                                         />
                                     ))}
                                 </Menu>
@@ -1799,7 +1816,7 @@ export default function GroupCalculationScreen() {
                                         محاسبه تعداد روزهای شمول
                                     </ThemedText>
                                 </View>
-                                <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' }}>
+                                <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11, lineHeight: 20, fontFamily: 'AppFont-Regular' }}>
                                     با فعال بودن این گزینه، روزهای جزئی شمول هم در محاسبه لحاظ می‌شوند. اگر غیرفعال باشد، فقط ماه‌های کامل حساب می‌شوند.
                                 </ThemedText>
                                 </View>
@@ -2542,14 +2559,14 @@ const styles = StyleSheet.create({
     introGuidance: { gap: Spacing.one, padding: Spacing.two, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
     introGuidanceText: { fontSize: 12, lineHeight: 18 },
     introHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
-    selectAllLabel: { fontFamily: 'Vazirmatn-Medium', fontSize: 12 },
+    selectAllLabel: { fontFamily: 'AppFont-Medium', fontSize: 12 },
     card: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     selectionList: { paddingVertical: 0, paddingHorizontal: 0 },
     selectionSeparator: { height: StyleSheet.hairlineWidth, marginStart: Spacing.three + 50 + Spacing.two },
     selectionCheckbox: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderRadius: 6 },
     form: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     calculateButton: { borderRadius: 10 },
-    calculateButtonLabel: { fontFamily: 'Vazirmatn-Bold', fontSize: 12 },
+    calculateButtonLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
     inputSection: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
     employeeInfoSection: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.three },
     employeeInfoHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
@@ -2558,7 +2575,7 @@ const styles = StyleSheet.create({
     employeeInfoHint: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, borderRadius: 8 },
     employeeInfoHintText: { flex: 1 },
     employeeTextInput: { backgroundColor: 'transparent' },
-    employeeTextInputContent: { textAlign: 'right', fontFamily: 'Vazirmatn-Regular' },
+    employeeTextInputContent: { textAlign: 'right', fontFamily: 'AppFont-Regular' },
     employeeTextInputOutline: { borderRadius: 10 },
     specificCalculationSection: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
     inputSectionHeader: { gap: Spacing.one },
@@ -2569,12 +2586,12 @@ const styles = StyleSheet.create({
     fieldGroup: { gap: Spacing.one, padding: Spacing.two, borderRadius: 12 },
     fieldGroupLabel: { fontSize: 11, lineHeight: 18 },
     valuePicker: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 8, borderWidth: 1 },
-    valuePickerText: { flex: 1, fontSize: 13, fontFamily: 'Vazirmatn-Regular' },
+    valuePickerText: { flex: 1, fontSize: 13, fontFamily: 'AppFont-Regular' },
     daysCoverageBox: { gap: Spacing.one, borderRadius: 12, borderWidth: 1, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two },
     daysCoverageCheckRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
     periodInputCard: { gap: Spacing.one, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
     periodInputHeader: { gap: Spacing.half },
-    fieldHint: { fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
+    fieldHint: { fontSize: 11, lineHeight: 20, fontFamily: 'AppFont-Regular' },
     dayCountStepper: { minHeight: 50, flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.one, gap: Spacing.one },
     leaveInitialBox: { gap: Spacing.one, borderRadius: 14, padding: Spacing.two },
     leaveSegmentsBox: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
@@ -2582,11 +2599,11 @@ const styles = StyleSheet.create({
     leaveSegmentLabel: { flex: 1, fontSize: 12, lineHeight: 19 },
     stepperButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
     stepperButtonDisabled: { opacity: 0.4 },
-    stepperInput: { flex: 1, minHeight: 42, paddingVertical: 0, fontFamily: 'Vazirmatn-Bold', fontSize: 14 },
+    stepperInput: { flex: 1, minHeight: 42, paddingVertical: 0, fontFamily: 'AppFont-Bold', fontSize: 14 },
     shiftTypeField: { gap: Spacing.one, padding: Spacing.two, borderRadius: 12 },
     shiftOptionsGroup: { flexDirection: 'column', gap: Spacing.one },
     shiftOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 12, borderWidth: 1 },
-    numberInput: { minHeight: 44, borderRadius: 8, paddingHorizontal: Spacing.two, fontFamily: 'Vazirmatn-Medium', textAlign: 'right' },
+    numberInput: { minHeight: 44, borderRadius: 8, paddingHorizontal: Spacing.two, fontFamily: 'AppFont-Medium', textAlign: 'right' },
     periodInputRow: { gap: Spacing.one },
     groupPicker: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
     results: { gap: Spacing.two },
@@ -2598,7 +2615,7 @@ const styles = StyleSheet.create({
     pdfActionItem: {},
     pdfActionButton: { borderRadius: 10 },
     pdfActionButtonContent: { minHeight: 48 },
-    pdfActionButtonLabel: { fontFamily: 'Vazirmatn-Medium', fontSize: 13, lineHeight: 20 },
+    pdfActionButtonLabel: { fontFamily: 'AppFont-Medium', fontSize: 13, lineHeight: 20 },
     wageTotalNote: { fontSize: 11, lineHeight: 16, textAlign: 'center' },
     resultCard: { borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
     resultContent: { gap: Spacing.two, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
@@ -2615,7 +2632,7 @@ const styles = StyleSheet.create({
     amountValue: { fontSize: 18 },
     breakdownSection: { gap: Spacing.two },
     breakdownSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.one, paddingVertical: Spacing.one, gap: Spacing.one },
-    breakdownSectionTitle: { fontSize: 13, fontFamily: 'Vazirmatn-Bold' },
+    breakdownSectionTitle: { fontSize: 13, fontFamily: 'AppFont-Bold' },
     toggleButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
     toggleButtonLabel: { fontSize: 11 },
     breakdownGrid: { gap: Spacing.two },

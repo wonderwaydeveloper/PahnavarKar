@@ -217,7 +217,7 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
                 maxWidth: '100%',
                 fontSize: titleFontSize,
                 lineHeight: titleFontSize + 8,
-                fontFamily: 'Vazirmatn-Bold',
+                fontFamily: 'AppFont-Bold',
                 color: titleColor,
                 textAlign: shouldAlignSecondaryHeaderStart ? 'right' : 'center',
               }}

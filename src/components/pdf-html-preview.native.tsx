@@ -1,8 +1,9 @@
 import { Modal, Platform, StatusBar, StyleSheet, View } from 'react-native';
-import { Appbar, Button } from 'react-native-paper';
+import { Appbar } from 'react-native-paper';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
+import { FontAwareButton as Button, FontAwareAppbarContent } from '@/components/font-aware-paper';
 import { Spacing } from '@/constants/theme';
 import { useAppContext } from '@/hooks/use-app-context';
 
@@ -79,7 +80,7 @@ function PdfHtmlPreviewContent({
                         style={styles.appBarAction}
                         accessibilityLabel="بازگشت از پیش‌نمایش"
                     />
-                    <Appbar.Content
+                    <FontAwareAppbarContent
                         title="پیش‌نمایش فیش PDF"
                         color={headerTextColor}
                         titleStyle={styles.appBarTitle}
@@ -160,12 +161,12 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
     },
     appBarAction: { width: 40, marginHorizontal: 0 },
-    appBarTitle: { fontFamily: 'Vazirmatn-Bold', fontSize: 14, lineHeight: 22 },
+    appBarTitle: { fontFamily: 'AppFont-Bold', fontSize: 14, lineHeight: 22 },
     content: { flex: 1, paddingHorizontal: Spacing.three, gap: Spacing.two },
     previewFrame: { flex: 1, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 10 },
     webView: { flex: 1, backgroundColor: '#FFFFFF' },
     actions: { gap: Spacing.two },
     actionButton: { borderRadius: 10 },
     actionButtonContent: { minHeight: 48 },
-    actionButtonLabel: { fontFamily: 'Vazirmatn-Medium', fontSize: 13 },
+    actionButtonLabel: { fontFamily: 'AppFont-Medium', fontSize: 13 },
 });

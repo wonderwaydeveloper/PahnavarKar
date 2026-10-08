@@ -2,9 +2,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Checkbox, Snackbar } from 'react-native-paper';
+import { Card, Checkbox, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FontAwareButton as Button } from '@/components/font-aware-paper';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -595,7 +596,7 @@ const styles = StyleSheet.create({
     helpText: {
         lineHeight: 20,
         fontSize: 11,
-        fontFamily: 'Vazirmatn-Regular',
+        fontFamily: 'AppFont-Regular',
     },
     actionsGroup: {
         flexDirection: 'row',
@@ -607,7 +608,7 @@ const styles = StyleSheet.create({
     },
     actionLabel: {
         fontSize: 13,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     summaryBoxHeader: {
         alignItems: 'center',
@@ -651,11 +652,11 @@ const styles = StyleSheet.create({
     },
     toggleButtonLabel: {
         fontSize: 11,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     breakdownSectionTitle: {
         fontSize: 13,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     breakdownGrid: {
         gap: Spacing.two,
@@ -687,57 +688,57 @@ const styles = StyleSheet.create({
         display: 'none',
         fontSize: 16,
         lineHeight: 22,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     pageDescription: {
         lineHeight: 20,
         fontSize: 13,
-        fontFamily: 'Vazirmatn-Regular',
+        fontFamily: 'AppFont-Regular',
     },
     sectionLabel: {
         fontSize: 11,
         lineHeight: 18,
-        fontFamily: 'Vazirmatn-Medium',
+        fontFamily: 'AppFont-Medium',
     },
     fieldValue: {
         flex: 1,
         fontSize: 12,
         lineHeight: 20,
-        fontFamily: 'Vazirmatn-Medium',
+        fontFamily: 'AppFont-Medium',
     },
     summaryLabel: {
         fontSize: 12,
         lineHeight: 18,
-        fontFamily: 'Vazirmatn-Medium',
+        fontFamily: 'AppFont-Medium',
     },
     amountValue: {
         fontSize: 22,
         lineHeight: 30,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     formulaLabel: {
         fontSize: 11,
         lineHeight: 18,
-        fontFamily: 'Vazirmatn-Medium',
+        fontFamily: 'AppFont-Medium',
     },
     formulaValue: {
         lineHeight: 20,
         fontSize: 12,
-        fontFamily: 'Vazirmatn-Regular',
+        fontFamily: 'AppFont-Regular',
     },
     breakdownItemTitle: {
         fontSize: 12,
         lineHeight: 18,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     detailLabel: {
         fontSize: 12,
         lineHeight: 17,
-        fontFamily: 'Vazirmatn-Medium',
+        fontFamily: 'AppFont-Medium',
     },
     detailValue: {
         fontSize: 12,
         lineHeight: 18,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
 });

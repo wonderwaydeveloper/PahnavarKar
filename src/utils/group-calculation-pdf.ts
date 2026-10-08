@@ -125,25 +125,25 @@ export function buildGroupCalculationPdfHtml(
     <title>پهناور کار - فیش حقوقی</title>
     <style>
         @font-face {
-            font-family: "Vazirmatn";
+            font-family: "IRANSansX";
             src: url("${escapeHtml(assets.regularFont)}") format("truetype");
             font-style: normal;
             font-weight: 400;
         }
         @font-face {
-            font-family: "Vazirmatn";
+            font-family: "IRANSansX";
             src: url("${escapeHtml(assets.mediumFont)}") format("truetype");
             font-style: normal;
             font-weight: 500;
         }
         @font-face {
-            font-family: "Vazirmatn";
+            font-family: "IRANSansX";
             src: url("${escapeHtml(assets.semiBoldFont)}") format("truetype");
             font-style: normal;
             font-weight: 600;
         }
         @font-face {
-            font-family: "Vazirmatn";
+            font-family: "IRANSansX";
             src: url("${escapeHtml(assets.boldFont)}") format("truetype");
             font-style: normal;
             font-weight: 700;
@@ -154,7 +154,7 @@ export function buildGroupCalculationPdfHtml(
             margin: 0;
             color: #172b35;
             background: #fff;
-            font-family: "Vazirmatn", sans-serif;
+            font-family: "IRANSansX", sans-serif;
             font-size: 11px;
             line-height: 1.9;
         }

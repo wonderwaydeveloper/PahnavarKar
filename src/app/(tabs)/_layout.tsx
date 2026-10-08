@@ -2,8 +2,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { ColorValue } from 'react-native';
 
+import { useAppContext } from '@/hooks/use-app-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getAppFontStyle } from '@/services/font-service';
 
 function getTabBarIcon(
     name: 'home' | 'search' | 'account',
@@ -40,6 +42,7 @@ function getTabBarLabel(name: 'home' | 'search' | 'account') {
 
 export default function TabsLayout() {
     const theme = useTheme();
+    const { fontPreference } = useAppContext();
     const insets = useSafeAreaInsets();
 
     return (
@@ -55,7 +58,7 @@ export default function TabsLayout() {
                 tabBarActiveTintColor: theme.primary,
                 tabBarInactiveTintColor: theme.textSecondary,
                 tabBarLabelStyle: {
-                    fontFamily: 'Vazirmatn-Medium',
+                    ...getAppFontStyle({ fontFamily: 'AppFont-Medium' }, fontPreference),
                     fontSize: 12,
                 },
                 tabBarIcon: ({ color, size }) =>

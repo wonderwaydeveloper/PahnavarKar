@@ -2,9 +2,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Menu, Snackbar } from 'react-native-paper';
+import { Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FontAwareButton as Button, FontAwareMenuItem } from '@/components/font-aware-paper';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -349,7 +350,7 @@ export default function MonthlyShiftWorkScreen() {
                                 <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                     <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>گروه شغلی</ThemedText>
                                     <Menu visible={groupMenuVisible} onDismiss={() => setGroupMenuVisible(false)} anchor={<Pressable onPress={() => setGroupMenuVisible(true)} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="smallBold" style={{ color: theme.text }}>{selectedGroup == null ? 'انتخاب گروه' : `گروه ${toPersianDigits(selectedGroup)}`}</ThemedText><MaterialCommunityIcons name="briefcase-outline" size={18} color={theme.primary} /></Pressable>}>
-                                        {jobGroups.map((group) => <Menu.Item key={group.id} title={`گروه ${toPersianDigits(group.group_number)}`} onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }} />)}
+                                        {jobGroups.map((group) => <FontAwareMenuItem key={group.id} title={`گروه ${toPersianDigits(group.group_number)}`} onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }} />)}
                                     </Menu>
                                 </View>
                             ) : null}
@@ -597,7 +598,7 @@ const styles = StyleSheet.create({
         display: 'none',
         fontSize: 16,
         lineHeight: 22,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     pageDescription: {
         lineHeight: 20,
@@ -634,7 +635,7 @@ const styles = StyleSheet.create({
     helpText: {
         fontSize: 11,
         lineHeight: 20,
-        fontFamily: 'Vazirmatn-Regular',
+        fontFamily: 'AppFont-Regular',
     },
     dateInput: {
         flexDirection: 'row',
@@ -691,12 +692,12 @@ const styles = StyleSheet.create({
     optionTitle: {
         fontSize: 13,
         lineHeight: 19,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     optionDescription: {
         fontSize: 11,
         lineHeight: 20,
-        fontFamily: 'Vazirmatn-Regular',
+        fontFamily: 'AppFont-Regular',
     },
     actionsGroup: {
         flexDirection: 'row',
@@ -707,7 +708,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
     },
     actionLabel: {
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
         fontSize: 12,
     },
     breakdownCard: {

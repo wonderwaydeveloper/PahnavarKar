@@ -6,28 +6,32 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppProvider } from '@/context';
 import { useAppContext } from '@/hooks/use-app-context';
-import { useFontLoading } from '@/hooks/use-font-loading';
 import { NavigationBar } from 'expo-navigation-bar';
 import * as SystemUI from 'expo-system-ui';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 I18nManager.allowRTL(true);
 I18nManager.forceRTL(true);
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 function AppContent() {
-  const { theme, colors, themeReady } = useAppContext();
+  const { themeReady } = useAppContext();
+
+  if (!themeReady) {
+    return null;
+  }
+
+  return <FontLoadedApp />;
+}
+
+function FontLoadedApp() {
+  const { theme, colors } = useAppContext();
   const isLightTheme = theme === 'light';
   const headerBackgroundColor = isLightTheme ? colors.primary : colors.surface;
   const splashHiddenRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
-
-    if (!themeReady) {
-      return () => {
-        cancelled = true;
-      };
-    }
 
     const syncSystemUi = async () => {
       try {
@@ -55,11 +59,7 @@ function AppContent() {
     return () => {
       cancelled = true;
     };
-  }, [colors.background, themeReady]);
-
-  if (!themeReady) {
-    return null;
-  }
+  }, [colors.background]);
 
   return (
     <>
@@ -74,12 +74,6 @@ function AppContent() {
 }
 
 export default function RootLayout() {
-  const { ready } = useFontLoading();
-
-  if (!ready) {
-    return null;
-  }
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

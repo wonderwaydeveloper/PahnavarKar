@@ -1,9 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button } from 'react-native-paper';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FontAwareButton as Button } from '@/components/font-aware-paper';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
     },
     previewValue: {
         fontSize: 18,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     pickerRow: {
         flexDirection: 'row',

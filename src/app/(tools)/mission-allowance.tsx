@@ -2,9 +2,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Menu, Snackbar } from 'react-native-paper';
+import { Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FontAwareButton as Button, FontAwareMenuItem } from '@/components/font-aware-paper';
 import { DateInputField } from '@/components/date-input-field';
 import { NumericInputField } from '@/components/numeric-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -388,7 +389,7 @@ export default function MissionAllowanceScreen() {
                                         )}
                                     >
                                         {jobGroups.map((group) => (
-                                            <Menu.Item
+                                            <FontAwareMenuItem
                                                 key={group.id}
                                                 title={`گروه ${toPersianDigits(group.group_number)}`}
                                                 onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }}
@@ -604,31 +605,31 @@ const styles = StyleSheet.create({
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerRow: { alignItems: 'flex-start' },
     headerText: { gap: Spacing.one },
-    pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' },
+    pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'AppFont-Bold' },
     pageDescription: { fontSize: 13, lineHeight: 20 },
     formulaBox: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two, gap: Spacing.one },
-    formulaLabel: { fontSize: 11, lineHeight: 16, fontFamily: 'Vazirmatn-Medium' },
+    formulaLabel: { fontSize: 11, lineHeight: 16, fontFamily: 'AppFont-Medium' },
     formulaText: { fontSize: 12, lineHeight: 21 },
     metricBox: { borderRadius: 12, padding: Spacing.two, gap: Spacing.one },
-    sectionLabel: { fontSize: 12, lineHeight: 18, fontFamily: 'Vazirmatn-Medium' },
+    sectionLabel: { fontSize: 12, lineHeight: 18, fontFamily: 'AppFont-Medium' },
     dateFieldsRow: { flexDirection: 'row', gap: Spacing.two },
-    daysValue: { minHeight: 40, textAlign: 'center', textAlignVertical: 'center', fontSize: 14, lineHeight: 20, fontFamily: 'Vazirmatn-Bold' },
+    daysValue: { minHeight: 40, textAlign: 'center', textAlignVertical: 'center', fontSize: 14, lineHeight: 20, fontFamily: 'AppFont-Bold' },
     yearFieldsGroup: { gap: Spacing.two },
     yearField: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two, gap: Spacing.one },
     yearFieldHeader: { gap: Spacing.half },
     stepper: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.one, gap: Spacing.one },
     stepperButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
     stepperButtonDisabled: { opacity: 0.4 },
-    textInput: { flex: 1, minHeight: 42, fontFamily: 'Vazirmatn-Bold', fontSize: 14, paddingVertical: 0 },
-    fieldHint: { fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
+    textInput: { flex: 1, minHeight: 42, fontFamily: 'AppFont-Bold', fontSize: 14, paddingVertical: 0 },
+    fieldHint: { fontSize: 11, lineHeight: 20, fontFamily: 'AppFont-Regular' },
     groupSelector: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
     actionsGroup: { flexDirection: 'row', gap: Spacing.two },
     actionButton: { flex: 1, borderRadius: 10 },
-    actionLabel: { fontFamily: 'Vazirmatn-Bold', fontSize: 12 },
+    actionLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
     breakdownCard: { borderRadius: 12, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' },
     breakdownContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two },
     summaryBoxContent: { width: '100%', borderRadius: 12, borderWidth: 1, padding: Spacing.two, gap: Spacing.one, alignItems: 'center' },
-    summaryLabel: { fontSize: 12, lineHeight: 18, fontFamily: 'Vazirmatn-Medium' },
+    summaryLabel: { fontSize: 12, lineHeight: 18, fontFamily: 'AppFont-Medium' },
     amountValue: { fontSize: 23 },
     detailsGrid: { gap: Spacing.two },
     totalMissionDaysBox: { width: '100%', borderRadius: 12, borderWidth: 1, padding: Spacing.two, gap: Spacing.one, alignItems: 'center' },
@@ -640,7 +641,7 @@ const styles = StyleSheet.create({
     breakdownGrid: { gap: Spacing.two },
     breakdownItemCard: { borderRadius: 12, borderWidth: 1, padding: Spacing.two, gap: Spacing.one },
     breakdownItemHeaderRow: { paddingTop: 2, paddingBottom: 2, marginBottom: 2, borderBottomWidth: StyleSheet.hairlineWidth },
-    breakdownItemTitle: { fontSize: 12, fontFamily: 'Vazirmatn-Bold' },
+    breakdownItemTitle: { fontSize: 12, fontFamily: 'AppFont-Bold' },
     breakdownDetailGrid: { gap: Spacing.one },
     breakdownDetailBox: { borderRadius: 8, borderWidth: 1, padding: Spacing.one, gap: Spacing.half, alignItems: 'center' },
     detailLabel: { fontSize: 10 },

@@ -99,7 +99,7 @@ function PeriodCardLocal({
     fontSize: isTitle ? 13 : isValue ? 12 : 10,
     lineHeight: isTitle ? 19 : isValue ? 18 : 16,
     textAlign: 'center' as const,
-    fontFamily: isTitle || isValue ? 'Vazirmatn-Bold' : 'Vazirmatn-Medium',
+    fontFamily: isTitle || isValue ? 'AppFont-Bold' : 'AppFont-Medium',
   });
 
   const periodSeniorityEntries = seniorityBaseByPeriod[period.id] ?? {};
@@ -694,7 +694,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   periodsSectionTitle: {
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
     fontSize: 14,
     lineHeight: 20,
     marginBottom: Spacing.two,
@@ -742,12 +742,12 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   pageTitle: {
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
     fontSize: 16,
     lineHeight: 22,
   },
   pageDescription: {
-    fontFamily: 'Vazirmatn-Regular',
+    fontFamily: 'AppFont-Regular',
     fontSize: 12,
     lineHeight: 18,
   },
@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 12,
     lineHeight: 18,
-    fontFamily: 'Vazirmatn-Medium',
+    fontFamily: 'AppFont-Medium',
   },
   metricContent: {
     flexDirection: 'row',
@@ -773,7 +773,7 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   fieldValue: {
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
     fontSize: 13,
     lineHeight: 19,
   },
@@ -787,7 +787,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   buttonLabel: {
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
     fontSize: 13,
     lineHeight: 19,
   },
@@ -835,7 +835,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     fontSize: 10,
     lineHeight: 16,
-    fontFamily: 'Vazirmatn-Medium',
+    fontFamily: 'AppFont-Medium',
   },
   detailRowValue: {
     width: '100%',
@@ -843,7 +843,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     fontSize: 12,
     lineHeight: 18,
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
   },
   nestedToggleButton: {
     flexDirection: 'row',
@@ -856,7 +856,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.one,
   },
   nestedToggleLabel: {
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
     fontSize: 11,
     lineHeight: 16,
   },
@@ -864,7 +864,7 @@ const styles = StyleSheet.create({
     direction: 'ltr',
     writingDirection: 'ltr',
     textAlign: 'center',
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
   },
   detailGroupBox: {
     alignItems: 'flex-start',
@@ -885,7 +885,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 16,
     fontWeight: '700',
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
   },
   detailGroupItems: {
     width: '100%',
@@ -907,7 +907,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     fontSize: 10,
     lineHeight: 16,
-    fontFamily: 'Vazirmatn-Medium',
+    fontFamily: 'AppFont-Medium',
   },
   detailGroupItemValue: {
     width: '100%',
@@ -915,6 +915,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     fontSize: 11,
     lineHeight: 17,
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
   },
 });

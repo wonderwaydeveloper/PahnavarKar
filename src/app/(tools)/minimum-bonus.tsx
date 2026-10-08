@@ -2,9 +2,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Checkbox, Snackbar } from 'react-native-paper';
+import { Card, Checkbox, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FontAwareButton as Button } from '@/components/font-aware-paper';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -489,7 +490,7 @@ const styles = StyleSheet.create({
     sectionLabel: {
         fontSize: 10,
         lineHeight: 16,
-        fontFamily: 'Vazirmatn-Medium',
+        fontFamily: 'AppFont-Medium',
     },
     dateInput: {
         flexDirection: 'row',
@@ -505,7 +506,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 12,
         lineHeight: 18,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     optionBox: {
         borderRadius: Radius.md,
@@ -527,7 +528,7 @@ const styles = StyleSheet.create({
     detailLabel: {
         fontSize: 10,
         lineHeight: 16,
-        fontFamily: 'Vazirmatn-Medium',
+        fontFamily: 'AppFont-Medium',
         textAlign: 'center',
     },
     helpRow: {
@@ -547,7 +548,7 @@ const styles = StyleSheet.create({
     },
     actionLabel: {
         fontSize: 13,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     breakdownCard: {
         borderRadius: 18,
@@ -572,12 +573,12 @@ const styles = StyleSheet.create({
     summaryLabel: {
         fontSize: 10,
         lineHeight: 16,
-        fontFamily: 'Vazirmatn-Medium',
+        fontFamily: 'AppFont-Medium',
     },
     amountValue: {
         fontSize: 22,
         lineHeight: 30,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     breakdownSectionHeader: {
         flexDirection: 'row',
@@ -588,7 +589,7 @@ const styles = StyleSheet.create({
     breakdownSectionTitle: {
         fontSize: 13,
         lineHeight: 19,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     toggleButton: {
         flexDirection: 'row',
@@ -602,7 +603,7 @@ const styles = StyleSheet.create({
     toggleButtonLabel: {
         fontSize: 11,
         lineHeight: 17,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     breakdownGrid: {
         gap: Spacing.two,
@@ -621,7 +622,7 @@ const styles = StyleSheet.create({
     breakdownItemTitle: {
         fontSize: 12,
         lineHeight: 18,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     breakdownDetailGrid: {
         gap: Spacing.one,
@@ -638,14 +639,14 @@ const styles = StyleSheet.create({
     detailValue: {
         fontSize: 12,
         lineHeight: 18,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
         textAlign: 'center',
     },
     pageTitle: {
         display: 'none',
         fontSize: 16,
         lineHeight: 22,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     pageDescription: {
         lineHeight: 20,
@@ -654,11 +655,11 @@ const styles = StyleSheet.create({
     formulaLabel: {
         fontSize: 10,
         lineHeight: 16,
-        fontFamily: 'Vazirmatn-Medium',
+        fontFamily: 'AppFont-Medium',
     },
     formulaValue: {
         lineHeight: 20,
         fontSize: 12,
-        fontFamily: 'Vazirmatn-Medium',
+        fontFamily: 'AppFont-Medium',
     },
 });

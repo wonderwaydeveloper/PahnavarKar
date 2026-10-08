@@ -56,24 +56,24 @@ export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
 export const Fonts = Platform.select({
   ios: {
-    /** Vazirmatn فونت‌ها */
-    sans: 'Vazirmatn-Regular',
-    serif: 'Vazirmatn-Light',
-    rounded: 'Vazirmatn-Medium',
-    mono: 'Vazirmatn-SemiBold',
+    /** IRANSansX فونت‌ها */
+    sans: 'AppFont-Regular',
+    serif: 'AppFont-Light',
+    rounded: 'AppFont-Medium',
+    mono: 'AppFont-SemiBold',
   },
   android: {
-    /** Vazirmatn فونت‌ها */
-    sans: 'Vazirmatn-Regular',
-    serif: 'Vazirmatn-Light',
-    rounded: 'Vazirmatn-Medium',
-    mono: 'Vazirmatn-SemiBold',
+    /** IRANSansX فونت‌ها */
+    sans: 'AppFont-Regular',
+    serif: 'AppFont-Light',
+    rounded: 'AppFont-Medium',
+    mono: 'AppFont-SemiBold',
   },
   web: {
-    sans: 'Vazirmatn-Regular',
-    serif: 'Vazirmatn-Light',
-    rounded: 'Vazirmatn-Medium',
-    mono: 'Vazirmatn-SemiBold',
+    sans: 'AppFont-Regular',
+    serif: 'AppFont-Light',
+    rounded: 'AppFont-Medium',
+    mono: 'AppFont-SemiBold',
   },
 });
 

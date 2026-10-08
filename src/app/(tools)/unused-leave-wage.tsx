@@ -2,9 +2,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Menu, Snackbar } from 'react-native-paper';
+import { Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FontAwareButton as Button, FontAwareMenuItem } from '@/components/font-aware-paper';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
 import { NumericInputField } from '@/components/numeric-input-field';
@@ -387,7 +388,7 @@ export default function UnusedLeaveWageScreen() {
                                             </Pressable>
                                         }
                                     >
-                                        {jobGroups.map((group) => <Menu.Item key={group.id} title={`گروه ${toPersianDigits(group.group_number)}`} onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }} />)}
+                                        {jobGroups.map((group) => <FontAwareMenuItem key={group.id} title={`گروه ${toPersianDigits(group.group_number)}`} onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }} />)}
                                     </Menu>
                                 </View>
                             ) : null}
@@ -419,14 +420,14 @@ export default function UnusedLeaveWageScreen() {
                                     contentStyle={{ borderRadius: 16, backgroundColor: theme.surface }}
                                 >
                                     {CHILDREN_OPTIONS.map((count) => (
-                                        <Menu.Item
+                                        <FontAwareMenuItem
                                             key={count}
                                             onPress={() => {
                                                 setChildrenCount(count);
                                                 setChildrenMenuVisible(false);
                                             }}
                                             title={`${toPersianDigits(String(count))} فرزند`}
-                                            titleStyle={{ fontFamily: 'Vazirmatn-Regular', color: theme.text }}
+                                            titleStyle={{ fontFamily: 'AppFont-Regular', color: theme.text }}
                                         />
                                     ))}
                                 </Menu>
@@ -458,7 +459,7 @@ const styles = StyleSheet.create({
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerRow: { alignItems: 'flex-start' },
     headerText: { flex: 1, gap: Spacing.one },
-    pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' },
+    pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'AppFont-Bold' },
     pageDescription: { fontSize: 13, lineHeight: 20 },
     formulaBox: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, gap: Spacing.one },
     formulaLabel: { fontSize: 11 },
@@ -466,17 +467,17 @@ const styles = StyleSheet.create({
     metricsRow: { flexDirection: 'row', gap: Spacing.two },
     metricBox: { flex: 1, borderRadius: 14, padding: Spacing.two, gap: Spacing.one },
     sectionLabel: { fontSize: 11 },
-    helpText: { fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
+    helpText: { fontSize: 11, lineHeight: 20, fontFamily: 'AppFont-Regular' },
     dateInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, gap: Spacing.one },
     fieldValue: { flex: 1, fontSize: 13 },
-    textInput: { minHeight: 42, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, paddingHorizontal: Spacing.two, fontFamily: 'Vazirmatn-Bold', fontSize: 14 },
+    textInput: { minHeight: 42, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, paddingHorizontal: Spacing.two, fontFamily: 'AppFont-Bold', fontSize: 14 },
     usedLeaveBox: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two, gap: Spacing.two },
     usedLeaveRow: { flexDirection: 'column', alignItems: 'stretch', gap: Spacing.two },
     usedLeaveLabel: { fontSize: 12, lineHeight: 19 },
     stepper: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.one, gap: Spacing.one },
     stepperButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
     stepperButtonDisabled: { opacity: 0.4 },
-    stepperInput: { flex: 1, minHeight: 42, fontFamily: 'Vazirmatn-Bold', fontSize: 14, paddingVertical: 0 },
+    stepperInput: { flex: 1, minHeight: 42, fontFamily: 'AppFont-Bold', fontSize: 14, paddingVertical: 0 },
     initialSavedStepper: { width: '100%' },
     statusRow: { flexDirection: 'row', gap: Spacing.two },
     statusButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.one, paddingVertical: Spacing.two, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
@@ -484,27 +485,27 @@ const styles = StyleSheet.create({
     leaveUsageField: { gap: Spacing.one },
     settlementRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
     checkText: { flex: 1, gap: Spacing.one },
-    optionTitle: { fontSize: 13, lineHeight: 19, fontFamily: 'Vazirmatn-Bold' },
-    optionDescription: { fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
+    optionTitle: { fontSize: 13, lineHeight: 19, fontFamily: 'AppFont-Bold' },
+    optionDescription: { fontSize: 11, lineHeight: 20, fontFamily: 'AppFont-Regular' },
     settlementText: { flex: 1, gap: Spacing.one },
     settlementTitle: { fontSize: 13, lineHeight: 19 },
     settlementDescription: { fontSize: 11, lineHeight: 20 },
     actionsGroup: { flexDirection: 'row', gap: Spacing.two },
     actionButton: { flex: 1, borderRadius: 12 },
-    actionLabel: { fontFamily: 'Vazirmatn-Bold', fontSize: 12 },
+    actionLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
     resultCard: { borderRadius: 12, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' },
     resultContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two },
     summaryBox: { width: '100%', alignItems: 'center', gap: Spacing.one, padding: Spacing.two, borderRadius: 12, borderWidth: 1 },
     summaryLabel: { fontSize: 11 },
     amountValue: { fontSize: 18 },
     breakdownHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.one, paddingVertical: Spacing.one, gap: Spacing.one },
-    breakdownSectionTitle: { fontSize: 13, fontFamily: 'Vazirmatn-Bold' },
+    breakdownSectionTitle: { fontSize: 13, fontFamily: 'AppFont-Bold' },
     toggleButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth },
     toggleButtonLabel: { fontSize: 11 },
     breakdownGrid: { gap: Spacing.two },
     breakdownItemCard: { borderRadius: 12, borderWidth: 1, padding: Spacing.two, gap: Spacing.one },
     breakdownItemHeaderRow: { paddingTop: 2, paddingBottom: 2, marginBottom: 2, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0, 0, 0, 0.12)' },
-    breakdownItemTitle: { fontSize: 12, fontFamily: 'Vazirmatn-Bold' },
+    breakdownItemTitle: { fontSize: 12, fontFamily: 'AppFont-Bold' },
     breakdownDetailGrid: { gap: Spacing.one },
     detailDescription: { fontSize: 12, lineHeight: 18 },
     detailBox: { alignItems: 'center', gap: Spacing.half, padding: Spacing.one, borderRadius: 8, borderWidth: 1 },

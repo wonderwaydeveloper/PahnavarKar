@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     sectionLabel: {
         fontSize: 12,
         lineHeight: 18,
-        fontFamily: 'Vazirmatn-Medium',
+        fontFamily: 'AppFont-Medium',
     },
     dateInput: {
         flexDirection: 'row',
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     },
     fieldValue: {
         flexShrink: 1,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
         fontSize: 13,
         lineHeight: 19,
         textAlign: 'right',
@@ -102,6 +102,6 @@ const styles = StyleSheet.create({
     helperText: {
         fontSize: 10,
         lineHeight: 16,
-        fontFamily: 'Vazirmatn-Regular',
+        fontFamily: 'AppFont-Regular',
     },
 });

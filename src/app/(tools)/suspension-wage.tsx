@@ -2,9 +2,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Menu, Snackbar } from 'react-native-paper';
+import { Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FontAwareButton as Button, FontAwareMenuItem } from '@/components/font-aware-paper';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -479,7 +480,7 @@ export default function SuspensionWageScreen() {
                   }}
                 >
                   {Array.from({ length: 13 }, (_, index) => (
-                    <Menu.Item
+                    <FontAwareMenuItem
                       key={index}
                       onPress={() => {
                         setChildrenCount(index);
@@ -487,7 +488,7 @@ export default function SuspensionWageScreen() {
                       }}
                       title={`${toPersianDigits(String(index))} فرزند`}
                       titleStyle={{
-                        fontFamily: "Vazirmatn-Regular",
+                        fontFamily: "AppFont-Regular",
                         color: theme.text,
                       }}
                     />
@@ -554,7 +555,7 @@ export default function SuspensionWageScreen() {
                     }}
                   >
                     {jobGroups.map((group) => (
-                      <Menu.Item
+                      <FontAwareMenuItem
                         key={group.id}
                         onPress={() => {
                           setSelectedGroup(group.group_number);
@@ -562,7 +563,7 @@ export default function SuspensionWageScreen() {
                         }}
                         title={`گروه ${toPersianDigits(String(group.group_number))}`}
                         titleStyle={{
-                          fontFamily: "Vazirmatn-Regular",
+                          fontFamily: "AppFont-Regular",
                           color: theme.text,
                         }}
                       />
@@ -1037,7 +1038,7 @@ const styles = StyleSheet.create({
   },
   headerRow: { alignItems: "flex-start" },
   headerText: { flex: 1, gap: Spacing.one },
-  pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: "Vazirmatn-Bold" },
+  pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: "AppFont-Bold" },
   pageDescription: { fontSize: 13, lineHeight: 20 },
   formulaBox: {
     borderRadius: Radius.md,
@@ -1063,7 +1064,7 @@ const styles = StyleSheet.create({
     padding: Spacing.two,
   },
   workshopTypeSection: { gap: Spacing.two },
-  sectionLabel: { fontSize: 11, fontFamily: "Vazirmatn-Medium" },
+  sectionLabel: { fontSize: 11, fontFamily: "AppFont-Medium" },
   dateInput: {
     flexDirection: "row",
     alignItems: "center",
@@ -1095,11 +1096,11 @@ const styles = StyleSheet.create({
     padding: Spacing.two,
   },
   checkText: { flex: 1, gap: Spacing.one },
-  optionTitle: { fontSize: 13, lineHeight: 19, fontFamily: "Vazirmatn-Bold" },
+  optionTitle: { fontSize: 13, lineHeight: 19, fontFamily: "AppFont-Bold" },
   optionDescription: {
     fontSize: 11,
     lineHeight: 20,
-    fontFamily: "Vazirmatn-Regular",
+    fontFamily: "AppFont-Regular",
   },
   helpRow: {
     flexDirection: "row",
@@ -1112,7 +1113,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 11,
     lineHeight: 20,
-    fontFamily: "Vazirmatn-Regular",
+    fontFamily: "AppFont-Regular",
   },
   actionsGroup: {
     flexDirection: "row",
@@ -1120,7 +1121,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.one,
   },
   actionButton: { flex: 1, borderRadius: 12 },
-  actionLabel: { fontFamily: "Vazirmatn-Bold", fontSize: 12 },
+  actionLabel: { fontFamily: "AppFont-Bold", fontSize: 12 },
   resultCard: {
     borderRadius: 12,
     borderWidth: 1,
@@ -1150,7 +1151,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
     gap: Spacing.one,
   },
-  breakdownSectionTitle: { fontSize: 13, fontFamily: "Vazirmatn-Bold" },
+  breakdownSectionTitle: { fontSize: 13, fontFamily: "AppFont-Bold" },
   toggleButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -1175,7 +1176,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(0, 0, 0, 0.12)",
   },
-  breakdownItemTitle: { fontSize: 12, fontFamily: "Vazirmatn-Bold" },
+  breakdownItemTitle: { fontSize: 12, fontFamily: "AppFont-Bold" },
   breakdownDetailGrid: { gap: Spacing.one },
   detailBox: {
     alignItems: "center",

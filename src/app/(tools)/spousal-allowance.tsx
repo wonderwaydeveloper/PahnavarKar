@@ -2,9 +2,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Checkbox, Snackbar } from 'react-native-paper';
+import { Card, Checkbox, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FontAwareButton as Button } from '@/components/font-aware-paper';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -555,7 +556,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
     },
     actionLabel: {
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
         fontSize: 12,
     },
     breakdownCard: {
@@ -597,7 +598,7 @@ const styles = StyleSheet.create({
     },
     breakdownSectionTitle: {
         fontSize: 13,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     toggleButton: {
         flexDirection: 'row',
@@ -647,7 +648,7 @@ const styles = StyleSheet.create({
         display: 'none',
         fontSize: 16,
         lineHeight: 22,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     pageDescription: {
         lineHeight: 20,

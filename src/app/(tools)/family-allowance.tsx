@@ -2,9 +2,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Checkbox, Menu, Snackbar } from 'react-native-paper';
+import { Card, Checkbox, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FontAwareButton as Button, FontAwareMenuItem } from '@/components/font-aware-paper';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -287,14 +288,14 @@ export default function FamilyAllowanceScreen() {
                                     contentStyle={{ borderRadius: 16, backgroundColor: theme.surface }}
                                 >
                                     {CHILDREN_OPTIONS.map((count) => (
-                                        <Menu.Item
+                                        <FontAwareMenuItem
                                             key={count}
                                             onPress={() => {
                                                 setChildrenCount(count);
                                                 closeChildrenMenu();
                                             }}
                                             title={`${toPersianDigits(String(count))} فرزند`}
-                                            titleStyle={{ fontFamily: 'Vazirmatn-Regular', color: theme.text }}
+                                            titleStyle={{ fontFamily: 'AppFont-Regular', color: theme.text }}
                                         />
                                     ))}
                                 </Menu>
@@ -560,7 +561,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
     },
     actionLabel: {
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
         fontSize: 12,
     },
     optionRow: {
@@ -586,7 +587,7 @@ const styles = StyleSheet.create({
     helpText: {
         lineHeight: 20,
         fontSize: 11,
-        fontFamily: 'Vazirmatn-Regular',
+        fontFamily: 'AppFont-Regular',
     },
     breakdownCard: {
         borderRadius: 12,
@@ -621,7 +622,7 @@ const styles = StyleSheet.create({
     },
     breakdownSectionTitle: {
         fontSize: 13,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     breakdownGrid: {
         gap: Spacing.two,
@@ -645,7 +646,7 @@ const styles = StyleSheet.create({
     breakdownPillValue: {
         fontSize: 12,
         lineHeight: 18,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     breakdownItemHeaderRow: {
         paddingTop: 2,
@@ -668,7 +669,7 @@ const styles = StyleSheet.create({
         display: 'none',
         fontSize: 16,
         lineHeight: 22,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
     },
     pageDescription: {
         lineHeight: 20,

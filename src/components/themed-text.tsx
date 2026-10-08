@@ -1,5 +1,6 @@
-import { StyleSheet, Text, type TextProps } from 'react-native';
+import { StyleSheet, type TextProps } from 'react-native';
 
+import { AppText } from '@/components/app-text';
 import { ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -12,7 +13,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
   const theme = useTheme();
 
   return (
-    <Text
+    <AppText
       style={[
         { color: type === 'linkPrimary' ? theme.primary : theme[themeColor ?? 'text'] },
         type === 'default' && styles.default,
@@ -39,66 +40,66 @@ const styles = StyleSheet.create({
   small: {
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: 'Vazirmatn-Regular',
+    fontFamily: 'AppFont-Regular',
   },
   smallBold: {
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
   },
   default: {
     fontSize: 16,
     lineHeight: 24,
-    fontFamily: 'Vazirmatn-Regular',
+    fontFamily: 'AppFont-Regular',
   },
   title: {
     fontSize: 48,
     lineHeight: 52,
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
   },
   subtitle: {
     fontSize: 32,
     lineHeight: 44,
-    fontFamily: 'Vazirmatn-SemiBold',
+    fontFamily: 'AppFont-SemiBold',
   },
   link: {
     lineHeight: 30,
     fontSize: 14,
-    fontFamily: 'Vazirmatn-Regular',
+    fontFamily: 'AppFont-Regular',
   },
   linkPrimary: {
     lineHeight: 30,
     fontSize: 14,
-    fontFamily: 'Vazirmatn-SemiBold',
+    fontFamily: 'AppFont-SemiBold',
   },
   code: {
-    fontFamily: 'Vazirmatn-SemiBold',
+    fontFamily: 'AppFont-SemiBold',
     fontSize: 12,
   },
   largeTitle: {
     fontSize: 24,
     lineHeight: 32,
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
   },
   description: {
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: 'Vazirmatn-Regular',
+    fontFamily: 'AppFont-Regular',
     opacity: 0.7,
   },
   body: {
     fontSize: 16,
     lineHeight: 24,
-    fontFamily: 'Vazirmatn-Regular',
+    fontFamily: 'AppFont-Regular',
   },
   bodyBold: {
     fontSize: 16,
     lineHeight: 24,
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
   },
   labelBold: {
     fontSize: 15,
     lineHeight: 22,
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
   },
 });

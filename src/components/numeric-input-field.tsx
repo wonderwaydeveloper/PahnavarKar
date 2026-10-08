@@ -1,5 +1,6 @@
-import { TextInput, type TextInputProps } from 'react-native';
+import { type TextInputProps } from 'react-native';
 
+import { AppTextInput } from '@/components/app-text';
 export type NumericInputMode = 'integer' | 'decimal';
 
 type NumericInputFieldProps = Omit<
@@ -35,7 +36,7 @@ function sanitizeNumericInput(value: string, mode: NumericInputMode): string {
 
 export function NumericInputField({ mode = 'integer', onChangeText, ...props }: NumericInputFieldProps) {
     return (
-        <TextInput
+        <AppTextInput
             {...props}
             keyboardType={mode === 'decimal' ? 'decimal-pad' : 'number-pad'}
             inputMode={mode === 'decimal' ? 'decimal' : 'numeric'}

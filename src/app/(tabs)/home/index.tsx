@@ -2,10 +2,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Fragment, memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, LayoutChangeEvent, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Button } from 'react-native-paper';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabView, type NavigationState, type SceneRendererProps } from 'react-native-tab-view';
 
+import { FontAwareButton as Button } from '@/components/font-aware-paper';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ToolListItem } from '@/components/tool-list-item';
@@ -260,12 +261,12 @@ export default function HomeTabScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     groupCalculationButton: { alignSelf: 'stretch', marginHorizontal: Spacing.three, marginTop: Spacing.two, marginBottom: Spacing.two, borderRadius: 10 },
-    groupCalculationButtonLabel: { fontFamily: 'Vazirmatn-Bold' },
+    groupCalculationButtonLabel: { fontFamily: 'AppFont-Bold' },
     tabView: { flex: 1 },
     tabBar: { borderBottomWidth: StyleSheet.hairlineWidth },
     tabBarContent: { flexDirection: 'row' },
     tabItem: { minWidth: 88, minHeight: 54, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.three, position: 'relative' },
-    tabLabel: { fontFamily: 'Vazirmatn-Medium', fontSize: 12, textTransform: 'none' },
+    tabLabel: { fontFamily: 'AppFont-Medium', fontSize: 12, textTransform: 'none' },
     tabIndicator: { position: 'absolute', left: Spacing.two, right: Spacing.two, bottom: 0, height: 4, borderRadius: 999, overflow: 'hidden' },
     sceneScroll: { flex: 1 },
     sceneContent: { flexGrow: 1 },

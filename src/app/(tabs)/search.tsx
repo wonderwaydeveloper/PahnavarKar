@@ -1,10 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, SectionList, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, SectionList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/app-header';
+import { AppTextInput } from '@/components/app-text';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ToolListItem } from '@/components/tool-list-item';
@@ -100,7 +101,7 @@ export default function SearchTabScreen() {
     const renderSearchBox = useCallback(() => (
         <View style={[styles.searchBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <MaterialCommunityIcons name="magnify" size={21} color={theme.textSecondary} />
-            <TextInput
+            <AppTextInput
                 autoFocus
                 value={query}
                 onChangeText={setQuery}
@@ -129,7 +130,7 @@ export default function SearchTabScreen() {
         return (
             <ThemedText style={style}>
                 {value.slice(0, matchIndex)}
-                <ThemedText style={{ color: theme.primary, fontFamily: 'Vazirmatn-Bold' }}>
+                <ThemedText style={{ color: theme.primary, fontFamily: 'AppFont-Bold' }}>
                     {value.slice(matchIndex, matchIndex + matchQuery.length)}
                 </ThemedText>
                 {value.slice(matchIndex + matchQuery.length)}
@@ -142,8 +143,8 @@ export default function SearchTabScreen() {
             tool={item}
             onPress={() => router.push(getToolRoute(item.route) as never)}
             showBottomBorder={index < section.data.length - 1}
-            titleContent={renderHighlightedText(item.title, { color: theme.text, fontSize: 14, lineHeight: 20, fontFamily: 'Vazirmatn-Bold' })}
-            detailContent={renderHighlightedText(item.detail, { color: theme.textSecondary, fontSize: 13, lineHeight: 19, fontFamily: 'Vazirmatn-Regular' })}
+            titleContent={renderHighlightedText(item.title, { color: theme.text, fontSize: 14, lineHeight: 20, fontFamily: 'AppFont-Bold' })}
+            detailContent={renderHighlightedText(item.detail, { color: theme.textSecondary, fontSize: 13, lineHeight: 19, fontFamily: 'AppFont-Regular' })}
         />
     ), [renderHighlightedText, router, theme.text, theme.textSecondary]);
 
@@ -182,6 +183,6 @@ const styles = StyleSheet.create({
     resultsList: { flex: 1 },
     content: { flexGrow: 1 },
     searchBox: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.two, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
-    searchInput: { flex: 1, minHeight: 42, paddingVertical: 0, fontFamily: 'Vazirmatn-Regular', fontSize: 15, textAlign: 'right' },
+    searchInput: { flex: 1, minHeight: 42, paddingVertical: 0, fontFamily: 'AppFont-Regular', fontSize: 15, textAlign: 'right' },
     emptyState: { flex: 1, minHeight: 180, alignItems: 'center', justifyContent: 'center', gap: Spacing.one, padding: Spacing.four, borderRadius: 16, borderWidth: 1 },
 });

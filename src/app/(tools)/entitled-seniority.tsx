@@ -2,9 +2,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Menu, Snackbar } from 'react-native-paper';
+import { Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FontAwareButton as Button, FontAwareMenuItem } from '@/components/font-aware-paper';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -207,7 +208,7 @@ export default function EntitledSeniorityScreen() {
                                 <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                     <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>گروه شغلی</ThemedText>
                                     <Menu visible={groupMenuVisible} onDismiss={() => setGroupMenuVisible(false)} anchor={<Pressable onPress={() => setGroupMenuVisible(true)} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="smallBold" style={{ color: theme.text }}>{selectedGroup == null ? 'انتخاب گروه' : `گروه ${toPersianDigits(selectedGroup)}`}</ThemedText><MaterialCommunityIcons name="briefcase-outline" size={18} color={theme.primary} /></Pressable>}>
-                                        {jobGroups.map((group) => <Menu.Item key={group.id} title={`گروه ${toPersianDigits(group.group_number)}`} onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }} />)}
+                                        {jobGroups.map((group) => <FontAwareMenuItem key={group.id} title={`گروه ${toPersianDigits(group.group_number)}`} onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }} />)}
                                     </Menu>
                                 </View>
                             ) : null}
@@ -311,16 +312,16 @@ const styles = StyleSheet.create({
     card: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerText: { gap: Spacing.one },
-    pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'Vazirmatn-Bold' },
-    pageDescription: { fontSize: 13, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
+    pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'AppFont-Bold' },
+    pageDescription: { fontSize: 13, lineHeight: 20, fontFamily: 'AppFont-Regular' },
     formulaBox: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two, gap: Spacing.one },
-    formulaLabel: { fontSize: 10, lineHeight: 16, fontFamily: 'Vazirmatn-Medium' },
-    formulaValue: { fontSize: 12, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
+    formulaLabel: { fontSize: 10, lineHeight: 16, fontFamily: 'AppFont-Medium' },
+    formulaValue: { fontSize: 12, lineHeight: 20, fontFamily: 'AppFont-Regular' },
     metricsRow: { flexDirection: 'row', gap: Spacing.two },
     metricBox: { flex: 1, borderRadius: 14, padding: Spacing.two, gap: Spacing.one },
-    sectionLabel: { fontSize: 11, lineHeight: 16, fontFamily: 'Vazirmatn-Medium' },
+    sectionLabel: { fontSize: 11, lineHeight: 16, fontFamily: 'AppFont-Medium' },
     dateInput: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.one, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
-    fieldValue: { flex: 1, fontSize: 12, lineHeight: 18, fontFamily: 'Vazirmatn-Bold' },
+    fieldValue: { flex: 1, fontSize: 12, lineHeight: 18, fontFamily: 'AppFont-Bold' },
     optionSection: { gap: Spacing.two },
     optionsRow: { flexDirection: 'row', gap: Spacing.two },
     optionButton: { flex: 1, minHeight: 44, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.two },
@@ -328,34 +329,34 @@ const styles = StyleSheet.create({
     checkText: { flex: 1, gap: Spacing.one },
     actionsGroup: { flexDirection: 'row', gap: Spacing.two },
     actionButton: { flex: 1, borderRadius: 10 },
-    actionLabel: { fontFamily: 'Vazirmatn-Bold', fontSize: 12 },
-    optionTitle: { fontSize: 13, lineHeight: 19, fontFamily: 'Vazirmatn-Bold' },
-    optionDescription: { fontSize: 11, lineHeight: 20, fontFamily: 'Vazirmatn-Regular' },
+    actionLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
+    optionTitle: { fontSize: 13, lineHeight: 19, fontFamily: 'AppFont-Bold' },
+    optionDescription: { fontSize: 11, lineHeight: 20, fontFamily: 'AppFont-Regular' },
     resultCard: { borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
     resultContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two },
     summaryBox: { width: '100%', alignItems: 'center', gap: Spacing.one, padding: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth },
-    summaryLabel: { fontSize: 11, lineHeight: 16, fontFamily: 'Vazirmatn-Medium', textAlign: 'center' },
-    amountValue: { fontSize: 18, lineHeight: 26, fontFamily: 'Vazirmatn-Bold' },
+    summaryLabel: { fontSize: 11, lineHeight: 16, fontFamily: 'AppFont-Medium', textAlign: 'center' },
+    amountValue: { fontSize: 18, lineHeight: 26, fontFamily: 'AppFont-Bold' },
     finalYearAmounts: { width: '100%', gap: Spacing.one },
     finalYearAmount: { width: '100%', alignItems: 'center', gap: Spacing.half, padding: Spacing.two, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
-    finalYearDateLabel: { fontSize: 10, lineHeight: 16, fontFamily: 'Vazirmatn-Medium' },
-    finalYearDate: { fontSize: 12, lineHeight: 18, fontFamily: 'Vazirmatn-Bold', textAlign: 'center' },
+    finalYearDateLabel: { fontSize: 10, lineHeight: 16, fontFamily: 'AppFont-Medium' },
+    finalYearDate: { fontSize: 12, lineHeight: 18, fontFamily: 'AppFont-Bold', textAlign: 'center' },
     finalYearValueRow: { width: '100%', flexDirection: 'column', gap: Spacing.one, marginTop: Spacing.one },
     finalYearValueBlock: { width: '100%', alignItems: 'center', gap: Spacing.half, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
     finalYearMonthlyBlock: {},
-    finalYearValueLabel: { fontSize: 10, lineHeight: 16, fontFamily: 'Vazirmatn-Medium' },
-    finalYearAmountValue: { fontSize: 18, lineHeight: 26, fontFamily: 'Vazirmatn-Bold' },
+    finalYearValueLabel: { fontSize: 10, lineHeight: 16, fontFamily: 'AppFont-Medium' },
+    finalYearAmountValue: { fontSize: 18, lineHeight: 26, fontFamily: 'AppFont-Bold' },
     breakdownHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.one, paddingVertical: Spacing.one, gap: Spacing.two },
-    breakdownSectionTitle: { fontSize: 13, lineHeight: 19, fontFamily: 'Vazirmatn-Bold' },
+    breakdownSectionTitle: { fontSize: 13, lineHeight: 19, fontFamily: 'AppFont-Bold' },
     toggleButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth },
-    toggleButtonLabel: { fontSize: 11, lineHeight: 17, fontFamily: 'Vazirmatn-Bold' },
+    toggleButtonLabel: { fontSize: 11, lineHeight: 17, fontFamily: 'AppFont-Bold' },
     breakdownGrid: { gap: Spacing.two },
     breakdownItem: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two, gap: Spacing.one },
     breakdownItemHeaderRow: { paddingTop: 2, paddingBottom: 2, marginBottom: 2, borderBottomWidth: StyleSheet.hairlineWidth },
-    breakdownItemTitle: { fontSize: 12, lineHeight: 18, fontFamily: 'Vazirmatn-Bold' },
+    breakdownItemTitle: { fontSize: 12, lineHeight: 18, fontFamily: 'AppFont-Bold' },
     detailGrid: { gap: Spacing.one },
     detailBox: { alignItems: 'center', gap: Spacing.half, padding: Spacing.one, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
-    detailLabel: { fontSize: 10, lineHeight: 16, fontFamily: 'Vazirmatn-Regular' },
-    detailValue: { fontSize: 12, lineHeight: 18, fontFamily: 'Vazirmatn-Bold' },
+    detailLabel: { fontSize: 10, lineHeight: 16, fontFamily: 'AppFont-Regular' },
+    detailValue: { fontSize: 12, lineHeight: 18, fontFamily: 'AppFont-Bold' },
     dateValue: { textAlign: 'center' },
 });

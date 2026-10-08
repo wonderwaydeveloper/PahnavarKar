@@ -166,12 +166,12 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   pageTitle: {
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
     fontSize: 16,
     lineHeight: 22,
   },
   pageDescription: {
-    fontFamily: 'Vazirmatn-Regular',
+    fontFamily: 'AppFont-Regular',
     fontSize: 12,
     lineHeight: 18,
   },
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 12,
     lineHeight: 18,
-    fontFamily: 'Vazirmatn-Medium',
+    fontFamily: 'AppFont-Medium',
   },
   metricContent: {
     flexDirection: 'row',
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   fieldValue: {
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
     fontSize: 13,
     lineHeight: 19,
   },
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   buttonLabel: {
-    fontFamily: 'Vazirmatn-Bold',
+    fontFamily: 'AppFont-Bold',
     fontSize: 13,
     lineHeight: 19,
   },

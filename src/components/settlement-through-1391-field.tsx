@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 12,
         lineHeight: 18,
-        fontFamily: 'Vazirmatn-Medium',
+        fontFamily: 'AppFont-Medium',
     },
     optionsRow: {
         width: '100%',
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     },
     optionLabel: {
         flexShrink: 1,
-        fontFamily: 'Vazirmatn-Bold',
+        fontFamily: 'AppFont-Bold',
         fontSize: 12,
         lineHeight: 18,
         textAlign: 'center',
