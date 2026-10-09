@@ -12,12 +12,27 @@ import { ToolListItem } from '@/components/tool-list-item';
 import { Spacing } from '@/constants/theme';
 import { TOOL_DEFINITIONS, type ToolDefinition } from '@/constants/tool-definitions';
 import { getToolRoute } from '@/constants/tool-routes';
+import { getLegalRouteHref } from '@/components/legal/legal-route-utils';
+import type { LegalSearchResult } from '@/database';
+import { searchLegalContent } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
 
 type SearchAction = ToolDefinition & {
     searchText: string;
     titleSearchText: string;
     detailSearchText: string;
+};
+
+type SearchScope = 'all' | 'calculations' | 'laws';
+
+type SearchRow =
+    | { kind: 'calculation'; key: string; action: SearchAction }
+    | { kind: 'legal'; key: string; result: LegalSearchResult };
+
+type SearchSection = {
+    key: 'calculations' | 'laws';
+    title: string;
+    data: SearchRow[];
 };
 
 const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
@@ -51,6 +66,14 @@ export default function SearchTabScreen() {
     const router = useRouter();
     const [query, setQuery] = useState('');
     const [debouncedQuery, setDebouncedQuery] = useState('');
+    const [scope, setScope] = useState<SearchScope>('all');
+    const [legalSearchRetry, setLegalSearchRetry] = useState(0);
+    const [legalSearchState, setLegalSearchState] = useState<{
+        query: string;
+        retry: number;
+        results: LegalSearchResult[];
+        error: string | null;
+    }>({ query: '', retry: -1, results: [], error: null });
 
     useEffect(() => {
         const timeoutId = setTimeout(() => {
@@ -61,8 +84,56 @@ export default function SearchTabScreen() {
     }, [query]);
 
     const normalizedQuery = normalizeSearchText(debouncedQuery);
+    const hasLegalSearch = normalizedQuery.length > 0 && scope !== 'calculations';
 
-    const sections = useMemo(() => {
+    useEffect(() => {
+        let cancelled = false;
+
+        if (!hasLegalSearch) {
+            return () => {
+                cancelled = true;
+            };
+        }
+
+        void searchLegalContent(debouncedQuery)
+            .then((results) => {
+                if (!cancelled) {
+                    setLegalSearchState({
+                        query: normalizedQuery,
+                        retry: legalSearchRetry,
+                        results,
+                        error: null,
+                    });
+                }
+            })
+            .catch((error: unknown) => {
+                if (!cancelled) {
+                    setLegalSearchState({
+                        query: normalizedQuery,
+                        retry: legalSearchRetry,
+                        results: [],
+                        error: error instanceof Error ? error.message : 'جست‌وجو در قوانین با خطا روبه‌رو شد.',
+                    });
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [debouncedQuery, hasLegalSearch, legalSearchRetry, normalizedQuery]);
+
+    const hasCurrentLegalSearchState = legalSearchState.query === normalizedQuery
+        && legalSearchState.retry === legalSearchRetry;
+    const legalSearchLoading = hasLegalSearch && !hasCurrentLegalSearchState;
+    const legalSearchError = hasLegalSearch && hasCurrentLegalSearchState
+        ? legalSearchState.error
+        : null;
+    const legalResults = useMemo(
+        () => hasCurrentLegalSearchState ? legalSearchState.results : [],
+        [hasCurrentLegalSearchState, legalSearchState.results]
+    );
+
+    const matchingActions = useMemo(() => {
         const matchingActions = ACTION_DEFINITIONS
             .map((action, originalIndex) => {
                 if (!normalizedQuery) {
@@ -90,8 +161,36 @@ export default function SearchTabScreen() {
             .sort((left, right) => left.relevance - right.relevance || left.originalIndex - right.originalIndex)
             .map((entry) => entry.action);
 
-        return [{ title: '', data: matchingActions }];
+        return matchingActions;
     }, [normalizedQuery]);
+
+    const sections = useMemo<SearchSection[]>(() => {
+        const nextSections: SearchSection[] = [];
+        const currentLegalResults = hasLegalSearch ? legalResults : [];
+        if (scope !== 'laws' && normalizedQuery) {
+            nextSections.push({
+                key: 'calculations',
+                title: 'کارت‌های محاسباتی',
+                data: matchingActions.map((action) => ({
+                    kind: 'calculation',
+                    key: action.key,
+                    action,
+                })),
+            });
+        }
+        if (scope !== 'calculations' && normalizedQuery && !legalSearchError) {
+            nextSections.push({
+                key: 'laws',
+                title: 'قوانین و مقررات',
+                data: currentLegalResults.map((result) => ({
+                    kind: 'legal',
+                    key: result.key,
+                    result,
+                })),
+            });
+        }
+        return nextSections;
+    }, [hasLegalSearch, legalResults, legalSearchError, matchingActions, normalizedQuery, scope]);
 
     const handleClearQuery = useCallback(() => {
         setQuery('');
@@ -109,7 +208,7 @@ export default function SearchTabScreen() {
                 placeholderTextColor={theme.textMuted}
                 style={[styles.searchInput, { color: theme.text }]}
                 returnKeyType="search"
-                accessibilityLabel="جست‌وجوی ابزارها"
+                accessibilityLabel="جست‌وجوی کارت‌های محاسباتی و قوانین"
             />
             {query.length > 0 ? (
                 <Pressable onPress={handleClearQuery} accessibilityRole="button" accessibilityLabel="پاک‌کردن جست‌وجو" hitSlop={8}>
@@ -138,33 +237,178 @@ export default function SearchTabScreen() {
         );
     }, [debouncedQuery, theme.primary]);
 
-    const renderItem = useCallback(({ item, index, section }: { item: SearchAction; index: number; section: { data: SearchAction[] } }) => (
-        <ToolListItem
-            tool={item}
-            onPress={() => router.push(getToolRoute(item.route) as never)}
-            showBottomBorder={index < section.data.length - 1}
-            titleContent={renderHighlightedText(item.title, { color: theme.text, fontSize: 14, lineHeight: 20, fontFamily: 'AppFont-Bold' })}
-            detailContent={renderHighlightedText(item.detail, { color: theme.textSecondary, fontSize: 13, lineHeight: 19, fontFamily: 'AppFont-Regular' })}
-        />
-    ), [renderHighlightedText, router, theme.text, theme.textSecondary]);
+    const renderSearchRow = useCallback(({ item, index, section }: { item: SearchRow; index: number; section: SearchSection }) => {
+        if (item.kind === 'calculation') {
+            return (
+                <ToolListItem
+                    tool={item.action}
+                    onPress={() => router.push(getToolRoute(item.action.route) as never)}
+                    showBottomBorder={index < section.data.length - 1}
+                    compactIcon
+                    titleContent={renderHighlightedText(item.action.title, {
+                        color: theme.text,
+                        fontSize: 14,
+                        lineHeight: 20,
+                        fontFamily: 'AppFont-Bold',
+                    })}
+                    detailContent={renderHighlightedText(item.action.detail, {
+                        color: theme.textSecondary,
+                        fontSize: 13,
+                        lineHeight: 19,
+                        fontFamily: 'AppFont-Regular',
+                    })}
+                />
+            );
+        }
+
+        const iconByType: Record<LegalSearchResult['type'], React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
+            category: 'folder-text-outline',
+            title: 'file-document-outline',
+            chapter: 'bookmark-multiple-outline',
+            topic: 'format-list-bulleted',
+            article: 'file-document-outline',
+            footnote: 'text-box-outline',
+        };
+
+        return (
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${item.result.title}، ${item.result.subtitle}`}
+                onPress={() => router.push(getLegalRouteHref(
+                    item.result.routeType,
+                    item.result.routeId,
+                    item.result.routeTitle,
+                    item.result.footnoteId ?? undefined
+                ) as never)}
+                style={({ pressed }) => [
+                    styles.legalResult,
+                    {
+                        backgroundColor: pressed ? theme.surfaceVariant : theme.surface,
+                        borderBottomColor: theme.border,
+                    },
+                    index < section.data.length - 1 && styles.withBottomBorder,
+                ]}
+            >
+                <View style={[styles.legalResultIcon, { backgroundColor: theme.primaryContainer }]}>
+                    <MaterialCommunityIcons name={iconByType[item.result.type]} size={22} color={theme.primary} />
+                </View>
+                <View style={styles.legalResultText}>
+                    <ThemedText type="smallBold" style={{ color: theme.text }}>{item.result.title}</ThemedText>
+                    <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 13, lineHeight: 19 }}>
+                        {item.result.subtitle}
+                    </ThemedText>
+                </View>
+                <MaterialCommunityIcons name="chevron-left" size={22} color={theme.textMuted} />
+            </Pressable>
+        );
+    }, [renderHighlightedText, router, theme.primary, theme.primaryContainer, theme.surface, theme.surfaceVariant, theme.text, theme.textSecondary, theme.textMuted, theme.border]);
+
+    const renderSectionHeader = useCallback(({ section }: { section: SearchSection }) => (
+        section.data.length > 0 ? (
+            <View style={[styles.sectionHeader, { backgroundColor: theme.background }]}>
+                <ThemedText type="smallBold" themeColor="textSecondary">{section.title}</ThemedText>
+            </View>
+        ) : null
+    ), [theme.background]);
+
+    const filterBar = useMemo(() => {
+        const filters: { key: SearchScope; title: string }[] = [
+            { key: 'all', title: 'همه' },
+            { key: 'calculations', title: 'کارت‌های محاسباتی' },
+            { key: 'laws', title: 'قوانین و مقررات' },
+        ];
+
+        return (
+            <View style={styles.listHeader}>
+                <View style={styles.filterBar}>
+                {filters.map((filter) => {
+                        const selected = scope === filter.key;
+                        return (
+                            <Pressable
+                                key={filter.key}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected }}
+                                onPress={() => setScope(filter.key)}
+                                style={[
+                                    styles.filterChip,
+                                    {
+                                        backgroundColor: selected ? theme.primaryContainer : theme.surface,
+                                        borderColor: selected ? theme.primary : theme.border,
+                                    },
+                                ]}
+                            >
+                                <ThemedText
+                                    type={selected ? 'smallBold' : 'small'}
+                                    style={{ color: selected ? theme.primary : theme.textSecondary }}
+                                >
+                                    {filter.title}
+                                </ThemedText>
+                            </Pressable>
+                        );
+                    })}
+                </View>
+                {legalSearchLoading && hasLegalSearch ? (
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.searchStatus}>
+                        در حال جست‌وجو در قوانین و مقررات…
+                    </ThemedText>
+                ) : legalSearchError ? (
+                    <View style={styles.searchError}>
+                        <ThemedText type="small" themeColor="error" style={{ flex: 1 }}>{legalSearchError}</ThemedText>
+                        <Pressable
+                            accessibilityRole="button"
+                            onPress={() => setLegalSearchRetry((retry) => retry + 1)}
+                        >
+                            <ThemedText type="smallBold" themeColor="primary">تلاش دوباره</ThemedText>
+                        </Pressable>
+                    </View>
+                ) : null}
+            </View>
+        );
+    }, [hasLegalSearch, legalSearchError, legalSearchLoading, scope, theme.border, theme.primary, theme.primaryContainer, theme.surface, theme.textSecondary]);
 
     const emptyState = useMemo(() => (
         <View style={[styles.emptyState, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <MaterialCommunityIcons name="text-search" size={28} color={theme.textMuted} />
-            <ThemedText type="smallBold">ابزاری پیدا نشد</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">عبارت دیگری را جست‌وجو کنید.</ThemedText>
+            <ThemedText type="smallBold">
+                {legalSearchLoading && scope === 'laws'
+                    ? 'در حال جست‌وجو در قوانین و مقررات…'
+                    : !normalizedQuery
+                        ? 'عبارتی برای جست‌وجو وارد کنید'
+                        : scope === 'laws'
+                        ? 'موردی در قوانین و مقررات پیدا نشد'
+                        : scope === 'calculations'
+                            ? 'کارت محاسباتی پیدا نشد'
+                            : 'نتیجه‌ای پیدا نشد'}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+                {!normalizedQuery
+                    ? scope === 'laws'
+                        ? 'نام قانون، ماده یا عبارت موردنظر را بنویسید.'
+                        : scope === 'calculations'
+                            ? 'نام کارت محاسباتی موردنظر را بنویسید.'
+                            : 'برای جست‌وجوی کارت‌های محاسباتی یا قوانین، عبارت موردنظر را بنویسید.'
+                    : 'عبارت دیگری را جست‌وجو کنید.'}
+            </ThemedText>
         </View>
-    ), [theme.border, theme.surface, theme.textMuted]);
+    ), [legalSearchLoading, normalizedQuery, scope, theme.border, theme.surface, theme.textMuted]);
 
     return (
         <ThemedView style={styles.container}>
             <AppHeader centerContent={renderSearchBox()} />
+            {filterBar}
             <SectionList
                 style={styles.resultsList}
                 sections={sections}
                 keyExtractor={(item) => item.key}
-                renderItem={renderItem}
+                renderItem={renderSearchRow}
+                renderSectionHeader={renderSectionHeader}
                 ListEmptyComponent={emptyState}
+                ListFooterComponent={scope === 'all' && normalizedQuery && !legalSearchLoading
+                    && !legalSearchError && legalResults.length === 0 ? (
+                    <View style={styles.loadingFooter}>
+                        <ThemedText type="small" themeColor="textSecondary">در قوانین و مقررات نتیجه‌ای پیدا نشد.</ThemedText>
+                    </View>
+                ) : null}
                 contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.four }]}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="on-drag"
@@ -184,5 +428,16 @@ const styles = StyleSheet.create({
     content: { flexGrow: 1 },
     searchBox: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.two, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
     searchInput: { flex: 1, minHeight: 42, paddingVertical: 0, fontFamily: 'AppFont-Regular', fontSize: 15, textAlign: 'right' },
+    listHeader: { gap: Spacing.two },
+    filterBar: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingTop: Spacing.three, paddingBottom: Spacing.two },
+    filterChip: { minHeight: 38, justifyContent: 'center', paddingHorizontal: Spacing.three, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth },
+    searchStatus: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.one },
+    searchError: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingBottom: Spacing.one },
+    sectionHeader: { paddingHorizontal: Spacing.three, paddingTop: Spacing.three, paddingBottom: Spacing.two },
+    legalResult: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
+    legalResultIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    legalResultText: { flex: 1, minWidth: 0, gap: Spacing.one },
+    withBottomBorder: { borderBottomWidth: StyleSheet.hairlineWidth },
+    loadingFooter: { alignItems: 'center', padding: Spacing.three },
     emptyState: { flex: 1, minHeight: 180, alignItems: 'center', justifyContent: 'center', gap: Spacing.one, padding: Spacing.four, borderRadius: 16, borderWidth: 1 },
 });

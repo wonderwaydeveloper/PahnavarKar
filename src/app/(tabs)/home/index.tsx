@@ -6,11 +6,11 @@ import { Animated, LayoutChangeEvent, Platform, Pressable, ScrollView, StyleShee
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabView, type NavigationState, type SceneRendererProps } from 'react-native-tab-view';
 
-import { FontAwareButton as Button } from '@/components/font-aware-paper';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ToolListItem } from '@/components/tool-list-item';
 import { WebBadge } from '@/components/web-badge';
+import { LegalCategoryList } from '@/components/legal/legal-category-list';
 import { Spacing } from '@/constants/theme';
 import { TOOL_DEFINITIONS, type ToolDefinition } from '@/constants/tool-definitions';
 import { getToolRoute } from '@/constants/tool-routes';
@@ -171,7 +171,7 @@ const HomeScene = memo(function HomeScene({ tab, actions, theme, bottomInset }: 
         <View style={[styles.listCard, { backgroundColor: theme.surface }]}>
             {items.map((action, index) => (
                 <Fragment key={action.key}>
-                    <ToolListItem tool={action} onPress={action.onPress} />
+                    <ToolListItem tool={action} onPress={action.onPress} compactIcon />
                     {index < items.length - 1 ? <View style={[styles.chatSeparator, { backgroundColor: theme.border }]} /> : null}
                 </Fragment>
             ))}
@@ -191,7 +191,9 @@ const HomeScene = memo(function HomeScene({ tab, actions, theme, bottomInset }: 
             showsVerticalScrollIndicator={false}
         >
             <View style={styles.page}>
-                {tabActions.length > 0 ? (
+                {tab === 'rules' ? (
+                    <LegalCategoryList />
+                ) : tabActions.length > 0 ? (
                     <>
                         {tab === 'all' ? renderSection(yearlyInfoActions) : null}
                         {renderSection(continuousWageActions)}
@@ -231,15 +233,6 @@ export default function HomeTabScreen() {
 
     return (
         <ThemedView style={styles.container}>
-            <Button
-                mode="contained-tonal"
-                icon="calculator-variant"
-                onPress={() => router.push('/group-calculation' as never)}
-                style={styles.groupCalculationButton}
-                labelStyle={styles.groupCalculationButtonLabel}
-            >
-                محاسبهٔ گروهی
-            </Button>
             <TabView
                 navigationState={{ index: tabIndex, routes: HOME_ROUTES }}
                 onIndexChange={setTabIndex}
@@ -260,8 +253,6 @@ export default function HomeTabScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    groupCalculationButton: { alignSelf: 'stretch', marginHorizontal: Spacing.three, marginTop: Spacing.two, marginBottom: Spacing.two, borderRadius: 10 },
-    groupCalculationButtonLabel: { fontFamily: 'AppFont-Bold' },
     tabView: { flex: 1 },
     tabBar: { borderBottomWidth: StyleSheet.hairlineWidth },
     tabBarContent: { flexDirection: 'row' },

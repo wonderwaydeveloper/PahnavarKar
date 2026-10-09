@@ -1,0 +1,7 @@
+[
+  { "id": 1, "chapter_id": 3, "title": "مبحث اول", "sort_order": 1 },
+  { "id": 2, "chapter_id": 3, "title": "مبحث دوم", "sort_order": 2 },
+  { "id": 3, "chapter_id": 3, "title": "مبحث سوم", "sort_order": 3 },
+  { "id": 4, "chapter_id": 3, "title": "مبحث چهارم", "sort_order": 4 },
+  { "id": 5, "chapter_id": 3, "title": "مبحث پنجم", "sort_order": 5 }
+]

@@ -1,0 +1,7 @@
+[
+  { "id": 1, "article_id": 1, "title": "تبصره 1", "body": "متن آزمایشی تبصره 1.", "sort_order": 1 },
+  { "id": 2, "article_id": 1, "title": "تبصره 2", "body": "متن آزمایشی تبصره 2.", "sort_order": 2 },
+  { "id": 3, "article_id": 1, "title": "تبصره 3", "body": "متن آزمایشی تبصره 3.", "sort_order": 3 },
+  { "id": 4, "article_id": 1, "title": "تبصره 4", "body": "متن آزمایشی تبصره 4.", "sort_order": 4 },
+  { "id": 5, "article_id": 1, "title": "تبصره 5", "body": "متن آزمایشی تبصره 5.", "sort_order": 5 }
+]

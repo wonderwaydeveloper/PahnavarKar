@@ -3,7 +3,7 @@ import { createContext } from 'react';
 
 export type ThemeType = keyof typeof Colors;
 export type ThemePreference = ThemeType | 'system';
-export type FontPreference = 'iransans' | 'vazir';
+export type FontPreference = 'iransans' | 'vazir' | 'shabnam' | 'system';
 
 export interface AppContextType {
     theme: ThemeType;

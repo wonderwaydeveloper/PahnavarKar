@@ -1,7 +1,6 @@
 import { useAppContext } from '@/hooks/use-app-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
-import { usePathname, useRouter } from 'expo-router';
+import { useGlobalSearchParams, usePathname, useRouter } from 'expo-router';
 import { type ReactNode } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { Appbar } from 'react-native-paper';
@@ -19,6 +18,7 @@ interface AppHeaderProps {
 export function AppHeader({ route, formatYear, selectedYear, centerContent }: AppHeaderProps) {
   const { colors, theme: appTheme } = useAppContext();
   const pathname = usePathname();
+  const { headerTitle: rawHeaderTitle } = useGlobalSearchParams<{ headerTitle?: string | string[] }>();
   const isLightTheme = appTheme === 'light';
   const headerBackgroundColor = isLightTheme ? colors.primary : colors.surface;
   const titleColor = isLightTheme ? colors.surface : colors.text;
@@ -27,6 +27,10 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
     const value = input ?? pathname ?? route?.name ?? 'home';
     const cleaned = value.replace(/^\/+|\/+$/g, '');
     const segments = cleaned ? cleaned.split('/') : ['home'];
+    const rulesIndex = segments.lastIndexOf('rules');
+    if (rulesIndex >= 0 && segments[rulesIndex + 1] && segments[rulesIndex + 1] !== 'index') {
+      return segments[rulesIndex + 1];
+    }
     return segments[segments.length - 1] || 'home';
   };
 
@@ -44,12 +48,22 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
         return { title: 'پشتیبانی' };
       case 'about-us':
         return { title: 'درباره ما' };
+      case 'category':
+        return { title: 'دستهٔ قوانین و مقررات' };
+      case 'title':
+        return { title: 'عنوان قانونی' };
+      case 'chapter':
+        return { title: 'فصل' };
+      case 'topic':
+        return { title: 'مبحث' };
+      case 'article':
+        return { title: 'ماده و تبصره‌ها' };
       case 'app-info':
         return { title: 'اطلاعات برنامه' };
       case 'yearly-info':
         return { title: 'اطلاعات جامع مزدی از سال ۱۳۶۹ تاکنون' };
       case 'group-calculation':
-        return { title: 'محاسبهٔ گروهی' };
+        return { title: 'محاسبهٔ جامع' };
       case 'base-salary':
         return { title: 'حقوق پایه' };
       case 'family-allowance':
@@ -117,10 +131,14 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
 
   const router = useRouter();
   const actualRouteName = normalizeRoute(pathname || route?.name);
-  const { title } = getHeaderConfig(actualRouteName);
+  const routeTitle = getHeaderConfig(actualRouteName).title;
+  const hasLegalRouteTitle = ['category', 'title', 'chapter', 'topic', 'article'].includes(actualRouteName);
+  const title = hasLegalRouteTitle && typeof rawHeaderTitle === 'string' && rawHeaderTitle.trim()
+    ? rawHeaderTitle
+    : routeTitle;
   const activeTool = TOOL_DEFINITIONS.find((tool) => tool.key === actualRouteName);
   const showHomeLogo = actualRouteName === 'home' || actualRouteName === 'index';
-  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'group-calculation', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'bonus-entitlement', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unemployment-insurance-entitlement', 'unemployment-insurance-allowance', 'unused-leave-entitlement', 'unused-leave-wage', 'suspension-wage', 'end-of-service-years', 'entitled-seniority', 'mission-allowance', 'friday-work', 'official-holiday-work', 'official-holidays-in-range', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours'].includes(actualRouteName);
+  const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'group-calculation', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'bonus-entitlement', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unemployment-insurance-entitlement', 'unemployment-insurance-allowance', 'unused-leave-entitlement', 'unused-leave-wage', 'suspension-wage', 'end-of-service-years', 'entitled-seniority', 'mission-allowance', 'friday-work', 'official-holiday-work', 'official-holidays-in-range', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours', 'category', 'title', 'chapter', 'topic', 'article'].includes(actualRouteName);
   const shouldAlignSecondaryHeaderStart = showBackButton && !centerContent;
 
   const { width } = useWindowDimensions();
@@ -181,21 +199,6 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
               gap: 8,
             }}
           >
-            {showHomeLogo ? (
-              <Image
-                source={require('@/assets/images/logo-white.png')}
-                contentFit="contain"
-                allowDownscaling={false}
-                style={{
-                  width: 32,
-                  height: 32,
-                  shadowColor: '#041E28',
-                  shadowOpacity: 0.2,
-                  shadowRadius: 3,
-                  shadowOffset: { width: 0, height: 1 }
-                }}
-              />
-            ) : null}
             {activeTool ? (
               <View
                 style={{
@@ -211,6 +214,8 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
               </View>
             ) : null}
             <ThemedText
+              numberOfLines={1}
+              ellipsizeMode="tail"
               style={{
                 flexShrink: 1,
                 minWidth: 0,
@@ -227,6 +232,15 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
           </View>
         )}
       </View>
+      {showHomeLogo ? (
+        <Appbar.Action
+          icon="calculator-variant-outline"
+          color={titleColor}
+          onPress={() => router.push('/group-calculation' as never)}
+          accessibilityLabel="محاسبهٔ جامع"
+          size={22}
+        />
+      ) : null}
     </Appbar.Header>
   );
 }

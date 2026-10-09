@@ -635,6 +635,11 @@ async function getPdfAssetDataUri(moduleId: number, mimeType: string, label: str
 }
 
 async function getGroupCalculationPdfAssets(fontPreference: FontPreference): Promise<GroupCalculationPdfAssets> {
+    if (fontPreference === 'system') {
+        const logo = await getPdfAssetDataUri(require('../../../assets/images/logo-white.png'), 'image/png', 'app logo');
+        return { logo };
+    }
+
     const fontFiles = fontPreference === 'iransans'
         ? {
             regular: require('../../../assets/fonts/iransans/IRANSansX-Regular.ttf'),
@@ -642,12 +647,19 @@ async function getGroupCalculationPdfAssets(fontPreference: FontPreference): Pro
             semiBold: require('../../../assets/fonts/iransans/IRANSansX-DemiBold.ttf'),
             bold: require('../../../assets/fonts/iransans/IRANSansX-Bold.ttf'),
         }
-        : {
-            regular: require('../../../assets/fonts/vazir/Vazirmatn-Regular.ttf'),
-            medium: require('../../../assets/fonts/vazir/Vazirmatn-Medium.ttf'),
-            semiBold: require('../../../assets/fonts/vazir/Vazirmatn-SemiBold.ttf'),
-            bold: require('../../../assets/fonts/vazir/Vazirmatn-Bold.ttf'),
-        };
+        : fontPreference === 'vazir'
+            ? {
+                regular: require('../../../assets/fonts/vazir/Vazirmatn-Regular.ttf'),
+                medium: require('../../../assets/fonts/vazir/Vazirmatn-Medium.ttf'),
+                semiBold: require('../../../assets/fonts/vazir/Vazirmatn-SemiBold.ttf'),
+                bold: require('../../../assets/fonts/vazir/Vazirmatn-Bold.ttf'),
+            }
+            : {
+                regular: require('../../../assets/fonts/shabnam/Shabnam-FD.ttf'),
+                medium: require('../../../assets/fonts/shabnam/Shabnam-Medium-FD.ttf'),
+                semiBold: require('../../../assets/fonts/shabnam/Shabnam-Medium-FD.ttf'),
+                bold: require('../../../assets/fonts/shabnam/Shabnam-Bold-FD.ttf'),
+            };
     const [logo, regularFont, mediumFont, semiBoldFont, boldFont] = await Promise.all([
         getPdfAssetDataUri(require('../../../assets/images/logo-white.png'), 'image/png', 'app logo'),
         getPdfAssetDataUri(fontFiles.regular, 'font/ttf', 'regular font'),
@@ -972,7 +984,7 @@ export default function GroupCalculationScreen() {
         }
 
         if (selectedKeys.length === 0) {
-            setErrorMessage('حداقل یک محاسبه را انتخاب کنید.');
+            setErrorMessage('برای انجام محاسبهٔ جامع، دست‌کم یک آیتم محاسباتی را انتخاب کنید.');
             setResults(null);
             return;
         }
@@ -1483,7 +1495,7 @@ export default function GroupCalculationScreen() {
             >
                 <View style={styles.intro}>
                     <View style={styles.introHeader}>
-                        <ThemedText type="bodyBold">انتخاب محاسبات</ThemedText>
+                        <ThemedText type="bodyBold">انتخاب آیتم‌های محاسباتی</ThemedText>
                         <Button
                             mode="outlined"
                             compact
@@ -1520,6 +1532,7 @@ export default function GroupCalculationScreen() {
                                     <ToolListItem
                                         tool={tool}
                                         onPress={() => toggleCalculation(key)}
+                                        compactIcon
                                         accessibilityRole="checkbox"
                                         accessibilityState={{ checked }}
                                         detailContent={(
@@ -2620,7 +2633,7 @@ const styles = StyleSheet.create({
     resultCard: { borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
     resultContent: { gap: Spacing.two, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
     resultHeading: { alignItems: 'stretch', justifyContent: 'space-between', gap: Spacing.one },
-    resultTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: Spacing.one, flex: 1, minWidth: 0 },
+    resultTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: Spacing.two, flex: 1, minWidth: 0 },
     resultBadge: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
     resultTitle: { textAlign: 'right', flexShrink: 1 },
     resultHeaderActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },

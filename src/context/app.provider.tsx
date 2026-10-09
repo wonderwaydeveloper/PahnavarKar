@@ -24,7 +24,7 @@ function isThemePreference(value: string | null): value is ThemePreference {
 }
 
 function isFontPreference(value: string | null): value is FontPreference {
-    return value === 'iransans' || value === 'vazir';
+    return value === 'iransans' || value === 'vazir' || value === 'shabnam' || value === 'system';
 }
 
 export function AppProvider({ children }: AppProviderProps) {

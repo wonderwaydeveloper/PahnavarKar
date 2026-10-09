@@ -1,6 +1,7 @@
 import { type SQLiteDatabase } from 'expo-sqlite';
 
 import { runWithDatabaseLock } from './connection';
+import { runLegalMigrations } from './legal-migrations';
 
 const expectedYearColumns = ['id', 'year', 'period_count'];
 const expectedPeriodColumns = [
@@ -41,6 +42,7 @@ export async function initializeSchema() {
     return runWithDatabaseLock(async (database) => {
         await createTables(database);
         await ensureCompatibleSchema(database);
+        await runLegalMigrations(database);
     });
 }
 

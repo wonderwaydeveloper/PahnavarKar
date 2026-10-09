@@ -1,0 +1,12 @@
+[
+  { "id": 1, "legal_title_id": 2, "chapter_id": null, "topic_id": 1, "title": "ماده 1", "body": "متن آزمایشی ماده 1.", "sort_order": 1 },
+  { "id": 2, "legal_title_id": 2, "chapter_id": null, "topic_id": 1, "title": "ماده 2", "body": "متن آزمایشی ماده 2.", "sort_order": 2 },
+  { "id": 3, "legal_title_id": 2, "chapter_id": null, "topic_id": 1, "title": "ماده 3", "body": "متن آزمایشی ماده 3.", "sort_order": 3 },
+  { "id": 4, "legal_title_id": 2, "chapter_id": null, "topic_id": 1, "title": "ماده 4", "body": "متن آزمایشی ماده 4.", "sort_order": 4 },
+  { "id": 5, "legal_title_id": 2, "chapter_id": null, "topic_id": 1, "title": "ماده 5", "body": "متن آزمایشی ماده 5.", "sort_order": 5 },
+  { "id": 6, "legal_title_id": 2, "chapter_id": null, "topic_id": 1, "title": "ماده 6", "body": "متن آزمایشی ماده 6.", "sort_order": 6 },
+  { "id": 7, "legal_title_id": 2, "chapter_id": null, "topic_id": 1, "title": "ماده 7", "body": "متن آزمایشی ماده 7.", "sort_order": 7 },
+  { "id": 8, "legal_title_id": 2, "chapter_id": null, "topic_id": 1, "title": "ماده 8", "body": "متن آزمایشی ماده 8.", "sort_order": 8 },
+  { "id": 9, "legal_title_id": 2, "chapter_id": null, "topic_id": 1, "title": "ماده 9", "body": "متن آزمایشی ماده 9.", "sort_order": 9 },
+  { "id": 10, "legal_title_id": 2, "chapter_id": null, "topic_id": 1, "title": "ماده 10", "body": "متن آزمایشی ماده 10.", "sort_order": 10 }
+]

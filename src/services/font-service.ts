@@ -5,8 +5,16 @@ import type { FontPreference, ThemeType } from '@/context/app.context';
 import { darkTheme, lightTheme } from '@/constants/themes';
 
 export type AppFontWeight = 'Light' | 'Regular' | 'Medium' | 'SemiBold' | 'Bold';
+type CustomFontPreference = Exclude<FontPreference, 'system'>;
 
 const FONT_WEIGHTS: AppFontWeight[] = ['Light', 'Regular', 'Medium', 'SemiBold', 'Bold'];
+const SYSTEM_FONT_WEIGHTS: Record<AppFontWeight, TextStyle['fontWeight']> = {
+    Light: '300',
+    Regular: '400',
+    Medium: '500',
+    SemiBold: '600',
+    Bold: '700',
+};
 
 const FONT_ASSETS = {
     iransans: {
@@ -23,13 +31,25 @@ const FONT_ASSETS = {
         SemiBold: require('../../assets/fonts/vazir/Vazirmatn-SemiBold.ttf'),
         Bold: require('../../assets/fonts/vazir/Vazirmatn-Bold.ttf'),
     },
-} satisfies Record<FontPreference, Record<AppFontWeight, number>>;
+    shabnam: {
+        Light: require('../../assets/fonts/shabnam/Shabnam-Light-FD.ttf'),
+        Regular: require('../../assets/fonts/shabnam/Shabnam-FD.ttf'),
+        Medium: require('../../assets/fonts/shabnam/Shabnam-Medium-FD.ttf'),
+        // Shabnam has no Semibold file; use Medium for this app weight.
+        SemiBold: require('../../assets/fonts/shabnam/Shabnam-Medium-FD.ttf'),
+        Bold: require('../../assets/fonts/shabnam/Shabnam-Bold-FD.ttf'),
+    },
+} satisfies Record<CustomFontPreference, Record<AppFontWeight, number>>;
 
-const loadedFonts = new Set<FontPreference>();
-const loadingFonts = new Map<FontPreference, Promise<void>>();
+const loadedFonts = new Set<CustomFontPreference>();
+const loadingFonts = new Map<CustomFontPreference, Promise<void>>();
 
-export function getAppFontFamily(preference: FontPreference, weight: AppFontWeight): string {
-    const family = preference === 'iransans' ? 'IRANSansX' : 'Vazirmatn';
+export function getAppFontFamily(preference: CustomFontPreference, weight: AppFontWeight): string {
+    const family = {
+        iransans: 'IRANSansX',
+        vazir: 'Vazirmatn',
+        shabnam: 'Shabnam',
+    }[preference];
     return `Pahnavar-${family}-${weight}`;
 }
 
@@ -41,6 +61,8 @@ export function getAppFontWeight(fontFamily?: string): AppFontWeight | undefined
 }
 
 export async function loadAppFonts(preference: FontPreference): Promise<void> {
+    if (preference === 'system') return;
+
     if (loadedFonts.has(preference)) return;
 
     const pendingLoad = loadingFonts.get(preference);
@@ -81,6 +103,16 @@ export function getAppFontStyle(
                     : undefined;
     const fontWeight = currentWeight ?? weightFromFontWeight ?? fallbackWeight;
 
+    if (preference === 'system') {
+        return {
+            ...flattenedStyle,
+            fontFamily: undefined,
+            fontWeight: fontWeight
+                ? SYSTEM_FONT_WEIGHTS[fontWeight]
+                : flattenedStyle?.fontWeight,
+        };
+    }
+
     if (!fontWeight) return style;
 
     return {
@@ -97,7 +129,11 @@ export function getAppPaperTheme(theme: ThemeType, preference: FontPreference) {
             const weight = getAppFontWeight(font.fontFamily);
             return [
                 variant,
-                weight ? { ...font, fontFamily: getAppFontFamily(preference, weight) } : font,
+                preference === 'system'
+                    ? { ...font, fontFamily: undefined }
+                    : weight
+                        ? { ...font, fontFamily: getAppFontFamily(preference, weight) }
+                        : font,
             ];
         })
     ) as typeof baseTheme.fonts;

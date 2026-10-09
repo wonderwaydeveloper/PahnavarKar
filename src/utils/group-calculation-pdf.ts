@@ -20,10 +20,10 @@ export interface GroupCalculationPdfMetadata {
 
 export interface GroupCalculationPdfAssets {
     logo: string;
-    regularFont: string;
-    mediumFont: string;
-    semiBoldFont: string;
-    boldFont: string;
+    regularFont?: string;
+    mediumFont?: string;
+    semiBoldFont?: string;
+    boldFont?: string;
 }
 
 export interface GroupCalculationPdfWageTotal {
@@ -116,14 +116,8 @@ export function buildGroupCalculationPdfHtml(
             `).join('')}
         </tbody>
     `).join('');
-
-    return `<!doctype html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>پهناور کار - فیش حقوقی</title>
-    <style>
+    const fontFaces = assets.regularFont
+        ? `
         @font-face {
             font-family: "IRANSansX";
             src: url("${escapeHtml(assets.regularFont)}") format("truetype");
@@ -132,29 +126,40 @@ export function buildGroupCalculationPdfHtml(
         }
         @font-face {
             font-family: "IRANSansX";
-            src: url("${escapeHtml(assets.mediumFont)}") format("truetype");
+            src: url("${escapeHtml(assets.mediumFont ?? assets.regularFont)}") format("truetype");
             font-style: normal;
             font-weight: 500;
         }
         @font-face {
             font-family: "IRANSansX";
-            src: url("${escapeHtml(assets.semiBoldFont)}") format("truetype");
+            src: url("${escapeHtml(assets.semiBoldFont ?? assets.regularFont)}") format("truetype");
             font-style: normal;
             font-weight: 600;
         }
         @font-face {
             font-family: "IRANSansX";
-            src: url("${escapeHtml(assets.boldFont)}") format("truetype");
+            src: url("${escapeHtml(assets.boldFont ?? assets.regularFont)}") format("truetype");
             font-style: normal;
             font-weight: 700;
-        }
+        }`
+        : '';
+    const bodyFontFamily = assets.regularFont ? '"IRANSansX", sans-serif' : 'system-ui, sans-serif';
+
+    return `<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>پهناور کار - فیش حقوقی</title>
+    <style>
+        ${fontFaces}
         @page { size: A4; margin: 15mm; }
         * { box-sizing: border-box; }
         body {
             margin: 0;
             color: #172b35;
             background: #fff;
-            font-family: "IRANSansX", sans-serif;
+            font-family: ${bodyFontFamily};
             font-size: 11px;
             line-height: 1.9;
         }
@@ -354,7 +359,7 @@ export function buildGroupCalculationPdfHtml(
     </table>
     ${sectionDetails}
     <div class="note">
-        این سند گزارش محاسبات گروهی است و جایگزین فیش صادرشده از سوی کارفرما نیست.
+        این سند گزارش محاسبهٔ جامع است و جایگزین فیش صادرشده از سوی کارفرما نیست.
     </div>
     <footer>این گزارش به‌صورت خودکار از نتایج محاسبه‌شده در پهناور کار تهیه شده است.</footer>
     <section class="about-section">

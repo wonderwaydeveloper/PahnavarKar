@@ -14,6 +14,7 @@ interface ToolListItemProps {
     detailContent?: ReactNode;
     trailingContent?: ReactNode;
     showBottomBorder?: boolean;
+    compactIcon?: boolean;
     accessibilityRole?: AccessibilityRole;
     accessibilityState?: AccessibilityState;
 }
@@ -25,6 +26,7 @@ export function ToolListItem({
     detailContent,
     trailingContent,
     showBottomBorder = false,
+    compactIcon = false,
     accessibilityRole = 'button',
     accessibilityState,
 }: ToolListItemProps) {
@@ -45,8 +47,12 @@ export function ToolListItem({
             accessibilityState={accessibilityState}
             accessibilityLabel={tool.title}
         >
-            <View style={[styles.icon, { backgroundColor: tool.accent, borderColor: tool.accent }]}>
-                <MaterialCommunityIcons name={tool.icon} size={23} color="#FFFFFF" />
+            <View style={[
+                styles.icon,
+                compactIcon && styles.compactIcon,
+                { backgroundColor: tool.accent, borderColor: tool.accent },
+            ]}>
+                <MaterialCommunityIcons name={tool.icon} size={compactIcon ? 20 : 23} color="#FFFFFF" />
             </View>
             <View style={styles.textWrap}>
                 {titleContent ?? (
@@ -84,6 +90,11 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    compactIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
     },
     textWrap: {
         flex: 1,
