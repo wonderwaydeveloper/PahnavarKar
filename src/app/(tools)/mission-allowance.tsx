@@ -338,13 +338,6 @@ export default function MissionAllowanceScreen() {
                                 </View>
                             </View>
 
-                            <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <ThemedText type="smallBold" style={[styles.formulaLabel, { color: theme.textSecondary }]}>فرمول محاسبه</ThemedText>
-                                <ThemedText type="small" style={[styles.formulaText, { color: theme.text }]}>
-                                    مبلغ هر بخش = تعداد روزهای بخش × (حداقل مزد روزانهٔ همان دوره + {formulaSeniorityLabel} در همان روز)
-                                </ThemedText>
-                            </View>
-
                             <View style={styles.dateFieldsRow}>
                                 <DateInputField
                                     label="از تاریخ"

@@ -155,10 +155,6 @@ export default function YoungWorkerWorkHoursScreen() {
                                 <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>کارکرد موظفی کارگر نوجوان</ThemedText>
                                 <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>تعیین ساعات کارکرد کارگر نوجوان طبق ماده ۸۰ قانون کار</ThemedText>
                             </View>
-                            <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>فرمول محاسبه</ThemedText>
-                                <ThemedText type="small" style={[styles.formulaText, { color: theme.text }]}>((تعداد کل روزهای بازهٔ زمانی انتخاب‌شده − تعداد روزهای تعطیل رسمی − تعداد روزهای جمعه) × ۷٫۳۳) − (تعداد کل روزهای بازهٔ زمانی انتخاب‌شده × ۰٫۵)</ThemedText>
-                            </View>
                             <View style={styles.metricsRow}>
                                 <DateInputField label="از تاریخ" value={startDate} onPress={() => setPickerTarget('start')} formatValue={formatDate} />
                                 <DateInputField label="تا تاریخ" value={endDate} onPress={() => setPickerTarget('end')} formatValue={formatDate} />

@@ -2887,9 +2887,6 @@ export function calculateUnemploymentInsuranceEntitlement(
 }
 
 export interface UnemploymentInsuranceAllowanceCalculationResult {
-    eligible: boolean;
-    employmentStartDate: ParsedDateInput;
-    unemploymentStartDate: ParsedDateInput;
     totalWagesLast90Days: number;
     dailyMinimumWage: number;
     dependentsCount: number;
@@ -2902,21 +2899,7 @@ export interface UnemploymentInsuranceAllowanceCalculationResult {
     monthlyAmount: number;
 }
 
-function addJalaaliMonths(date: ParsedDateInput, months: number): ParsedDateInput {
-    const totalMonths = date.year * 12 + (date.month - 1) + months;
-    const year = Math.floor(totalMonths / 12);
-    const month = (totalMonths % 12) + 1;
-
-    return {
-        year,
-        month,
-        day: Math.min(date.day, jalaaliMonthLength(year, month)),
-    };
-}
-
 export function calculateUnemploymentInsuranceAllowance(
-    employmentStartDate: ParsedDateInput,
-    unemploymentStartDate: ParsedDateInput,
     totalWagesLast90Days: number,
     dailyMinimumWage: number,
     dependentsCount: number,
@@ -2926,20 +2909,14 @@ export function calculateUnemploymentInsuranceAllowance(
     const normalizedDependents = Number.isFinite(dependentsCount)
         ? Math.min(4, Math.max(0, Math.trunc(dependentsCount)))
         : 0;
-    const eligible = compareParsedDates(unemploymentStartDate, addJalaaliMonths(employmentStartDate, 6)) >= 0;
     const averageDailyWage = normalizedWages / 90;
     const dailyBaseAmount = averageDailyWage * 0.55;
     const familyShare = normalizedDependents * 0.1 * normalizedMinimumWage;
     const initialDailyAmount = dailyBaseAmount + familyShare;
     const dailyCeiling = averageDailyWage * 0.8;
-    const finalDailyAmount = eligible
-        ? Math.max(normalizedMinimumWage, Math.min(initialDailyAmount, dailyCeiling))
-        : 0;
+    const finalDailyAmount = Math.max(normalizedMinimumWage, Math.min(initialDailyAmount, dailyCeiling));
 
     return {
-        eligible,
-        employmentStartDate,
-        unemploymentStartDate,
         totalWagesLast90Days: normalizedWages,
         dailyMinimumWage: normalizedMinimumWage,
         dependentsCount: normalizedDependents,

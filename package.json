@@ -1,7 +1,7 @@
 {
   "name": "pahnavarkar",
   "main": "expo-router/entry",
-  "version": "1.5.7",
+  "version": "1.5.8",
   "dependencies": {
     "@expo/ui": "~57.0.22",
     "@expo/vector-icons": "^15.0.2",

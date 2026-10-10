@@ -267,19 +267,6 @@ export default function InsuranceDaysEntitlementScreen() {
                                 </View>
                             </View>
 
-                            <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <ThemedText type="small" style={[styles.formulaLabel, { color: theme.textSecondary }]}>
-                                    فرمول محاسبه
-                                </ThemedText>
-                                <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>
-                                    ۱) اگر ساعات کاری روزانه ≥ ۷.۳۳ : {'\n'}
-                                    تعداد روزهای بیمه استحقاقی = تعداد روزهای ماه {'\n'}
-                                    {'\n'}
-                                    ۲) اگر ساعات کاری روزانه {'<'} ۷.۳۳ : {'\n'}
-                                    تعداد روزهای بیمه استحقاقی = تعداد روزهای ماه × (ساعات کاری روزانه ÷ ۷.۳۳)
-                                </ThemedText>
-                            </View>
-
                             <View style={styles.metricsRow}>
                                 <DateInputField
                                     label="از تاریخ"

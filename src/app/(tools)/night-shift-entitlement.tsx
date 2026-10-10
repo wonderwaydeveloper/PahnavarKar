@@ -279,15 +279,6 @@ export default function NightShiftEntitlementScreen() {
                                 </View>
                             </View>
 
-                            <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <ThemedText type="small" style={[styles.formulaLabel, { color: theme.textSecondary }]}>
-                                    فرمول محاسبه
-                                </ThemedText>
-                                <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>
-                                    مبلغ کل شب‌کاری = مجموعِ (تعداد روزهای کارکرد در شب در هر دوره × ۰٫۳۵ × (حداقل مزد روزانه + پایه سنوات استحقاقی همان دوره))
-                                </ThemedText>
-                            </View>
-
                             <View style={styles.metricsRow}>
                                 <DateInputField
                                     label="از تاریخ"

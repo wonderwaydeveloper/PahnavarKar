@@ -248,15 +248,6 @@ export default function MaximumBonusScreen() {
                                 </View>
                             </View>
 
-                            <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <ThemedText type="small" style={[styles.formulaLabel, { color: theme.textSecondary }]}>
-                                    فرمول محاسبه
-                                </ThemedText>
-                                <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>
-                                    تعداد ماه کارکرد در هر سال × (۷٫۵ × حداقل مزد روزانه مصوب شورای عالی کار در آن سال)
-                                </ThemedText>
-                            </View>
-
                             <View style={styles.metricsRow}>
                                 <DateInputField
                                     label="از تاریخ"

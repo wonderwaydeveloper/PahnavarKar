@@ -24,7 +24,7 @@ import {
 const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
 const latinDigits = '0123456789';
 
-type DateTarget = 'employment' | 'unemployment';
+type DateTarget = 'unemployment';
 
 interface YearPeriods {
     year: number;
@@ -53,14 +53,6 @@ function formatDate(value: string) {
     const parsed = parseDateInput(value);
     if (!parsed) return '';
     return `${toPersianDigits(parsed.year)}/${toPersianDigits(String(parsed.month).padStart(2, '0'))}/${toPersianDigits(String(parsed.day).padStart(2, '0'))}`;
-}
-
-function compareDates(left: string, right: string) {
-    const parsedLeft = parseDateInput(left);
-    const parsedRight = parseDateInput(right);
-    if (!parsedLeft || !parsedRight) return 0;
-    return parsedLeft.year * 10000 + parsedLeft.month * 100 + parsedLeft.day
-        - (parsedRight.year * 10000 + parsedRight.month * 100 + parsedRight.day);
 }
 
 function findDailyMinimumWage(date: ReturnType<typeof parseDateInput>, yearPeriods: YearPeriods[]) {
@@ -106,10 +98,8 @@ export default function UnemploymentInsuranceAllowanceScreen() {
         return toJalaali(today.getFullYear(), today.getMonth() + 1, today.getDate());
     }, []);
     const currentYear = currentJalaliDate.jy;
-    const defaultEmploymentDate = `${currentYear}/01/01`;
     const defaultUnemploymentDate = `${currentYear}/07/01`;
 
-    const [employmentDate, setEmploymentDate] = useState(defaultEmploymentDate);
     const [unemploymentDate, setUnemploymentDate] = useState(defaultUnemploymentDate);
     const [totalWages, setTotalWages] = useState('۴۵۰۰۰۰۰۰۰');
     const [dependents, setDependents] = useState('۲');
@@ -158,12 +148,10 @@ export default function UnemploymentInsuranceAllowanceScreen() {
     }, []);
 
     const openPicker = (target: DateTarget) => setPickerTarget(target);
-    const selectedDate = pickerTarget === 'employment' ? employmentDate : unemploymentDate;
+    const selectedDate = unemploymentDate;
 
     const handleDateSelect = (value: string) => {
-        if (pickerTarget === 'employment') {
-            setEmploymentDate(value);
-        } else if (pickerTarget === 'unemployment') {
+        if (pickerTarget === 'unemployment') {
             setUnemploymentDate(value);
         }
         setPickerTarget(null);
@@ -176,14 +164,13 @@ export default function UnemploymentInsuranceAllowanceScreen() {
     };
 
     const handleCalculate = () => {
-        const employment = parseDateInput(employmentDate);
         const unemployment = parseDateInput(unemploymentDate);
         const wages = Number(normalizeDigits(totalWages || '0'));
         const minimumWage = dailyMinimumWageValue ?? 0;
         const dependentCount = Number(normalizeDigits(dependents || '0'));
 
-        if (!employment || !unemployment || compareDates(employmentDate, unemploymentDate) > 0) {
-            showError('تاریخ شروع به کار و شروع بیکاری را درست وارد کنید.');
+        if (!unemployment) {
+            showError('تاریخ شروع بیکاری را درست وارد کنید.');
             return;
         }
 
@@ -203,17 +190,10 @@ export default function UnemploymentInsuranceAllowanceScreen() {
         }
 
         const calculation = calculateUnemploymentInsuranceAllowance(
-            employment,
-            unemployment,
             wages,
             minimumWage,
             dependentCount,
         );
-
-        if (!calculation.eligible) {
-            showError('فاصلهٔ تاریخ شروع به کار تا شروع بیکاری باید حداقل شش ماه باشد.');
-            return;
-        }
 
         setResult(calculation);
     };
@@ -231,16 +211,14 @@ export default function UnemploymentInsuranceAllowanceScreen() {
 
                             <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                 <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>فرمول محاسبه</ThemedText>
-                                <ThemedText type="small" style={[styles.formulaText, { color: theme.text }]}>گام صفر: احراز حداقل ۶ ماه سابقه از شروع کار تا شروع بیکاری{'\n'}متوسط مزد روزانه = مجموع حقوق ۹۰ روز اخیر ÷ ۹۰{'\n'}مبلغ پایه روزانه = متوسط مزد روزانه × ۵۵٪{'\n'}سهم افراد تحت تکفل = تعداد افراد تحت تکفل × ۱۰٪ × مبلغ حداقل مزد روزانه مصوب شورای عالی کار{'\n'}مبلغ اولیه روزانه = مبلغ پایه روزانه + سهم افراد تحت تکفل{'\n'}مبلغ نهایی روزانه = اعمال کف مبلغ حداقل مزد روزانه مصوب شورای عالی کار و سقف ۸۰٪ متوسط مزد{'\n'}مقرری ماهیانه = مبلغ نهایی روزانه × ۳۰</ThemedText>
+                                <ThemedText type="small" style={[styles.formulaText, { color: theme.text }]}>شرط اولیه: احراز حداقل شش ماه سابقه از تاریخ شروع به کار تا تاریخ شروع بیکاری{'\n'}یا در صورت نداشتن ۶ ماه سابقه، وقوع حوادث قهریه و غیرمترقبه{'\n'}متوسط مزد روزانه = مجموع حقوق ۹۰ روز اخیر ÷ ۹۰{'\n'}مبلغ پایه روزانه = متوسط مزد روزانه × ۵۵٪{'\n'}سهم افراد تحت تکفل = تعداد افراد تحت تکفل × ۱۰٪ × مبلغ حداقل مزد روزانه مصوب شورای عالی کار{'\n'}مبلغ اولیه روزانه = مبلغ پایه روزانه + سهم افراد تحت تکفل{'\n'}مبلغ نهایی روزانه = اعمال کف مبلغ حداقل مزد روزانه مصوب شورای عالی کار و سقف ۸۰٪ متوسط مزد{'\n'}مقرری ماهیانه = مبلغ نهایی روزانه × ۳۰</ThemedText>
                             </View>
 
-                            <DateInputField
-                                label="تاریخ شروع به کار در آخرین کارگاه"
-                                value={employmentDate}
-                                onPress={() => openPicker('employment')}
-                                formatValue={formatDate}
-                                helperText="جهت محاسبه پایه سنوات استحقاقی و اعمال آن در محاسبات"
-                            />
+                            <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
+                                <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary, fontSize: styles.formulaText.fontSize }]}>
+                                    در صورت احراز شرایط دریافت مقرری بیمه بیکاری در فرایند بررسی‌ها در ادارات کار و تأمین اجتماعی
+                                </ThemedText>
+                            </View>
 
                             <DateInputField
                                 label="تاریخ شروع بیکاری"

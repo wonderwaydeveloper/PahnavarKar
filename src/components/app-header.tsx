@@ -2,7 +2,7 @@ import { useAppContext } from '@/hooks/use-app-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGlobalSearchParams, usePathname, useRouter } from 'expo-router';
 import { type ReactNode } from 'react';
-import { useWindowDimensions, View } from 'react-native';
+import { Pressable, useWindowDimensions, View } from 'react-native';
 import { Appbar } from 'react-native-paper';
 
 import { ThemedText } from '@/components/themed-text';
@@ -233,13 +233,32 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
         )}
       </View>
       {showHomeLogo ? (
-        <Appbar.Action
-          icon="calculator-variant-outline"
-          color={titleColor}
+        <Pressable
           onPress={() => router.push('/group-calculation' as never)}
+          accessibilityRole="button"
           accessibilityLabel="محاسبهٔ جامع"
-          size={22}
-        />
+          style={({ pressed }) => ({
+            minHeight: 40,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            marginHorizontal: 4,
+            paddingHorizontal: 8,
+            borderWidth: 1,
+            borderColor: titleColor,
+            borderRadius: 20,
+            backgroundColor: 'transparent',
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <MaterialCommunityIcons name="calculator-variant-outline" color={titleColor} size={22} />
+          <ThemedText
+            numberOfLines={1}
+            style={{ color: titleColor, fontFamily: 'AppFont-Medium', fontSize: 12 }}
+          >
+            محاسبهٔ جامع
+          </ThemedText>
+        </Pressable>
       ) : null}
     </Appbar.Header>
   );

@@ -122,10 +122,6 @@ export default function HazardousWorkHoursScreen() {
                             <ThemedText type="bodyBold" style={[styles.pageTitle, { display: 'none', color: theme.text }]}>کارکرد موظفی کارگر در مشاغل سخت و زیان‌آور</ThemedText>
                             <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary, fontSize: 13 }]}>تعیین ساعات کارکرد موظفی کارگر طبق ماده ۵۲ قانون کار</ThemedText>
                         </View>
-                        <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                            <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>فرمول محاسبه</ThemedText>
-                            <ThemedText type="small" style={[styles.formulaText, { color: theme.text }]}>(تعداد کل روزهای بازهٔ زمانی انتخاب‌شده − تعداد روزهای تعطیل رسمی − تعداد روزهای جمعه) × ۶</ThemedText>
-                        </View>
                         <View style={styles.metricsRow}>
                             <DateInputField label="از تاریخ" value={startDate} onPress={() => setPickerTarget('start')} formatValue={formatDate} />
                             <DateInputField label="تا تاریخ" value={endDate} onPress={() => setPickerTarget('end')} formatValue={formatDate} />

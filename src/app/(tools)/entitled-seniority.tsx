@@ -180,6 +180,10 @@ export default function EntitledSeniorityScreen() {
     const finalYearBreakdown = result && selectedEndYear != null
         ? result.breakdown.filter((item) => item.year === selectedEndYear)
         : [];
+    const totalPeriodEntitlement = result?.breakdown.reduce(
+        (total, item) => total + item.daysCovered * item.entitlement,
+        0,
+    ) ?? 0;
 
     return (
         <ThemedView style={styles.container}>
@@ -242,6 +246,14 @@ export default function EntitledSeniorityScreen() {
                                                 </View>
                                             </View>
                                         ))}
+                                    </View>
+                                    <View style={[styles.periodTotalBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
+                                        <ThemedText type="small" style={[styles.finalYearValueLabel, { color: theme.textSecondary }]}>
+                                            پایه سنوات استحقاقی کل دوره
+                                        </ThemedText>
+                                        <ThemedText type="smallBold" style={[styles.finalYearAmountValue, { color: theme.primary }]}>
+                                            {formatCurrency(totalPeriodEntitlement)}
+                                        </ThemedText>
                                     </View>
                                 </View>
                                 <View style={styles.breakdownHeader}>
@@ -339,6 +351,7 @@ const styles = StyleSheet.create({
     amountValue: { fontSize: 18, lineHeight: 26, fontFamily: 'AppFont-Bold' },
     finalYearAmounts: { width: '100%', gap: Spacing.one },
     finalYearAmount: { width: '100%', alignItems: 'center', gap: Spacing.half, padding: Spacing.two, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
+    periodTotalBox: { width: '100%', alignItems: 'center', gap: Spacing.half, marginTop: Spacing.one, padding: Spacing.two, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
     finalYearDateLabel: { fontSize: 10, lineHeight: 16, fontFamily: 'AppFont-Medium' },
     finalYearDate: { fontSize: 12, lineHeight: 18, fontFamily: 'AppFont-Bold', textAlign: 'center' },
     finalYearValueRow: { width: '100%', flexDirection: 'column', gap: Spacing.one, marginTop: Spacing.one },

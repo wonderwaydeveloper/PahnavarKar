@@ -315,15 +315,6 @@ export default function OvertimeEntitlementScreen() {
                                 </View>
                             </View>
 
-                            <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <ThemedText type="small" style={[styles.formulaLabel, { color: theme.textSecondary }]}>
-                                    فرمول محاسبه
-                                </ThemedText>
-                                <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>
-                                    مبلغ کل اضافه‌کاری = مجموعِ (تعداد روزهای کارکرد در هر دوره × 1.40 × تعداد ساعات اضافه‌کاری روزانه × ((حداقل مزد روزانه + پایه سنوات استحقاقی همان دوره) / 7.33))
-                                </ThemedText>
-                            </View>
-
                             <View style={styles.metricsRow}>
                                 <DateInputField
                                     label="از تاریخ"

@@ -186,12 +186,6 @@ export default function BonusEntitlementScreen() {
                                 <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>محاسبه عیدی و پاداش استحقاقی</ThemedText>
                                 <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>محاسبه عیدی پاداش ماهیانه بر اساس ماده واحده قانون تعیین عیدی پاداش، مصوب مجلس در سال ۱۳۷۰</ThemedText>
                             </View>
-                            <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <ThemedText type="smallBold" style={[styles.formulaLabel, { color: theme.textSecondary }]}>فرمول محاسبه</ThemedText>
-                                <ThemedText type="small" style={[styles.formulaText, { color: theme.text }]}>گام اول: مبلغ عیدی و پاداش محاسبه‌شده = مجموعِ [تعداد ماه‌های کارکرد هر دوره × ۵ × (حداقل مزد روزانه مصوب همان سال + پایه سنوات استحقاقی همان دوره)]</ThemedText>
-                                <ThemedText type="small" style={[styles.formulaText, { color: theme.textSecondary }]}>گام دوم: حداقل عیدی = تعداد ماه‌های کارکرد در سال × ۵ × حداقل مزد روزانه؛ حداکثر عیدی = تعداد ماه‌های کارکرد در سال × ۷٫۵ × حداقل مزد روزانه</ThemedText>
-                                <ThemedText type="small" style={[styles.formulaText, { color: theme.textSecondary }]}>گام سوم: مبلغ عیدی و پاداش استحقاقی برابر است با مبلغ محاسبه‌شده، مشروط بر اینکه از حداکثر قانونی بیشتر نباشد.</ThemedText>
-                            </View>
                             <View style={styles.metricsRow}>
                                 <DateInputField label="از تاریخ" value={startDate} onPress={() => setPickerTarget('start')} formatValue={formatDate} />
                                 <DateInputField label="تا تاریخ" value={endDate} onPress={() => setPickerTarget('end')} formatValue={formatDate} />

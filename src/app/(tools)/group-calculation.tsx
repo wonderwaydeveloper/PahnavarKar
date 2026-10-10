@@ -84,6 +84,37 @@ function formatCurrencyAmount(amount: number) {
     return toPersianDigits(new Intl.NumberFormat('fa-IR').format(Math.round(amount)));
 }
 
+function getResultAmount(result: GroupCalculationResult) {
+    if (result.key !== 'entitled-seniority') {
+        return result.value;
+    }
+
+    return result.breakdown.reduce<number>((total, item) => {
+        if (
+            !isRecord(item)
+            || typeof item.daysCovered !== 'number'
+            || typeof item.entitlement !== 'number'
+        ) {
+            return total;
+        }
+
+        return total + item.daysCovered * item.entitlement;
+    }, 0);
+}
+
+function getResultTitle(
+    result: GroupCalculationResult,
+    workshopType: 'classified' | 'unclassified',
+) {
+    if (result.key !== 'entitled-seniority') {
+        return result.title;
+    }
+
+    return workshopType === 'classified'
+        ? 'پایه سنوات استحقاقی گروه شغلی (کل دوره)'
+        : 'پایه سنوات استحقاقی (کل دوره)';
+}
+
 function getExcludedBonusItemTitles(results: readonly GroupCalculationResult[]) {
     return WAGE_TOTAL_EXCLUDED_KEYS
         .filter((key) => results.some((result) => result.key === key))
@@ -686,9 +717,8 @@ export default function GroupCalculationScreen() {
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
     const [employmentDate, setEmploymentDate] = useState(`${currentYear - 1}/01/01`);
-    const defaultMissionDate = `${currentYear}/${String(currentJalaliDate.jm).padStart(2, '0')}/${String(currentJalaliDate.jd).padStart(2, '0')}`;
-    const [missionStartDate, setMissionStartDate] = useState(defaultMissionDate);
-    const [missionEndDate, setMissionEndDate] = useState(defaultMissionDate);
+    const [missionStartDate, setMissionStartDate] = useState(defaultStartDate);
+    const [missionEndDate, setMissionEndDate] = useState(defaultEndDate);
     const [pickerTarget, setPickerTarget] = useState<DatePickerTarget | null>(null);
     const [selectedKeys, setSelectedKeys] = useState<GroupCalculationKey[]>([]);
     const [includeDaysCovered, setIncludeDaysCovered] = useState(true);
@@ -724,9 +754,10 @@ export default function GroupCalculationScreen() {
     const [pdfSnackbarVisible, setPdfSnackbarVisible] = useState(false);
     const [pdfSnackbarIsError, setPdfSnackbarIsError] = useState(true);
     const [includePdfDetails, setIncludePdfDetails] = useState(false);
+    const [employerName, setEmployerName] = useState('');
+    const [employerIdentifier, setEmployerIdentifier] = useState('');
     const [employeeName, setEmployeeName] = useState('');
     const [employeeNationalCode, setEmployeeNationalCode] = useState('');
-    const [employeePersonnelNumber, setEmployeePersonnelNumber] = useState('');
     const [employeeJobTitle, setEmployeeJobTitle] = useState('');
 
     useEffect(() => {
@@ -1139,7 +1170,7 @@ export default function GroupCalculationScreen() {
                     excludedBonusItems,
                 }
                 : {
-                    amount: `${formatCurrencyAmount(wageTotalResults.reduce((total, result) => total + result.value, 0))} ریال`,
+                    amount: `${formatCurrencyAmount(wageTotalResults.reduce((total, result) => total + getResultAmount(result), 0))} ریال`,
                     excludedBonusItems,
                 }
             : undefined;
@@ -1166,13 +1197,16 @@ export default function GroupCalculationScreen() {
                     }];
                 })()
                 : result.breakdown;
+            const resultAmount = getResultAmount(result);
             const formattedValue = result.unit === 'ریال'
-                ? toPersianDigits(new Intl.NumberFormat('fa-IR').format(Math.round(result.value)))
-                : toPersianDigits(Number.isInteger(result.value) ? String(result.value) : result.value.toFixed(2));
+                ? toPersianDigits(new Intl.NumberFormat('fa-IR').format(Math.round(resultAmount)))
+                : toPersianDigits(Number.isInteger(resultAmount) ? String(resultAmount) : resultAmount.toFixed(2));
             const summaryLabel = result.key === 'monthly-shift-work'
                 ? `${RESULT_SUMMARY_LABELS[result.key]} (${SHIFT_TYPE_OPTIONS.find((option) => option.value === shiftType)?.label ?? 'صبح و عصر'})`
                 : result.key === 'entitled-seniority' && workshopType === 'classified'
-                    ? 'پایه سنوات استحقاقی روزانه گروه شغلی'
+                    ? 'پایه سنوات استحقاقی گروه شغلی (کل دوره)'
+                    : result.key === 'entitled-seniority'
+                        ? 'پایه سنوات استحقاقی (کل دوره)'
                     : RESULT_SUMMARY_LABELS[result.key];
             const detailsTitle = result.key === 'unused-leave-wage'
                 || result.key === 'unused-leave-entitlement'
@@ -1214,7 +1248,7 @@ export default function GroupCalculationScreen() {
                     const detailRecord = isRecord(entry) ? entry : null;
                     const title = detailRecord
                         ? formatBreakdownTitle(result.key, detailRecord, index, startDate, endDate)
-                        : `${result.title} ${toPersianDigits(index + 1)}`;
+                        : `${getResultTitle(result, workshopType)} ${toPersianDigits(index + 1)}`;
                     const fields = detailRecord
                         ? getBreakdownDetailFields(result.key, detailRecord, workshopType)
                         : [];
@@ -1232,7 +1266,7 @@ export default function GroupCalculationScreen() {
             }
 
             return {
-                title: result.title,
+                title: getResultTitle(result, workshopType),
                 summaryLabel,
                 amount: `${formattedValue} ${result.unit}`,
                 error: result.error,
@@ -1263,14 +1297,21 @@ export default function GroupCalculationScreen() {
             ...preparedAtMetadata,
         ];
         const employeeMetadata = [
-            { label: 'نام و نام خانوادگی', value: employeeName },
+            { label: 'نام', value: employeeName },
             { label: 'کد ملی', value: employeeNationalCode },
-            { label: 'شمارهٔ پرسنلی', value: employeePersonnelNumber },
             { label: 'عنوان شغلی', value: employeeJobTitle },
         ].filter((item) => item.value.trim().length > 0);
         metadata.push(...employeeMetadata.map((item) => ({
             ...item,
-            section: 'مشخصات کارمند / کارگر',
+            section: 'مشخصات کارگر',
+        })));
+        const employerMetadata = [
+            { label: 'نام شخص حقوقی یا حقیقی', value: employerName },
+            { label: 'شناسه ملی یا کد ملی', value: employerIdentifier },
+        ].filter((item) => item.value.trim().length > 0);
+        metadata.push(...employerMetadata.map((item) => ({
+            ...item,
+            section: 'مشخصات کارفرما',
         })));
 
         if (hasSharedDateRange) {
@@ -1574,10 +1615,10 @@ export default function GroupCalculationScreen() {
                         <View style={[styles.employeeInfoSection, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                             <View style={styles.employeeInfoHeader}>
                                 <View style={[styles.employeeInfoIcon, { backgroundColor: theme.primaryContainer }]}>
-                                    <MaterialCommunityIcons name="account-box-outline" size={20} color={theme.primary} />
+                                    <MaterialCommunityIcons name="domain" size={20} color={theme.primary} />
                                 </View>
                                 <ThemedText type="smallBold" style={[styles.employeeInfoTitle, { color: theme.text }]}>
-                                    مشخصات کارمند / کارگر
+                                    مشخصات کارفرما
                                 </ThemedText>
                             </View>
                             <View style={[styles.employeeInfoHint, { backgroundColor: theme.surface }]}>
@@ -1589,7 +1630,53 @@ export default function GroupCalculationScreen() {
                             <TextInput
                                 mode="outlined"
                                 dense
-                                label="نام و نام خانوادگی"
+                                label="نام شخص حقوقی یا حقیقی"
+                                value={employerName}
+                                onChangeText={setEmployerName}
+                                textColor={theme.text}
+                                outlineColor={theme.borderStrong}
+                                activeOutlineColor={theme.primary}
+                                style={[styles.employeeTextInput, { backgroundColor: theme.surface }]}
+                                contentStyle={styles.employeeTextInputContent}
+                                outlineStyle={styles.employeeTextInputOutline}
+                                autoCorrect={false}
+                                autoCapitalize="words"
+                            />
+                            <TextInput
+                                mode="outlined"
+                                dense
+                                label="شناسه ملی یا کد ملی"
+                                value={employerIdentifier}
+                                onChangeText={setEmployerIdentifier}
+                                textColor={theme.text}
+                                outlineColor={theme.borderStrong}
+                                activeOutlineColor={theme.primary}
+                                style={[styles.employeeTextInput, { backgroundColor: theme.surface }]}
+                                contentStyle={styles.employeeTextInputContent}
+                                outlineStyle={styles.employeeTextInputOutline}
+                                keyboardType="number-pad"
+                            />
+                        </View>
+
+                        <View style={[styles.employeeInfoSection, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                            <View style={styles.employeeInfoHeader}>
+                                <View style={[styles.employeeInfoIcon, { backgroundColor: theme.primaryContainer }]}>
+                                    <MaterialCommunityIcons name="account-box-outline" size={20} color={theme.primary} />
+                                </View>
+                                <ThemedText type="smallBold" style={[styles.employeeInfoTitle, { color: theme.text }]}>
+                                    مشخصات کارگر
+                                </ThemedText>
+                            </View>
+                            <View style={[styles.employeeInfoHint, { backgroundColor: theme.surface }]}>
+                                <MaterialCommunityIcons name="information-outline" size={16} color={theme.textSecondary} />
+                                <ThemedText type="small" style={[styles.fieldHint, styles.employeeInfoHintText, { color: theme.textSecondary }]}>
+                                    این اطلاعات اختیاری است و در صورت تکمیل، در فیش PDF درج می‌شود.
+                                </ThemedText>
+                            </View>
+                            <TextInput
+                                mode="outlined"
+                                dense
+                                label="نام"
                                 value={employeeName}
                                 onChangeText={setEmployeeName}
                                 textColor={theme.text}
@@ -1615,21 +1702,6 @@ export default function GroupCalculationScreen() {
                                 outlineStyle={styles.employeeTextInputOutline}
                                 keyboardType="number-pad"
                                 maxLength={10}
-                            />
-                            <TextInput
-                                mode="outlined"
-                                dense
-                                label="شمارهٔ پرسنلی"
-                                value={employeePersonnelNumber}
-                                onChangeText={setEmployeePersonnelNumber}
-                                textColor={theme.text}
-                                outlineColor={theme.borderStrong}
-                                activeOutlineColor={theme.primary}
-                                style={[styles.employeeTextInput, { backgroundColor: theme.surface }]}
-                                contentStyle={styles.employeeTextInputContent}
-                                outlineStyle={styles.employeeTextInputOutline}
-                                autoCorrect={false}
-                                autoCapitalize="characters"
                             />
                             <TextInput
                                 mode="outlined"
@@ -2285,7 +2357,7 @@ export default function GroupCalculationScreen() {
                             if (wageTotalResults.length === 0) return null;
 
                             const totalHasErrors = wageTotalResults.some((result) => result.error);
-                            const wageTotalAmount = wageTotalResults.reduce((total, result) => total + result.value, 0);
+                            const wageTotalAmount = wageTotalResults.reduce((total, result) => total + getResultAmount(result), 0);
                             const excludedBonusItems = getExcludedBonusItemTitles(results);
                             return (
                                 <View style={styles.summaryBoxHeader}>
@@ -2334,6 +2406,7 @@ export default function GroupCalculationScreen() {
                                 ? toPersianDigits(new Intl.NumberFormat('fa-IR').format(Math.round(result.value)))
                                 : toPersianDigits(Number.isInteger(result.value) ? String(result.value) : result.value.toFixed(2));
                             const amountText = result.error ?? `${formattedValue} ${result.unit}`;
+                            const totalPeriodEntitlement = result.key === 'entitled-seniority' ? getResultAmount(result) : 0;
                             const summaryLabelText = result.key === 'monthly-shift-work'
                                 ? `${RESULT_SUMMARY_LABELS[result.key]} (${SHIFT_TYPE_OPTIONS.find((option) => option.value === shiftType)?.label ?? 'صبح و عصر'})`
                                 : result.key === 'entitled-seniority' && workshopType === 'classified'
@@ -2358,9 +2431,26 @@ export default function GroupCalculationScreen() {
                                                 <View style={[styles.resultBadge, { backgroundColor: toolInfo?.accent ?? theme.primary }]}>
                                                     <MaterialCommunityIcons name={toolInfo?.icon ?? 'calculator-variant'} size={16} color="#FFFFFF" />
                                                 </View>
-                                                <ThemedText type="smallBold" style={styles.resultTitle}>{result.title}</ThemedText>
+                                                <ThemedText type="smallBold" style={styles.resultTitle}>
+                                                    {getResultTitle(result, workshopType)}
+                                                </ThemedText>
                                             </View>
                                         </View>
+
+                                        {result.key === 'entitled-seniority' && !result.error ? (
+                                            <View style={styles.summaryBoxHeader}>
+                                                <View style={[styles.summaryBoxContent, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
+                                                    <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
+                                                        {workshopType === 'classified'
+                                                            ? 'پایه سنوات استحقاقی کل دوره گروه شغلی'
+                                                            : 'پایه سنوات استحقاقی کل دوره'}
+                                                    </ThemedText>
+                                                    <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>
+                                                        {formatCurrencyAmount(totalPeriodEntitlement)} ریال
+                                                    </ThemedText>
+                                                </View>
+                                            </View>
+                                        ) : null}
 
                                         <View style={styles.summaryBoxHeader}>
                                             <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -2435,7 +2525,7 @@ export default function GroupCalculationScreen() {
                                                             const detailRecord = isRecord(entry) ? entry : null;
                                                             const title = detailRecord
                                                                 ? formatBreakdownTitle(result.key, detailRecord, index, startDate, endDate)
-                                                                : `${result.title} ${toPersianDigits(index + 1)}`;
+                                                                : `${getResultTitle(result, workshopType)} ${toPersianDigits(index + 1)}`;
                                                             const detailFields = detailRecord
                                                                 ? getBreakdownDetailFields(result.key, detailRecord, workshopType)
                                                                 : [];

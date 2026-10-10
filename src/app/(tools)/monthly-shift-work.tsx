@@ -308,15 +308,6 @@ export default function MonthlyShiftWorkScreen() {
                                 </View>
                             </View>
 
-                            <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <ThemedText type="small" style={[styles.formulaLabel, { color: theme.textSecondary }]}>
-                                    فرمول محاسبه
-                                </ThemedText>
-                                <ThemedText type="small" style={[styles.formulaValue, { color: theme.text }]}>
-                                    مبلغ نوبت‌کاری هر دوره = ضریب نوع نوبت × تعداد روزهای کارکرد کارگر در همان دوره × (حداقل مزد روزانه مصوب + پایه سنوات استحقاقی همان دوره)
-                                </ThemedText>
-                            </View>
-
                             <View style={styles.metricsRow}>
                                 <DateInputField
                                     label="از تاریخ"
