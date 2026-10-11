@@ -6,6 +6,7 @@ import { Card, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontAwareButton as Button } from '@/components/font-aware-paper';
+import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { DateInputField } from '@/components/date-input-field';
 import { NumericInputField } from '@/components/numeric-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -283,9 +284,11 @@ export default function UnusedLeaveEntitlementScreen() {
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
                                         میزان مرخصی ذخیره شده کارگر
                                     </ThemedText>
-                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        محاسبه تعداد مرخصی ذخیره شده کارگر براساس مواد ۶۴ و ۶۹ قانون کار
-                                    </ThemedText>
+                                    <CalculationDescriptionBox>
+                                        <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
+                                            محاسبه تعداد مرخصی ذخیره شده کارگر براساس مواد ۶۴ و ۶۹ قانون کار
+                                        </ThemedText>
+                                    </CalculationDescriptionBox>
                                 </View>
                             </View>
 
@@ -429,6 +432,7 @@ export default function UnusedLeaveEntitlementScreen() {
                             {result !== null ? (
                                 <Card style={[styles.breakdownCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                     <Card.Content style={styles.breakdownContent}>
+                                        <CalculationResultHeading />
                                         <View style={styles.summaryBoxHeader}>
                                             <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                                 <ThemedText type="small" style={[styles.resultLabel, { color: theme.textSecondary }]}>

@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Card, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { FontAwareButton as Button } from '@/components/font-aware-paper';
 import { NumericInputField } from '@/components/numeric-input-field';
 import { ThemedText } from '@/components/themed-text';
@@ -86,9 +87,11 @@ export default function UnemploymentInsuranceEntitlementScreen() {
                                 <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
                                     مدت زمان پرداخت مقرری بیمه بیکاری
                                 </ThemedText>
-                                <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                    محاسبه مدت زمان استحقاق دریافت مقرری بیمه بیکاری براساس ماده ۷ قانون بیمه بیکاری
-                                </ThemedText>
+                                <CalculationDescriptionBox>
+                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
+                                        محاسبه مدت زمان استحقاق دریافت مقرری بیمه بیکاری براساس ماده ۷ قانون بیمه بیکاری
+                                    </ThemedText>
+                                </CalculationDescriptionBox>
                             </View>
 
                             <View style={[styles.rulesBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
@@ -242,9 +245,7 @@ export default function UnemploymentInsuranceEntitlementScreen() {
                             {result ? (
                                 <Card style={[styles.resultCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                     <Card.Content style={styles.resultContent}>
-                                        <ThemedText type="smallBold" style={[styles.resultTitle, { color: theme.text }]}>
-                                            نتیجه محاسبه
-                                        </ThemedText>
+                                        <CalculationResultHeading topRadius={18} />
                                         <View style={styles.resultGrid}>
                                             <View style={[styles.resultBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                                 <ThemedText type="small" style={[styles.resultLabel, { color: theme.textSecondary }]}>
@@ -312,10 +313,9 @@ const styles = StyleSheet.create({
     actionButton: { flex: 1, borderRadius: 12 },
     actionLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
     resultCard: { borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
-    resultContent: { gap: Spacing.two, paddingVertical: Spacing.three },
+    resultContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two },
     resultGrid: { flexDirection: 'row', gap: Spacing.two },
     resultBox: { flex: 1, alignItems: 'center', gap: Spacing.one, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two },
-    resultTitle: { fontSize: 13, lineHeight: 19, fontFamily: 'AppFont-Bold' },
     resultLabel: { fontSize: 10, lineHeight: 16, fontFamily: 'AppFont-Medium' },
     resultValue: { fontSize: 22, lineHeight: 30, fontFamily: 'AppFont-Bold' },
     calculationText: { textAlign: 'center', lineHeight: 22 },

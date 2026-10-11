@@ -11,6 +11,7 @@ import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { SettlementThrough1391Field } from '@/components/settlement-through-1391-field';
 import { ThemedText } from '@/components/themed-text';
+import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { ThemedView } from '@/components/themed-view';
 import { WorkshopTypeSelector } from '@/components/workshop-type-selector';
 import { Radius, Spacing } from '@/constants/theme';
@@ -266,9 +267,11 @@ export default function OfficialHolidayWorkScreen() {
                                 <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
                                     محاسبه مبلغ تعطیل کاری
                                 </ThemedText>
-                                <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                    محاسبه مبلغ تعطیل‌کاری‌های مندرج در ماده ۶۳ قانون کار
-                                </ThemedText>
+                                <CalculationDescriptionBox>
+                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
+                                        محاسبه مبلغ تعطیل‌کاری‌های مندرج در ماده ۶۳ قانون کار
+                                    </ThemedText>
+                                </CalculationDescriptionBox>
                             </View>
 
                             <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
@@ -349,6 +352,7 @@ export default function OfficialHolidayWorkScreen() {
                             {result ? (
                                 <Card style={[styles.resultCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                     <Card.Content style={styles.resultContent}>
+                                        <CalculationResultHeading />
                                         <View style={[styles.summaryBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                             <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
                                                 مبلغ نهایی تعطیل کاری استحقاقی
@@ -382,7 +386,7 @@ export default function OfficialHolidayWorkScreen() {
                                                     >
                                                         <View style={[styles.breakdownItemHeaderRow, { borderBottomColor: theme.border }]}>
                                                             <ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>
-                                                                سال {toPersianDigits(item.year)}، دوره {toPersianDigits(item.periodIndex)}
+                                                                {`سال ${toPersianDigits(item.year)}${(periodBuckets.find((bucket) => bucket.year === item.year)?.periods.length ?? 0) > 1 ? `، دوره ${toPersianDigits(item.periodIndex)}` : ''}`}
                                                             </ThemedText>
                                                         </View>
 

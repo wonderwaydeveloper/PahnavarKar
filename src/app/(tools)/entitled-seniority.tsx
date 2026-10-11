@@ -6,6 +6,7 @@ import { Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontAwareButton as Button, FontAwareMenuItem } from '@/components/font-aware-paper';
+import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -193,7 +194,9 @@ export default function EntitledSeniorityScreen() {
                         <Card.Content style={styles.cardContent}>
                             <View style={styles.headerText}>
                                 <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>پایه سنوات استحقاقی</ThemedText>
-                                <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>محاسبه پایه سنوات بر اساس تاریخ استخدام، وضعیت تصفیه حساب و طرح طبقه‌بندی مشاغل</ThemedText>
+                                <CalculationDescriptionBox>
+                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>محاسبه پایه سنوات بر اساس تاریخ استخدام، وضعیت تصفیه حساب و طرح طبقه‌بندی مشاغل</ThemedText>
+                                </CalculationDescriptionBox>
                             </View>
 
                             <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
@@ -225,6 +228,7 @@ export default function EntitledSeniorityScreen() {
                             </View>
 
                             {result ? <Card style={[styles.resultCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><Card.Content style={styles.resultContent}>
+                                <CalculationResultHeading />
                                 <View style={[styles.summaryBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                     <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
                                         {workshopType === 'classified' ? 'مبالغ پایه سنوات استحقاقی گروه شغلی' : 'مبالغ پایه سنوات استحقاقی'} در سال {toPersianDigits(selectedEndYear ?? '')}
@@ -269,7 +273,7 @@ export default function EntitledSeniorityScreen() {
                                             >
                                                 <View style={[styles.breakdownItemHeaderRow, { borderBottomColor: theme.border }]}>
                                                     <ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>
-                                                        سال {toPersianDigits(item.year)}، دوره {toPersianDigits(item.periodIndex)}
+                                                        {`سال ${toPersianDigits(item.year)}${(periodBuckets.find((bucket) => bucket.year === item.year)?.periods.length ?? 0) > 1 ? `، دوره ${toPersianDigits(item.periodIndex)}` : ''}`}
                                                     </ThemedText>
                                                 </View>
                                                 <View style={styles.detailGrid}>

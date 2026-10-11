@@ -10,6 +10,7 @@ import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
+import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
@@ -257,9 +258,11 @@ export default function SpousalAllowanceScreen() {
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
                                         محاسبه حق تاهل
                                     </ThemedText>
-                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        محاسبه حق تاهل براساس تصریح مصوبات شورای عالی کار از سال ۱۴۰۳
-                                    </ThemedText>
+                                    <CalculationDescriptionBox>
+                                        <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
+                                            محاسبه حق تاهل براساس تصریح مصوبات شورای عالی کار از سال ۱۴۰۳
+                                        </ThemedText>
+                                    </CalculationDescriptionBox>
                                 </View>
                             </View>
 
@@ -332,6 +335,7 @@ export default function SpousalAllowanceScreen() {
                             {result ? (
                                 <Card style={[styles.breakdownCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                     <Card.Content style={styles.breakdownContent}>
+                                        <CalculationResultHeading />
                                         <View style={styles.summaryBoxHeader}>
                                             <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                                 <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
@@ -383,7 +387,7 @@ export default function SpousalAllowanceScreen() {
                                                     >
                                                         <View style={styles.breakdownItemHeaderRow}>
                                                             <ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>
-                                                                {`سال ${toPersianDigits(String(item.year))} · دوره ${toPersianDigits(String(item.periodIndex))}`}
+                                                                {`سال ${toPersianDigits(String(item.year))}${(periodBuckets.find((bucket) => bucket.year === item.year)?.periods.length ?? 0) > 1 ? ` · دوره ${toPersianDigits(String(item.periodIndex))}` : ''}`}
                                                             </ThemedText>
                                                         </View>
 

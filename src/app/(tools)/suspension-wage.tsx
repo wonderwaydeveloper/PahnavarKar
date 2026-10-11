@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { FontAwareButton as Button, FontAwareMenuItem } from '@/components/font-aware-paper';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
@@ -285,16 +286,18 @@ export default function SuspensionWageScreen() {
                   >
                     محاسبه حق‌السعی ایام تعلیق
                   </ThemedText>
-                  <ThemedText
-                    type="small"
-                    style={[
-                      styles.pageDescription,
-                      { color: theme.textSecondary },
-                    ]}
-                  >
-                    محاسبه حق‌السعی ایام تعلیق موضوع ماده ۳۴ قانون کار و ماده ۶۷
-                    آیین دادرسی کار
-                  </ThemedText>
+                  <CalculationDescriptionBox>
+                    <ThemedText
+                      type="small"
+                      style={[
+                        styles.pageDescription,
+                        { color: theme.textSecondary },
+                      ]}
+                    >
+                      محاسبه حق‌السعی ایام تعلیق موضوع ماده ۳۴ قانون کار و ماده ۶۷
+                      آیین دادرسی کار
+                    </ThemedText>
+                  </CalculationDescriptionBox>
                 </View>
               </View>
 
@@ -606,6 +609,7 @@ export default function SuspensionWageScreen() {
                   ]}
                 >
                   <Card.Content style={styles.resultContent}>
+                    <CalculationResultHeading />
                     <View
                       style={[
                         styles.summaryBox,
@@ -687,7 +691,7 @@ export default function SuspensionWageScreen() {
                                   styles.breakdownItemTitle,
                                   { color: theme.text },
                                 ]}
-                              >{`سال ${toPersianDigits(String(item.year))}، دوره ${toPersianDigits(String(item.periodIndex))}`}</ThemedText>
+                              >{`سال ${toPersianDigits(String(item.year))}${(periodBuckets.find((bucket) => bucket.year === item.year)?.periods.length ?? 0) > 1 ? `، دوره ${toPersianDigits(String(item.periodIndex))}` : ''}`}</ThemedText>
                             </View>
                             <View style={styles.breakdownDetailGrid}>
                               <View style={[styles.detailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>

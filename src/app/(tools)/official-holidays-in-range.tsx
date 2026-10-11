@@ -9,6 +9,7 @@ import { FontAwareButton as Button } from '@/components/font-aware-paper';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
+import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchOfficialHolidaysBetweenDates, fetchYears, seedFromJsonAsset } from '@/database';
@@ -127,7 +128,9 @@ export default function OfficialHolidaysInRangeScreen() {
                         <Card.Content style={styles.cardContent}>
                             <View style={styles.headerText}>
                                 <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>محاسبه تعداد تعطیلات رسمی در بازه زمانی انتخاب شده</ThemedText>
-                                <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>تعیین تعداد روزهای تعطیل موضوع ماده ۶۳ قانون کار</ThemedText>
+                                <CalculationDescriptionBox>
+                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>تعیین تعداد روزهای تعطیل موضوع ماده ۶۳ قانون کار</ThemedText>
+                                </CalculationDescriptionBox>
                             </View>
 
                             <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
@@ -147,6 +150,7 @@ export default function OfficialHolidaysInRangeScreen() {
                             {result ? (
                                 <Card style={[styles.resultCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                     <Card.Content style={styles.resultContent}>
+                                        <CalculationResultHeading />
                                         <View style={[styles.summaryBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                             <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>تعداد تعطیلات رسمی در بازه</ThemedText>
                                             <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>{toPersianDigits(result.totalHolidays)} روز</ThemedText>

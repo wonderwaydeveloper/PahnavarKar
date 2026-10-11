@@ -10,6 +10,7 @@ import { DateInputField } from '@/components/date-input-field';
 import { NumericInputField } from '@/components/numeric-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
+import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
@@ -206,7 +207,9 @@ export default function UnemploymentInsuranceAllowanceScreen() {
                         <Card.Content style={styles.cardContent}>
                             <View style={styles.headerText}>
                                 <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>مبلغ مقرری بیمه بیکاری</ThemedText>
-                                <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>محاسبه مقرری بیمه بیکاری براساس بند ب ماده ۷ قانون بیمه بیکاری</ThemedText>
+                                <CalculationDescriptionBox>
+                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>محاسبه مقرری بیمه بیکاری براساس بند ب ماده ۷ قانون بیمه بیکاری</ThemedText>
+                                </CalculationDescriptionBox>
                             </View>
 
                             <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
@@ -252,6 +255,7 @@ export default function UnemploymentInsuranceAllowanceScreen() {
                             {result ? (
                                 <Card style={[styles.resultCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                     <Card.Content style={styles.resultContent}>
+                                        <CalculationResultHeading />
                                         <View style={[styles.summaryBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
                                             <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>مقرری ماهیانه بیمه بیکاری</ThemedText>
                                             <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>{formatCurrency(result.monthlyAmount)}</ThemedText>

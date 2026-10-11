@@ -9,6 +9,7 @@ import { FontAwareButton as Button } from '@/components/font-aware-paper';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
+import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchOfficialHolidaysBetweenDates, fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
@@ -152,7 +153,9 @@ export default function OrdinaryWorkHoursScreen() {
                         <Card.Content style={styles.cardContent}>
                             <View style={styles.headerText}>
                                 <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>کارکرد موظفی کارگر در مشاغل عادی</ThemedText>
-                                <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>محاسبه میزان ساعات کارکرد موظفی کارگر در مشاغل عادی طبق ماده ۵۱ قانون کار</ThemedText>
+                                <CalculationDescriptionBox>
+                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>محاسبه میزان ساعات کارکرد موظفی کارگر در مشاغل عادی طبق ماده ۵۱ قانون کار</ThemedText>
+                                </CalculationDescriptionBox>
                             </View>
 
                             <View style={styles.metricsRow}>
@@ -165,6 +168,7 @@ export default function OrdinaryWorkHoursScreen() {
                             </View>
 
                             {result ? <Card style={[styles.resultCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><Card.Content style={styles.resultContent}>
+                                <CalculationResultHeading />
                                 <View style={[styles.summaryBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                     <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>مجموع ساعات کارکرد موظفی</ThemedText>
                                     <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>{formatNumber(result.totalHours)} ساعت</ThemedText>
@@ -177,7 +181,7 @@ export default function OrdinaryWorkHoursScreen() {
                                     </Pressable>
                                 </View>
                                 {showDetails ? <View style={styles.breakdownGrid}>{result.breakdown.map((item) => <View key={`${item.year}-${item.periodIndex}`} style={[styles.breakdownItemCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                    <View style={[styles.breakdownItemHeaderRow, { borderBottomColor: theme.border }]}><ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>سال {toPersianDigits(item.year)}، دوره {toPersianDigits(item.periodIndex)}</ThemedText></View>
+                                    <View style={[styles.breakdownItemHeaderRow, { borderBottomColor: theme.border }]}><ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>{`سال ${toPersianDigits(item.year)}${(periodBuckets.find((bucket) => bucket.year === item.year)?.periods.length ?? 0) > 1 ? `، دوره ${toPersianDigits(item.periodIndex)}` : ''}`}</ThemedText></View>
                                     <View style={styles.detailGrid}>
                                         <View style={[styles.detailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>کل روزهای بازه</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(item.daysCovered)} روز</ThemedText></View>
                                         <View style={[styles.detailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>تعطیلات رسمی</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(item.officialHolidays)} روز</ThemedText></View>

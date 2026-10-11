@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
+import { jalaaliMonthLength, toGregorian, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Card, Menu, Snackbar } from 'react-native-paper';
@@ -12,6 +12,7 @@ import { NumericInputField } from '@/components/numeric-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { SettlementThrough1391Field } from '@/components/settlement-through-1391-field';
 import { ThemedText } from '@/components/themed-text';
+import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { ThemedView } from '@/components/themed-view';
 import { WorkshopTypeSelector } from '@/components/workshop-type-selector';
 import { Radius, Spacing } from '@/constants/theme';
@@ -143,9 +144,49 @@ export default function UnusedLeaveWageScreen() {
         const parsedEnd = parseDateInput(endDate);
         return parsedStart && parsedEnd ? calculateUnusedLeaveMonths(parsedStart, parsedEnd) : null;
     })();
+    const parsedStartDate = parseDateInput(startDate);
+    const formatDateParts = (date: { year: number; month: number; day: number }) =>
+        `${toPersianDigits(String(date.year))}/${toPersianDigits(String(date.month).padStart(2, '0'))}/${toPersianDigits(String(date.day).padStart(2, '0'))}`;
+    const getFullYearLabel = (segmentIndex: number) => {
+        if (!parsedStartDate) {
+            return `سال کامل ${toPersianDigits(segmentIndex)}`;
+        }
+
+        const startYear = parsedStartDate.year + segmentIndex - 1;
+        const startDay = Math.min(parsedStartDate.day, jalaaliMonthLength(startYear, parsedStartDate.month));
+        const nextAnniversaryYear = startYear + 1;
+        const nextAnniversary = {
+            year: nextAnniversaryYear,
+            month: parsedStartDate.month,
+            day: Math.min(parsedStartDate.day, jalaaliMonthLength(nextAnniversaryYear, parsedStartDate.month)),
+        };
+        const nextAnniversaryGregorian = toGregorian(nextAnniversary.year, nextAnniversary.month, nextAnniversary.day);
+        const dayBeforeGregorian = new Date(Date.UTC(nextAnniversaryGregorian.gy, nextAnniversaryGregorian.gm - 1, nextAnniversaryGregorian.gd) - 86400000);
+        const dayBefore = toJalaali(
+            dayBeforeGregorian.getUTCFullYear(),
+            dayBeforeGregorian.getUTCMonth() + 1,
+            dayBeforeGregorian.getUTCDate(),
+        );
+
+        return `سال کامل ${toPersianDigits(segmentIndex)} (${formatDateParts({ year: startYear, month: parsedStartDate.month, day: startDay })} تا ${formatDateParts({ year: dayBefore.jy, month: dayBefore.jm, day: dayBefore.jd })})`;
+    };
     const fullYears = totalMonthsWorked == null || totalMonthsWorked <= 12 ? 0 : Math.floor(totalMonthsWorked / 12);
     const remainingMonths = totalMonthsWorked == null ? 0 : totalMonthsWorked > 12 ? totalMonthsWorked % 12 : totalMonthsWorked;
     const segmentCount = fullYears + (remainingMonths > 0 ? 1 : 0);
+    const getPartialPeriodLabel = () => {
+        if (!parsedStartDate) {
+            return `بازه ناقص (${toPersianDigits(remainingMonths.toFixed(2))} ماه)`;
+        }
+
+        const partialStartYear = parsedStartDate.year + fullYears;
+        const partialStart = {
+            year: partialStartYear,
+            month: parsedStartDate.month,
+            day: Math.min(parsedStartDate.day, jalaaliMonthLength(partialStartYear, parsedStartDate.month)),
+        };
+
+        return `بازه ناقص (${formatDateParts(partialStart)} تا ${formatDate(endDate)}، ${toPersianDigits(remainingMonths.toFixed(2))} ماه)`;
+    };
 
     const updateUsedLeaveDays = (segmentIndex: number, value: string) => {
         setUsedLeaveDaysBySegment((current) => ({
@@ -266,7 +307,9 @@ export default function UnusedLeaveWageScreen() {
                             <View style={styles.headerRow}>
                                 <View style={styles.headerText}>
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>مزد مرخصی ذخیره شده کارگر</ThemedText>
-                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>مزد مرخصی بر اساس روزهای مرخصی ذخیره شده و آخرین ماه کارکرد محاسبه می‌شود.</ThemedText>
+                                    <CalculationDescriptionBox>
+                                        <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>مزد مرخصی بر اساس روزهای مرخصی ذخیره شده و آخرین ماه کارکرد محاسبه می‌شود.</ThemedText>
+                                    </CalculationDescriptionBox>
                                 </View>
                             </View>
                             <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
@@ -329,7 +372,7 @@ export default function UnusedLeaveWageScreen() {
                                     <ThemedText type="smallBold" style={[styles.sectionLabel, { color: theme.text }]}>مرخصی استفاده‌شده در هر بخش</ThemedText>
                                     {Array.from({ length: segmentCount }, (_, index) => {
                                         const isPartial = index >= fullYears;
-                                        const label = isPartial ? `بازه ناقص (${remainingMonths.toFixed(2)} ماه)` : `سال کامل ${index + 1}`;
+                                        const label = isPartial ? getPartialPeriodLabel() : getFullYearLabel(index + 1);
                                         return (
                                             <View key={index} style={styles.usedLeaveRow}>
                                                 <ThemedText type="small" style={styles.usedLeaveLabel}>{label}</ThemedText>
@@ -437,6 +480,7 @@ export default function UnusedLeaveWageScreen() {
                                 <Button mode="contained" onPress={handleCalculate} icon="cash-clock" buttonColor={theme.primary} textColor={theme.surface} style={styles.actionButton} labelStyle={styles.actionLabel} loading={isLoadingData} disabled={isLoadingData}>محاسبه</Button>
                             </View>
                             {result ? <Card style={[styles.resultCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><Card.Content style={styles.resultContent}>
+                                <CalculationResultHeading />
                                 <View style={[styles.summaryBox, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>مبلغ مزد مرخصی ذخیره شده کارگر</ThemedText><ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>{toPersianDigits(formatCurrency(result.unusedLeaveDays * result.dailyWage))}</ThemedText></View>
                                 <View style={styles.breakdownHeader}><ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.text }]}>جزئیات محاسبه</ThemedText><Pressable onPress={() => setShowDetails((value) => !value)} style={[styles.toggleButton, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="smallBold" style={[styles.toggleButtonLabel, { color: theme.primary }]}>{showDetails ? 'عدم نمایش' : 'نمایش جزئیات'}</ThemedText><MaterialCommunityIcons name={showDetails ? 'chevron-up' : 'chevron-down'} size={18} color={theme.primary} /></Pressable></View>
                                 {showDetails ? <View style={styles.breakdownGrid}><View style={[styles.breakdownItemCard, { backgroundColor: theme.surface, borderColor: theme.border }]}><View style={styles.breakdownItemHeaderRow}><ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>جزئیات مزد روزانه</ThemedText></View><View style={styles.breakdownDetailGrid}><View style={[styles.detailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>روزهای مرخصی ذخیره شده</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{formatNumber(result.unusedLeaveDays)} روز</ThemedText></View><View style={[styles.detailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>روزهای تقویمی ماه آخر کارکرد</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(result.calendarDaysInLastMonth)} روز</ThemedText></View><ThemedText type="small" style={[styles.detailDescription, { color: theme.textSecondary }]}>آخرین ماه کارکرد: سال {toPersianDigits(result.year)}، دوره {toPersianDigits(result.periodIndex)}</ThemedText>{components.map(([label, value]) => <View key={label} style={[styles.detailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>{label}</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{formatCurrency(value)}</ThemedText></View>)}<View style={[styles.detailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>مزد روزانه مشمول مرخصی</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{formatCurrency(result.dailyWage)}</ThemedText></View></View></View></View> : null}

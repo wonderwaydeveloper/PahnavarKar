@@ -10,6 +10,7 @@ import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { PersianTimePickerModal } from '@/components/persian-time-picker-modal';
 import { ThemedText } from '@/components/themed-text';
+import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchYears, seedFromJsonAsset } from '@/database';
@@ -261,9 +262,11 @@ export default function InsuranceDaysEntitlementScreen() {
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
                                         محاسبه تعداد روزهای بیمه استحقاقی
                                     </ThemedText>
-                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        محاسبه تعداد روزهای بیمه موضوع مفاد مواد ۳۹ و ۱۴۸ قانون کار
-                                    </ThemedText>
+                                    <CalculationDescriptionBox>
+                                        <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
+                                            محاسبه تعداد روزهای بیمه موضوع مفاد مواد ۳۹ و ۱۴۸ قانون کار
+                                        </ThemedText>
+                                    </CalculationDescriptionBox>
                                 </View>
                             </View>
 
@@ -318,6 +321,7 @@ export default function InsuranceDaysEntitlementScreen() {
                             {result ? (
                                 <Card style={[styles.breakdownCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                     <Card.Content style={styles.breakdownContent}>
+                                        <CalculationResultHeading />
                                         <View style={styles.summaryBoxHeader}>
                                             <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                                 <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>

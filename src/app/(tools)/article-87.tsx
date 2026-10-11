@@ -7,6 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { FontAwareButton as Button } from '@/components/font-aware-paper';
 import { NumericInputField } from '@/components/numeric-input-field';
 import { ThemedText } from '@/components/themed-text';
+import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -65,9 +66,11 @@ export default function Article87Screen() {
                                 <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
                                     مبلغ اعمال ماده ۸۷ قانون کار
                                 </ThemedText>
-                                <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                    موضوع فرآیند صدور پروانه کسب یا پروانه بهره برداری
-                                </ThemedText>
+                                <CalculationDescriptionBox>
+                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
+                                        موضوع فرآیند صدور پروانه کسب یا پروانه بهره برداری
+                                    </ThemedText>
+                                </CalculationDescriptionBox>
                             </View>
 
                             <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
@@ -141,6 +144,7 @@ export default function Article87Screen() {
                             {result !== null ? (
                                 <Card style={[styles.resultCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                     <Card.Content style={styles.resultContent}>
+                                        <CalculationResultHeading />
                                         <View style={[styles.summaryBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                             <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
                                                 مبلغ نهایی

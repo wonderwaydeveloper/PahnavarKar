@@ -231,9 +231,11 @@ export default function BaseSalaryScreen() {
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
                                         محاسبه حقوق پایه
                                     </ThemedText>
-                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        بازهٔ زمانی موردنظر را وارد نمایید تا براساس مصوبات شورای عالی کار، حقوق پایه محاسبه شود.
-                                    </ThemedText>
+                                    <View style={[styles.descriptionBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                        <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
+                                            بازهٔ زمانی موردنظر را وارد نمایید تا براساس مصوبات شورای عالی کار، حقوق پایه محاسبه شود.
+                                        </ThemedText>
+                                    </View>
                                 </View>
                             </View>
                             <View style={styles.metricsRow}>
@@ -275,6 +277,11 @@ export default function BaseSalaryScreen() {
                             {result && result.breakdown.length > 0 ? (
                                 <Card style={[styles.breakdownCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                     <Card.Content style={styles.breakdownContent}>
+                                        <View style={[styles.resultHeading, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                            <ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.textSecondary }]}>
+                                                نتیجه ی محاسبه
+                                            </ThemedText>
+                                        </View>
                                         <View style={styles.summaryBoxHeader}>
                                             <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                                 <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
@@ -327,7 +334,7 @@ export default function BaseSalaryScreen() {
                                                     >
                                                         <View style={styles.breakdownItemHeaderRow}>
                                                             <ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>
-                                                                {`سال ${toPersianDigits(String(item.year))} · دوره ${toPersianDigits(String(item.periodIndex))}`}
+                                                                {`سال ${toPersianDigits(String(item.year))}${(periodBuckets.find((bucket) => bucket.year === item.year)?.periods.length ?? 0) > 1 ? ` · دوره ${toPersianDigits(String(item.periodIndex))}` : ''}`}
                                                             </ThemedText>
                                                         </View>
 
@@ -482,6 +489,37 @@ const styles = StyleSheet.create({
         gap: Spacing.two,
         paddingVertical: Spacing.three,
         paddingHorizontal: Spacing.two,
+    },
+    resultHeading: {
+        alignItems: 'center',
+        borderTopLeftRadius: 12,
+        borderTopRightRadius: 12,
+        borderWidth: StyleSheet.hairlineWidth,
+        elevation: 2,
+        marginTop: -Spacing.three,
+        marginHorizontal: -Spacing.two,
+        paddingHorizontal: Spacing.two,
+        paddingVertical: Spacing.two,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 3,
+    },
+    descriptionBox: {
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
+        borderWidth: StyleSheet.hairlineWidth,
+        elevation: 2,
+        marginTop: -Spacing.four,
+        marginHorizontal: -Spacing.three,
+        paddingHorizontal: Spacing.two,
+        paddingVertical: Spacing.two,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 3,
     },
     breakdownSectionHeader: {
         flexDirection: 'row',

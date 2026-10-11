@@ -11,6 +11,7 @@ import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { SettlementThrough1391Field } from '@/components/settlement-through-1391-field';
 import { ThemedText } from '@/components/themed-text';
+import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { ThemedView } from '@/components/themed-view';
 import { WorkshopTypeSelector } from '@/components/workshop-type-selector';
 import { Radius, Spacing } from '@/constants/theme';
@@ -273,9 +274,11 @@ export default function NightShiftEntitlementScreen() {
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
                                         محاسبه شب کاری
                                     </ThemedText>
-                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        محاسبه فوق‌العاده شب‌کاری براساس شرح ماده ۵۸ قانون کار
-                                    </ThemedText>
+                                    <CalculationDescriptionBox>
+                                        <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
+                                            محاسبه فوق‌العاده شب‌کاری براساس شرح ماده ۵۸ قانون کار
+                                        </ThemedText>
+                                    </CalculationDescriptionBox>
                                 </View>
                             </View>
 
@@ -329,6 +332,7 @@ export default function NightShiftEntitlementScreen() {
                             {result ? (
                                 <Card style={[styles.breakdownCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                     <Card.Content style={styles.breakdownContent}>
+                                        <CalculationResultHeading />
                                         <View style={styles.summaryBoxHeader}>
                                             <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                                 <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
@@ -380,7 +384,7 @@ export default function NightShiftEntitlementScreen() {
                                                     >
                                                         <View style={styles.breakdownItemHeaderRow}>
                                                             <ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>
-                                                                {`سال ${toPersianDigits(String(item.year))} · دوره ${toPersianDigits(String(item.periodIndex))}`}
+                                                                {`سال ${toPersianDigits(String(item.year))}${(periodBuckets.find((bucket) => bucket.year === item.year)?.periods.length ?? 0) > 1 ? ` · دوره ${toPersianDigits(String(item.periodIndex))}` : ''}`}
                                                             </ThemedText>
                                                         </View>
 

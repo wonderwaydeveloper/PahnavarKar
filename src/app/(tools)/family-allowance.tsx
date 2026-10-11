@@ -10,6 +10,7 @@ import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
+import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
@@ -245,9 +246,11 @@ export default function FamilyAllowanceScreen() {
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
                                         محاسبه حق عائله مندی
                                     </ThemedText>
-                                    <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
-                                        محاسبه حق عائله مندی براساس بند۲ماده ۸۶قانون تامین اجتماعی
-                                    </ThemedText>
+                                    <CalculationDescriptionBox>
+                                        <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
+                                            محاسبه حق عائله مندی براساس بند۲ماده ۸۶قانون تامین اجتماعی
+                                        </ThemedText>
+                                    </CalculationDescriptionBox>
                                 </View>
                             </View>
 
@@ -344,6 +347,7 @@ export default function FamilyAllowanceScreen() {
                             {result ? (
                                 <Card style={[styles.breakdownCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                     <Card.Content style={styles.breakdownContent}>
+                                        <CalculationResultHeading />
                                         <View style={{ marginBottom: Spacing.one }}>
                                             <ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.text }]}>جزئیات محاسبه</ThemedText>
                                         </View>
@@ -398,7 +402,7 @@ export default function FamilyAllowanceScreen() {
                                                     >
                                                         <View style={styles.breakdownItemHeaderRow}>
                                                             <ThemedText type="smallBold" style={[styles.breakdownItemTitle, { color: theme.text }]}>
-                                                                {`سال ${toPersianDigits(String(item.year))} · دوره ${toPersianDigits(String(item.periodIndex))}`}
+                                                                {`سال ${toPersianDigits(String(item.year))}${(periodBuckets.find((bucket) => bucket.year === item.year)?.periods.length ?? 0) > 1 ? ` · دوره ${toPersianDigits(String(item.periodIndex))}` : ''}`}
                                                             </ThemedText>
                                                         </View>
 
