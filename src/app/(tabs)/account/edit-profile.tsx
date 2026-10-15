@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 
 export default function EditProfileScreen() {
     return (
@@ -17,6 +17,6 @@ export default function EditProfileScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, padding: Spacing.four, justifyContent: 'center' },
-    card: { backgroundColor: '#fff', borderRadius: 20, padding: Spacing.four, gap: Spacing.two },
+    card: { backgroundColor: '#fff', borderRadius: Radius.md, padding: Spacing.four, gap: Spacing.two },
     subtitle: { lineHeight: 24 },
 });

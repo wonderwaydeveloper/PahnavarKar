@@ -6,6 +6,7 @@ import { Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontAwareButton as Button, FontAwareMenuItem } from '@/components/font-aware-paper';
+import { HiddenCalculationGuide } from '@/components/hidden-calculation-guide';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -17,6 +18,7 @@ import { WorkshopTypeSelector } from '@/components/workshop-type-selector';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { useCurrencyFormatter } from '@/hooks/use-currency-formatter';
 import { getDailyWorkRatio, scaleWageCalculationResult } from '@/utils/daily-work-ratio';
 import {
     calculateBonusEntitlementFromPeriodData,
@@ -30,6 +32,7 @@ type PickerTarget = 'start' | 'end' | 'employment';
 
 export default function BonusEntitlementScreen() {
     const theme = useTheme();
+    const { formatCurrency } = useCurrencyFormatter();
     const insets = useSafeAreaInsets();
     const currentDate = useMemo(() => {
         const today = new Date();
@@ -106,7 +109,6 @@ export default function BonusEntitlementScreen() {
 
     const digits = '۰۱۲۳۴۵۶۷۸۹';
     const toPersianDigits = (value: string | number) => String(value).replace(/\d/g, (digit) => digits[Number(digit)]);
-    const formatCurrency = (value: number) => `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
     const formatNumber = (value: number) => toPersianDigits(value.toFixed(2).replace(/\.00$/, ''));
     const formatDate = (value: string) => {
         const parsed = parseDateInput(value);
@@ -189,6 +191,9 @@ export default function BonusEntitlementScreen() {
                                     <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>محاسبه عیدی پاداش ماهیانه بر اساس ماده واحده قانون تعیین عیدی پاداش، مصوب مجلس در سال ۱۳۷۰</ThemedText>
                                 </CalculationDescriptionBox>
                             </View>
+                            <HiddenCalculationGuide>
+                                مبلغ محاسبه‌شدهٔ هر بازه = ماه‌های پوشش‌یافته × ۵ × (حداقل مزد روزانه + پایه سنوات روزانه). سقف هر بازه = ماه‌های پوشش‌یافته × ۷٫۵ × حداقل مزد روزانه؛ مبلغ استحقاقی از این سقف بیشتر نمی‌شود. نسبت ساعات کار روزانه نیز در صورت کارکرد کمتر از تمام‌وقت اعمال می‌شود.
+                            </HiddenCalculationGuide>
                             <View style={styles.metricsRow}>
                                 <DateInputField label="از تاریخ" value={startDate} onPress={() => setPickerTarget('start')} formatValue={formatDate} />
                                 <DateInputField label="تا تاریخ" value={endDate} onPress={() => setPickerTarget('end')} formatValue={formatDate} />
@@ -282,20 +287,20 @@ export default function BonusEntitlementScreen() {
                 </SafeAreaView>
             </ScrollView>
             <PersianDatePickerModal visible={pickerTarget !== null} value={pickerTarget === 'start' ? startDate : pickerTarget === 'end' ? endDate : employmentDate} title={pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : pickerTarget === 'end' ? 'انتخاب تاریخ پایان' : 'انتخاب تاریخ استخدام'} onClose={() => setPickerTarget(null)} onSelect={handleDateSelect} availableYears={availableYears} />
-            <Snackbar visible={snackbarVisible} onDismiss={() => setSnackbarVisible(false)} duration={3000} style={{ backgroundColor: theme.error, borderRadius: Radius.md }} action={{ label: 'بستن', onPress: () => setSnackbarVisible(false), labelStyle: { color: theme.surface } }}><ThemedText type="small" style={{ color: theme.surface }}>{snackbarMessage}</ThemedText></Snackbar>
+            <Snackbar visible={snackbarVisible} onDismiss={() => setSnackbarVisible(false)} duration={5000} style={{ backgroundColor: theme.error, borderRadius: Radius.md }} action={{ label: 'بستن', onPress: () => setSnackbarVisible(false), labelStyle: { color: theme.surface } }}><ThemedText type="small" style={{ color: theme.surface }}>{snackbarMessage}</ThemedText></Snackbar>
         </ThemedView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 }, scrollContent: { flexGrow: 1 }, safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: Spacing.four },
-    card: { borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' }, cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
+    container: { flex: 1 }, scrollContent: { flexGrow: 1 }, safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: 0 },
+    card: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' }, cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerText: { gap: Spacing.one }, pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'AppFont-Bold' }, pageDescription: { fontSize: 13, lineHeight: 20 },
     formulaBox: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two, gap: Spacing.one }, formulaLabel: { fontSize: 11 }, formulaText: { fontSize: 12, lineHeight: 21 },
     metricsRow: { flexDirection: 'row', gap: Spacing.two }, metricBox: { flex: 1, borderRadius: 14, padding: Spacing.two, gap: Spacing.one }, sectionLabel: { fontSize: 11 },
     dateInput: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
     optionSection: { gap: Spacing.two }, optionsRow: { flexDirection: 'row', gap: Spacing.two }, optionButton: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth },
     checkRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth }, checkText: { flex: 1, gap: Spacing.one }, optionTitle: { fontSize: 13, lineHeight: 19, fontFamily: 'AppFont-Bold' }, optionDescription: { fontSize: 11, lineHeight: 20, fontFamily: 'AppFont-Regular' }, actionsGroup: { flexDirection: 'row', gap: Spacing.two }, actionButton: { flex: 1, borderRadius: 12 }, actionLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
-    resultCard: { borderRadius: 12, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' }, resultContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two }, summaryBoxContent: { width: '100%', alignItems: 'center', gap: Spacing.one, padding: Spacing.two, borderRadius: 12, borderWidth: 1 }, summaryDetailsGrid: { gap: Spacing.one }, summaryDetailBox: { width: '100%', alignItems: 'center', gap: Spacing.half, padding: Spacing.two, borderRadius: 12, borderWidth: 1 }, summaryLabel: { fontSize: 11 }, amountValue: { fontSize: 18 },
-    breakdownHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.one, paddingVertical: Spacing.one, gap: Spacing.one }, breakdownSectionTitle: { fontSize: 13 }, toggleButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth }, toggleButtonLabel: { fontSize: 11, lineHeight: 17, fontFamily: 'AppFont-Bold' }, breakdownGrid: { gap: Spacing.two }, breakdownItemCard: { gap: Spacing.one, padding: Spacing.two, borderRadius: 12, borderWidth: 1 }, breakdownItemHeaderRow: { paddingTop: 2, paddingBottom: 2, marginBottom: 2, borderBottomWidth: StyleSheet.hairlineWidth }, breakdownItemTitle: { fontSize: 12, fontFamily: 'AppFont-Bold' }, breakdownDetailGrid: { gap: Spacing.one }, breakdownDetailBox: { alignItems: 'center', gap: Spacing.half, padding: Spacing.one, borderRadius: 8, borderWidth: 1 }, detailLabel: { fontSize: 10 }, detailValue: { fontSize: 12 },
+    resultCard: { borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' }, resultContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two }, summaryBoxContent: { width: '100%', alignItems: 'center', gap: Spacing.one, padding: Spacing.two, borderRadius: 12, borderWidth: 1 }, summaryDetailsGrid: { gap: Spacing.one }, summaryDetailBox: { width: '100%', alignItems: 'center', gap: Spacing.half, padding: Spacing.two, borderRadius: 12, borderWidth: 1 }, summaryLabel: { fontSize: 11 }, amountValue: { fontSize: 18 },
+    breakdownHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.one, paddingVertical: Spacing.one, gap: Spacing.one }, breakdownSectionTitle: { fontSize: 13 }, toggleButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth }, toggleButtonLabel: { fontSize: 11, lineHeight: 17, fontFamily: 'AppFont-Bold' }, breakdownGrid: { gap: Spacing.two }, breakdownItemCard: { gap: Spacing.one, padding: Spacing.two, borderRadius: Radius.md, borderWidth: 1 }, breakdownItemHeaderRow: { paddingTop: 2, paddingBottom: 2, marginBottom: 2, borderBottomWidth: StyleSheet.hairlineWidth }, breakdownItemTitle: { fontSize: 12, fontFamily: 'AppFont-Bold' }, breakdownDetailGrid: { gap: Spacing.one }, breakdownDetailBox: { alignItems: 'center', gap: Spacing.half, padding: Spacing.one, borderRadius: 8, borderWidth: 1 }, detailLabel: { fontSize: 10 }, detailValue: { fontSize: 12 },
 });

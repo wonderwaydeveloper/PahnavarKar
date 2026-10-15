@@ -5,6 +5,7 @@ import { Card, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
+import { HiddenCalculationGuide } from '@/components/hidden-calculation-guide';
 import { FontAwareButton as Button } from '@/components/font-aware-paper';
 import { NumericInputField } from '@/components/numeric-input-field';
 import { ThemedText } from '@/components/themed-text';
@@ -94,18 +95,14 @@ export default function UnemploymentInsuranceEntitlementScreen() {
                                 </CalculationDescriptionBox>
                             </View>
 
-                            <View style={[styles.rulesBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <ThemedText type="smallBold" style={{ color: theme.text }}>
-                                    قوانین استحقاق
-                                </ThemedText>
-                                <ThemedText type="small" style={[styles.rulesText, { color: theme.textSecondary }]}>
-                                    سابقه ۶ تا ۲۴ ماه: مجرد ۶ ماه، متأهل یا متکفل ۱۲ ماه{'\n'}
-                                    سابقه ۲۵ تا ۱۲۰ ماه: مجرد ۱۲ ماه، متأهل یا متکفل ۱۸ ماه{'\n'}
-                                    سابقه ۱۲۱ تا ۱۸۰ ماه: مجرد ۱۸ ماه، متأهل یا متکفل ۲۶ ماه{'\n'}
-                                    سابقه ۱۸۱ تا ۲۴۰ ماه: مجرد ۲۶ ماه، متأهل یا متکفل ۳۶ ماه{'\n'}
-                                    سابقه ۲۴۱ ماه به بالا: مجرد ۳۶ ماه، متأهل یا متکفل ۵۰ ماه
-                                </ThemedText>
-                            </View>
+                            <HiddenCalculationGuide title="قاعده محاسبه استحقاق">
+                                سابقه ۶ تا ۲۴ ماه: مجرد ۶ ماه، متأهل یا متکفل ۱۲ ماه{'\n'}
+                                سابقه ۲۵ تا ۱۲۰ ماه: مجرد ۱۲ ماه، متأهل یا متکفل ۱۸ ماه{'\n'}
+                                سابقه ۱۲۱ تا ۱۸۰ ماه: مجرد ۱۸ ماه، متأهل یا متکفل ۲۶ ماه{'\n'}
+                                سابقه ۱۸۱ تا ۲۴۰ ماه: مجرد ۲۶ ماه، متأهل یا متکفل ۳۶ ماه{'\n'}
+                                سابقه ۲۴۱ ماه به بالا: مجرد ۳۶ ماه، متأهل یا متکفل ۵۰ ماه{'\n'}
+                                مدت باقی‌مانده = حداکثرِ (مدت استحقاق قانونی − ماه‌های استفاده‌شده، صفر).
+                            </HiddenCalculationGuide>
 
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
                                 <ThemedText type="small" style={[styles.fieldLabel, { color: theme.textSecondary }]}>
@@ -278,7 +275,7 @@ export default function UnemploymentInsuranceEntitlementScreen() {
             <Snackbar
                 visible={snackbarVisible}
                 onDismiss={() => setSnackbarVisible(false)}
-                duration={3000}
+                duration={5000}
                 style={{ backgroundColor: theme.error, borderRadius: Radius.md }}
                 action={{ label: 'بستن', onPress: () => setSnackbarVisible(false), labelStyle: { color: theme.surface } }}
             >
@@ -293,8 +290,8 @@ export default function UnemploymentInsuranceEntitlementScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     scrollContent: { flexGrow: 1 },
-    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: Spacing.four },
-    card: { borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: 0 },
+    card: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerText: { gap: Spacing.one },
     pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'AppFont-Bold' },
@@ -312,7 +309,7 @@ const styles = StyleSheet.create({
     actionsGroup: { flexDirection: 'row', gap: Spacing.two },
     actionButton: { flex: 1, borderRadius: 12 },
     actionLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
-    resultCard: { borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+    resultCard: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     resultContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two },
     resultGrid: { flexDirection: 'row', gap: Spacing.two },
     resultBox: { flex: 1, alignItems: 'center', gap: Spacing.one, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two },

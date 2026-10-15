@@ -16,6 +16,7 @@ import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchY
 import type { PeriodRecord, YearRecord } from '@/database/types';
 import { jobGroupUiLabels, periodUiLabels } from '@/database/ui/labels';
 import { useTheme } from '@/hooks/use-theme';
+import { useCurrencyFormatter } from '@/hooks/use-currency-formatter';
 import { calculatePeriodDateRange } from '@/utils/period-date-calculator';
 
 type PeriodDetailRow =
@@ -54,6 +55,7 @@ function PeriodCardLocal({
   periodMonthCounts,
 }: PeriodCardProps) {
   const theme = useTheme();
+  const { formatCurrency } = useCurrencyFormatter();
   const [seniorityGroupExpanded, setSeniorityGroupExpanded] = useState(false);
 
   const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
@@ -74,14 +76,6 @@ function PeriodCardLocal({
       return null;
     }
   }, [year, index, periodMonthCounts]);
-
-  const formatCurrency = (value: number | null | undefined) => {
-    if (value == null) {
-      return '-';
-    }
-
-    return `${value.toLocaleString('fa-IR')} ریال`;
-  };
 
   const formatValue = (value: number | string | null | undefined, useCurrency = false) => {
     if (value == null || value === '') {
@@ -525,15 +519,15 @@ export default function YearlyInfoScreen() {
   const contentPlatformStyle = Platform.select({
     android: {
       paddingTop: Spacing.three,
-      paddingLeft: Spacing.four,
-      paddingRight: Spacing.four,
+      paddingLeft: 0,
+      paddingRight: 0,
       paddingBottom: Spacing.four,
     },
     web: {
       paddingTop: Spacing.six,
       paddingBottom: Spacing.four,
-      paddingLeft: Spacing.four,
-      paddingRight: Spacing.four,
+      paddingLeft: 0,
+      paddingRight: 0,
     },
   });
 
@@ -651,7 +645,7 @@ export default function YearlyInfoScreen() {
       <Snackbar
         visible={showError}
         onDismiss={() => setShowError(false)}
-        duration={10000}
+        duration={5000}
         style={{ backgroundColor: theme.error, borderRadius: Radius.md }}
         action={{
           label: 'بستن',
@@ -691,6 +685,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: Spacing.three,
     marginBottom: Spacing.two,
   },
   periodsSectionTitle: {
@@ -724,7 +719,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   periodCard: {
-    borderRadius: 14,
+    borderRadius: Radius.md,
     marginBottom: Spacing.two,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',

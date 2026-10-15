@@ -11,7 +11,7 @@ import { ThemedView } from '@/components/themed-view';
 import { ToolListItem } from '@/components/tool-list-item';
 import { WebBadge } from '@/components/web-badge';
 import { LegalCategoryList } from '@/components/legal/legal-category-list';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { TOOL_DEFINITIONS, type ToolDefinition } from '@/constants/tool-definitions';
 import { getToolRoute } from '@/constants/tool-routes';
 import { useTheme } from '@/hooks/use-theme';
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     sceneContent: { flexGrow: 1 },
     page: { gap: Spacing.one },
     categorySection: { gap: Spacing.one, marginTop: 0 },
-    listCard: { overflow: 'hidden', borderRadius: Spacing.two },
+    listCard: { overflow: 'hidden', borderRadius: Radius.md},
     chatSeparator: { height: StyleSheet.hairlineWidth, marginStart: Spacing.three + 50 + Spacing.two },
     emptyState: { minHeight: 150, alignItems: 'center', justifyContent: 'center', gap: Spacing.one, padding: Spacing.four },
 });

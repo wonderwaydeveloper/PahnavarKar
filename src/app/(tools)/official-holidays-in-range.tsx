@@ -196,7 +196,7 @@ export default function OfficialHolidaysInRangeScreen() {
             </ScrollView>
 
             <PersianDatePickerModal visible={pickerTarget !== null} value={pickerTarget === 'start' ? startDate : endDate} title={pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'} onClose={() => setPickerTarget(null)} onSelect={handleDateSelect} availableYears={availableYears} />
-            <Snackbar visible={snackbarVisible} onDismiss={() => setSnackbarVisible(false)} duration={3000} style={{ backgroundColor: theme.error, borderRadius: Radius.md }} action={{ label: 'بستن', onPress: () => setSnackbarVisible(false), labelStyle: { color: theme.surface } }}>
+            <Snackbar visible={snackbarVisible} onDismiss={() => setSnackbarVisible(false)} duration={5000} style={{ backgroundColor: theme.error, borderRadius: Radius.md }} action={{ label: 'بستن', onPress: () => setSnackbarVisible(false), labelStyle: { color: theme.surface } }}>
                 <ThemedText type="small" style={{ color: theme.surface }}>{snackbarMessage}</ThemedText>
             </Snackbar>
         </ThemedView>
@@ -206,8 +206,8 @@ export default function OfficialHolidaysInRangeScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     scrollContent: { flexGrow: 1 },
-    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: Spacing.four },
-    card: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: 0 },
+    card: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerText: { gap: Spacing.one },
     pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'AppFont-Bold' },
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     actionsGroup: { flexDirection: 'row', gap: Spacing.two },
     actionButton: { flex: 1, borderRadius: 10 },
     actionLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
-    resultCard: { borderRadius: 12, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' },
+    resultCard: { borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' },
     resultContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two },
     summaryBox: { width: '100%', alignItems: 'center', gap: Spacing.one, padding: Spacing.two, borderRadius: 12, borderWidth: 1 },
     rangeBox: { alignItems: 'center', gap: Spacing.one, padding: Spacing.two, borderRadius: 12, borderWidth: 1 },
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     toggleButtonLabel: { fontSize: 11, fontFamily: 'AppFont-Bold' },
     toggleButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth },
     breakdownGrid: { gap: Spacing.two },
-    breakdownItemCard: { borderRadius: 12, borderWidth: 1, padding: Spacing.two, gap: Spacing.one },
+    breakdownItemCard: { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.two, gap: Spacing.one },
     breakdownItemHeaderRow: { paddingTop: 2, paddingBottom: 2, marginBottom: 2, borderBottomWidth: StyleSheet.hairlineWidth },
     breakdownItemTitle: { fontSize: 12, fontFamily: 'AppFont-Bold' },
     detailGrid: { gap: Spacing.one },

@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   card: {
-    borderRadius: 14,
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },

@@ -11,9 +11,10 @@ import * as Sharing from 'expo-sharing';
 import { NativeFileStorageUnavailableError } from 'pahnavar-file-storage';
 
 import { FontAwareButton as Button, FontAwareMenuItem, FontAwarePaperTextInput as TextInput } from '@/components/font-aware-paper';
-import type { FontPreference } from '@/context/app.context';
+import type { CurrencyPreference, FontPreference } from '@/context/app.context';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { PdfHtmlPreview } from '@/components/pdf-html-preview';
+import { HiddenCalculationGuide } from '@/components/hidden-calculation-guide';
 import { DateInputField } from '@/components/date-input-field';
 import { NumericInputField } from '@/components/numeric-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -23,11 +24,12 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ToolListItem } from '@/components/tool-list-item';
 import { getWorkshopTypeLabel, WorkshopTypeSelector } from '@/components/workshop-type-selector';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { TOOL_DEFINITIONS } from '@/constants/tool-definitions';
 import { fetchJobGroups, fetchOfficialHolidaysBetweenDates, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppContext } from '@/hooks/use-app-context';
+import { useCurrencyFormatter } from '@/hooks/use-currency-formatter';
 import { saveFileToDefaultLocation } from '@/services/file-storage';
 import {
     buildGroupCalculationPdfHtml,
@@ -37,6 +39,7 @@ import {
     type GroupCalculationPdfSection,
     type GroupCalculationPdfWageTotal,
 } from '@/utils/group-calculation-pdf';
+import { formatCurrencyAmount } from '@/utils/currency';
 import {
     calculateGroupItems,
     GROUP_CALCULATION_KEYS,
@@ -78,10 +81,6 @@ function isWageCalculationKey(key: GroupCalculationKey) {
     return GROUP_TOOLS.some((tool) => (
         tool.key === key && (tool.category === 'wageContinuous' || tool.category === 'wageNonContinuous')
     ));
-}
-
-function formatCurrencyAmount(amount: number) {
-    return toPersianDigits(new Intl.NumberFormat('fa-IR').format(Math.round(amount)));
 }
 
 function getResultAmount(result: GroupCalculationResult) {
@@ -453,7 +452,12 @@ function formatBreakdownRange(entry: Record<string, unknown>) {
     return formattedStart && formattedEnd ? `${formattedStart} تا ${formattedEnd}` : '—';
 }
 
-function formatBreakdownDetail(field: BreakdownField, entry: Record<string, unknown>, key: GroupCalculationKey) {
+function formatBreakdownDetail(
+    field: BreakdownField,
+    entry: Record<string, unknown>,
+    key: GroupCalculationKey,
+    currencyPreference: CurrencyPreference,
+) {
     if (field.format === 'range') return formatBreakdownRange(entry);
     if (field.format === 'last-period') {
         return `آخرین ماه کارکرد: سال ${toPersianDigits(String(entry.year))}، دوره ${toPersianDigits(String(entry.periodIndex))}`;
@@ -462,7 +466,7 @@ function formatBreakdownDetail(field: BreakdownField, entry: Record<string, unkn
     const value = entry[field.key];
     if (value == null) {
         if (key === 'base-salary' && field.key === 'dailyMinimumWage') {
-            return `${toPersianDigits(new Intl.NumberFormat('fa-IR').format(0))} ریال`;
+            return formatCurrencyAmount(0, currencyPreference);
         }
         return '-';
     }
@@ -504,7 +508,7 @@ function formatBreakdownDetail(field: BreakdownField, entry: Record<string, unkn
 
     if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
     if (field.format === 'money') {
-        return `${toPersianDigits(new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 0 }).format(Math.round(value)))} ریال`;
+        return formatCurrencyAmount(value, currencyPreference);
     }
     if (field.format === 'coefficient') return `${toPersianDigits((value * 100).toFixed(1))}٪`;
     if (field.format === 'days') return `${formatBreakdownNumber(value)} روز`;
@@ -704,7 +708,8 @@ async function getGroupCalculationPdfAssets(fontPreference: FontPreference): Pro
 
 export default function GroupCalculationScreen() {
     const theme = useTheme();
-    const { fontPreference } = useAppContext();
+    const { fontPreference, currencyPreference } = useAppContext();
+    const { formatCurrency } = useCurrencyFormatter();
     const insets = useSafeAreaInsets();
     const currentJalaliDate = useMemo(() => {
         const today = new Date();
@@ -1170,7 +1175,7 @@ export default function GroupCalculationScreen() {
                     excludedBonusItems,
                 }
                 : {
-                    amount: `${formatCurrencyAmount(wageTotalResults.reduce((total, result) => total + getResultAmount(result), 0))} ریال`,
+                    amount: formatCurrency(wageTotalResults.reduce((total, result) => total + getResultAmount(result), 0)),
                     excludedBonusItems,
                 }
             : undefined;
@@ -1199,7 +1204,7 @@ export default function GroupCalculationScreen() {
                 : result.breakdown;
             const resultAmount = getResultAmount(result);
             const formattedValue = result.unit === 'ریال'
-                ? toPersianDigits(new Intl.NumberFormat('fa-IR').format(Math.round(resultAmount)))
+                ? formatCurrencyAmount(resultAmount, currencyPreference)
                 : toPersianDigits(Number.isInteger(resultAmount) ? String(resultAmount) : resultAmount.toFixed(2));
             const summaryLabel = result.key === 'monthly-shift-work'
                 ? `${RESULT_SUMMARY_LABELS[result.key]} (${SHIFT_TYPE_OPTIONS.find((option) => option.value === shiftType)?.label ?? 'صبح و عصر'})`
@@ -1258,7 +1263,7 @@ export default function GroupCalculationScreen() {
                         rows: detailRecord
                             ? fields.map((field) => ({
                                 label: field.label,
-                                value: formatBreakdownDetail(field, detailRecord, result.key),
+                                value: formatBreakdownDetail(field, detailRecord, result.key, currencyPreference),
                             }))
                             : [],
                     });
@@ -1268,7 +1273,7 @@ export default function GroupCalculationScreen() {
             return {
                 title: getResultTitle(result, workshopType),
                 summaryLabel,
-                amount: `${formattedValue} ${result.unit}`,
+                amount: result.unit === 'ریال' ? formattedValue : `${formattedValue} ${result.unit}`,
                 error: result.error,
                 detailsTitle,
                 details,
@@ -2265,8 +2270,39 @@ export default function GroupCalculationScreen() {
 
                 {results ? (
                     <View style={styles.results}>
-                        <ThemedText type="smallBold">نتایج</ThemedText>
+                        <ThemedText type="smallBold" style={styles.resultsTitle}>نتایج</ThemedText>
                         <View style={[styles.pdfExportSection, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+                            {(() => {
+                                const wageTotalResults = results.filter((result) => (
+                                    result.unit === 'ریال'
+                                    && isWageCalculationKey(result.key)
+                                    && !WAGE_TOTAL_EXCLUDED_KEYS.includes(result.key)
+                                ));
+                                if (wageTotalResults.length === 0) return null;
+
+                                const totalHasErrors = wageTotalResults.some((result) => result.error);
+                                const wageTotalAmount = wageTotalResults.reduce((total, result) => total + getResultAmount(result), 0);
+                                const excludedBonusItems = getExcludedBonusItemTitles(results);
+                                return (
+                                    <View style={styles.summaryBoxHeader}>
+                                        <View style={[styles.summaryBoxContent, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
+                                            <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
+                                                جمع نتایج اقلام مزدی
+                                            </ThemedText>
+                                            <ThemedText type="smallBold" style={[styles.amountValue, { color: totalHasErrors ? theme.error : theme.primary }]}>
+                                                {totalHasErrors
+                                                    ? 'به‌دلیل خطای یکی از محاسبات، جمع کامل نیست.'
+                                                    : formatCurrency(wageTotalAmount)}
+                                            </ThemedText>
+                                            {excludedBonusItems.length > 0 ? (
+                                                <ThemedText type="small" style={[styles.wageTotalNote, { color: theme.textSecondary }]}>
+                                                    این جمع شامل {excludedBonusItems.map((title) => `«${title}»`).join(' و ')} نمی‌شود.
+                                                </ThemedText>
+                                            ) : null}
+                                        </View>
+                                    </View>
+                                );
+                            })()}
                             <View style={styles.pdfExportHeader}>
                                 <ThemedText type="smallBold">خروجی فیش PDF</ThemedText>
                                 <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
@@ -2348,37 +2384,6 @@ export default function GroupCalculationScreen() {
                                 ) : null}
                             </View>
                         </View>
-                        {(() => {
-                            const wageTotalResults = results.filter((result) => (
-                                result.unit === 'ریال'
-                                && isWageCalculationKey(result.key)
-                                && !WAGE_TOTAL_EXCLUDED_KEYS.includes(result.key)
-                            ));
-                            if (wageTotalResults.length === 0) return null;
-
-                            const totalHasErrors = wageTotalResults.some((result) => result.error);
-                            const wageTotalAmount = wageTotalResults.reduce((total, result) => total + getResultAmount(result), 0);
-                            const excludedBonusItems = getExcludedBonusItemTitles(results);
-                            return (
-                                <View style={styles.summaryBoxHeader}>
-                                    <View style={[styles.summaryBoxContent, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
-                                        <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
-                                            جمع نتایج اقلام مزدی
-                                        </ThemedText>
-                                        <ThemedText type="smallBold" style={[styles.amountValue, { color: totalHasErrors ? theme.error : theme.primary }]}>
-                                            {totalHasErrors
-                                                ? 'به‌دلیل خطای یکی از محاسبات، جمع کامل نیست.'
-                                                : `${formatCurrencyAmount(wageTotalAmount)} ریال`}
-                                        </ThemedText>
-                                        {excludedBonusItems.length > 0 ? (
-                                            <ThemedText type="small" style={[styles.wageTotalNote, { color: theme.textSecondary }]}>
-                                                این جمع شامل {excludedBonusItems.map((title) => `«${title}»`).join(' و ')} نمی‌شود.
-                                            </ThemedText>
-                                        ) : null}
-                                    </View>
-                                </View>
-                            );
-                        })()}
                         {results.map((result) => {
                             const isExpanded = !!expandedResults[result.key];
                             const detailBreakdown = result.key === 'end-of-service-years' && result.breakdown.length > 0
@@ -2403,9 +2408,9 @@ export default function GroupCalculationScreen() {
                                 })()
                                 : result.breakdown;
                             const formattedValue = result.unit === 'ریال'
-                                ? toPersianDigits(new Intl.NumberFormat('fa-IR').format(Math.round(result.value)))
+                                ? formatCurrency(result.value)
                                 : toPersianDigits(Number.isInteger(result.value) ? String(result.value) : result.value.toFixed(2));
-                            const amountText = result.error ?? `${formattedValue} ${result.unit}`;
+                            const amountText = result.error ?? (result.unit === 'ریال' ? formattedValue : `${formattedValue} ${result.unit}`);
                             const totalPeriodEntitlement = result.key === 'entitled-seniority' ? getResultAmount(result) : 0;
                             const summaryLabelText = result.key === 'monthly-shift-work'
                                 ? `${RESULT_SUMMARY_LABELS[result.key]} (${SHIFT_TYPE_OPTIONS.find((option) => option.value === shiftType)?.label ?? 'صبح و عصر'})`
@@ -2436,6 +2441,9 @@ export default function GroupCalculationScreen() {
                                                 </ThemedText>
                                             </View>
                                         </View>
+                                        <HiddenCalculationGuide title="راهنمای محاسبه">
+                                            شرح مبالغ، روزها و ضرایب مؤثر در نتیجه در جزئیات دوره‌های همین کارت آمده است.
+                                        </HiddenCalculationGuide>
 
                                         {result.key === 'entitled-seniority' && !result.error ? (
                                             <View style={styles.summaryBoxHeader}>
@@ -2446,7 +2454,7 @@ export default function GroupCalculationScreen() {
                                                             : 'پایه سنوات استحقاقی کل دوره'}
                                                     </ThemedText>
                                                     <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>
-                                                        {formatCurrencyAmount(totalPeriodEntitlement)} ریال
+                                                        {formatCurrency(totalPeriodEntitlement)}
                                                     </ThemedText>
                                                 </View>
                                             </View>
@@ -2542,7 +2550,7 @@ export default function GroupCalculationScreen() {
                                                                             if (field.format === 'last-period' && detailRecord) {
                                                                                 return (
                                                                                     <ThemedText key={`${result.key}-${field.key}-${field.format}-${index}`} type="small" style={[styles.detailContext, { color: theme.textSecondary }]}>
-                                                                                        {formatBreakdownDetail(field, detailRecord, result.key)}
+                                                                                        {formatBreakdownDetail(field, detailRecord, result.key, currencyPreference)}
                                                                                     </ThemedText>
                                                                                 );
                                                                             }
@@ -2557,7 +2565,7 @@ export default function GroupCalculationScreen() {
                                                                                         </ThemedText>
                                                                                     </View>
                                                                                     <ThemedText type="smallBold" style={[styles.detailValue, { color: isWarning ? theme.error : isEmphasized ? theme.primary : theme.text }]}>
-                                                                                        {detailRecord ? formatBreakdownDetail(field, detailRecord, result.key) : '-'}
+                                                                                        {detailRecord ? formatBreakdownDetail(field, detailRecord, result.key, currencyPreference) : '-'}
                                                                                     </ThemedText>
                                                                                 </View>
                                                                             );
@@ -2624,7 +2632,7 @@ export default function GroupCalculationScreen() {
             <Snackbar
                 visible={conflictSnackbarVisible}
                 onDismiss={() => setConflictSnackbarVisible(false)}
-                duration={4000}
+                duration={5000}
                 style={{ backgroundColor: theme.error }}
                 action={{
                     label: 'بستن',
@@ -2639,7 +2647,7 @@ export default function GroupCalculationScreen() {
             <Snackbar
                 visible={pdfSnackbarVisible}
                 onDismiss={() => setPdfSnackbarVisible(false)}
-                duration={6000}
+                duration={5000}
                 style={{ backgroundColor: pdfSnackbarIsError ? theme.error : theme.success }}
                 action={{
                     label: 'بستن',
@@ -2657,13 +2665,14 @@ export default function GroupCalculationScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    content: { flexGrow: 1, paddingHorizontal: Spacing.three, gap: Spacing.three },
+    content: { flexGrow: 1, paddingHorizontal: 0, gap: Spacing.three },
     intro: { gap: Spacing.two },
-    introGuidance: { gap: Spacing.one, padding: Spacing.two, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
+    introGuidance: { gap: Spacing.one, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
     introGuidanceText: { fontSize: 12, lineHeight: 18 },
-    introHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
+    introHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two, paddingHorizontal: Spacing.three },
     selectAllLabel: { fontFamily: 'AppFont-Medium', fontSize: 12 },
-    card: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+    resultsTitle: { paddingHorizontal: Spacing.three },
+    card: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     selectionList: { paddingVertical: 0, paddingHorizontal: 0 },
     selectionSeparator: { height: StyleSheet.hairlineWidth, marginStart: Spacing.three + 50 + Spacing.two },
     selectionCheckbox: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderRadius: 6 },
@@ -2692,7 +2701,7 @@ const styles = StyleSheet.create({
     valuePickerText: { flex: 1, fontSize: 13, fontFamily: 'AppFont-Regular' },
     daysCoverageBox: { gap: Spacing.one, borderRadius: 12, borderWidth: 1, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two },
     daysCoverageCheckRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-    periodInputCard: { gap: Spacing.one, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
+    periodInputCard: { gap: Spacing.one, borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
     periodInputHeader: { gap: Spacing.half },
     fieldHint: { fontSize: 11, lineHeight: 20, fontFamily: 'AppFont-Regular' },
     dayCountStepper: { minHeight: 50, flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.one, gap: Spacing.one },
@@ -2720,7 +2729,7 @@ const styles = StyleSheet.create({
     pdfActionButtonContent: { minHeight: 48 },
     pdfActionButtonLabel: { fontFamily: 'AppFont-Medium', fontSize: 13, lineHeight: 20 },
     wageTotalNote: { fontSize: 11, lineHeight: 16, textAlign: 'center' },
-    resultCard: { borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
+    resultCard: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth },
     resultContent: { gap: Spacing.two, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
     resultHeading: { alignItems: 'stretch', justifyContent: 'space-between', gap: Spacing.one },
     resultTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: Spacing.two, flex: 1, minWidth: 0 },
@@ -2739,7 +2748,7 @@ const styles = StyleSheet.create({
     toggleButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
     toggleButtonLabel: { fontSize: 11 },
     breakdownGrid: { gap: Spacing.two },
-    breakdownItemCard: { borderRadius: 12, borderWidth: 1, padding: Spacing.two, gap: Spacing.one },
+    breakdownItemCard: { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.two, gap: Spacing.one },
     breakdownItemHeaderRow: { paddingTop: 2, paddingBottom: 2, marginBottom: 2, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0, 0, 0, 0.12)' },
     breakdownItemTitle: { fontSize: 12, textAlign: 'center' },
     breakdownDetailGrid: { gap: Spacing.one },

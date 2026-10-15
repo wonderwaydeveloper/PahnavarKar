@@ -6,6 +6,7 @@ import { Card, Checkbox, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontAwareButton as Button, FontAwareMenuItem } from '@/components/font-aware-paper';
+import { HiddenCalculationGuide } from '@/components/hidden-calculation-guide';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -15,6 +16,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { useCurrencyFormatter } from '@/hooks/use-currency-formatter';
 import { getDailyWorkRatio, scaleWageCalculationResult } from '@/utils/daily-work-ratio';
 import {
     calculateFamilyAllowanceFromPeriodData,
@@ -27,6 +29,7 @@ const CHILDREN_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
 
 export default function FamilyAllowanceScreen() {
     const theme = useTheme();
+    const { formatCurrency } = useCurrencyFormatter();
     const insets = useSafeAreaInsets();
     const currentJalaliDate = useMemo(() => {
         const today = new Date();
@@ -108,9 +111,6 @@ export default function FamilyAllowanceScreen() {
 
     const toPersianDigits = (value: string) =>
         value.replace(/\d/g, (digit) => persianDigits[Number(digit)]);
-
-    const formatCurrency = (value: number) =>
-        `${new Intl.NumberFormat('fa-IR').format(value)} ریال`;
 
     const formatDisplayedDate = (value: string) => {
         const parsed = parseDateInput(value);
@@ -220,11 +220,11 @@ export default function FamilyAllowanceScreen() {
 
     const formattedResult = useMemo(() => {
         if (!result) {
-            return '۰ ریال';
+            return formatCurrency(0);
         }
 
         return toPersianDigits(formatCurrency(result.totalAmount));
-    }, [result]);
+    }, [formatCurrency, result]);
 
     return (
         <ThemedView style={styles.container}>
@@ -254,6 +254,9 @@ export default function FamilyAllowanceScreen() {
                                 </View>
                             </View>
 
+                            <HiddenCalculationGuide>
+                                مبلغ هر دوره بر پایهٔ مبلغ ماهانهٔ مصوب برای هر فرزند واجد شرایط، تعداد فرزندان و سهم بازهٔ پوشش محاسبه می‌شود؛ ماه ناقص به نسبت روزهای پوشش‌یافته به روزهای ماه محاسبه می‌شود. در صورت ساعات کار کمتر از تمام‌وقت، نسبت ساعات کار نیز اعمال می‌شود.
+                            </HiddenCalculationGuide>
                             <View style={styles.metricsRow}>
                                 <DateInputField
                                     label="از تاریخ"
@@ -456,7 +459,7 @@ export default function FamilyAllowanceScreen() {
             <Snackbar
                 visible={snackbarVisible}
                 onDismiss={() => setSnackbarVisible(false)}
-                duration={3000}
+                duration={5000}
                 style={{ backgroundColor: theme.error, borderRadius: Radius.md }}
                 action={{
                     label: 'بستن',
@@ -482,10 +485,10 @@ const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
         justifyContent: 'center',
-        paddingHorizontal: Spacing.four,
+        paddingHorizontal: 0,
     },
     card: {
-        borderRadius: 20,
+        borderRadius: Radius.md,
         borderWidth: 1,
         overflow: 'hidden',
     },
@@ -594,7 +597,7 @@ const styles = StyleSheet.create({
         fontFamily: 'AppFont-Regular',
     },
     breakdownCard: {
-        borderRadius: 12,
+        borderRadius: Radius.md,
         borderWidth: 1,
         marginTop: Spacing.two,
         overflow: 'hidden',
@@ -632,7 +635,7 @@ const styles = StyleSheet.create({
         gap: Spacing.two,
     },
     breakdownItemCard: {
-        borderRadius: 12,
+        borderRadius: Radius.md,
         borderWidth: 1,
         padding: Spacing.two,
         gap: Spacing.one,

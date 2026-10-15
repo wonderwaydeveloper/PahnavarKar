@@ -324,7 +324,49 @@ export function buildGroupCalculationPdfHtml(
         .about-item:last-child:nth-child(odd) { grid-column: 1 / -1; }
         .about-item h3 { margin: 0; color: #173d4a; font-size: 10px; }
         .about-item p { margin: 2px 0 0; color: #4b6275; font-size: 9px; line-height: 1.7; }
-        footer { margin-top: 12px; color: #697a81; font-size: 9px; text-align: center; }
+        .document-attribution {
+            margin-top: 12px;
+            color: #697a81;
+            font-size: 9px;
+            text-align: center;
+        }
+        .page-footer {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 8px 12px;
+            margin-top: 12px;
+            padding: 8px 0 0;
+            border-top: 1px solid #c8dde3;
+            color: #4b6275;
+            font-size: 8px;
+            line-height: 1.5;
+            text-align: center;
+        }
+        .page-footer-brand {
+            display: inline-flex;
+            flex: 0 0 auto;
+            align-items: center;
+            gap: 5px;
+            color: #087e8b;
+            font-size: 9px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .page-footer-logo {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            background: #26c6da;
+        }
+        .page-footer-rights { flex: 1 1 220px; }
+        .page-footer-promo {
+            flex: 0 0 auto;
+            color: #087e8b;
+            font-weight: bold;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -361,7 +403,7 @@ export function buildGroupCalculationPdfHtml(
     <div class="note">
         این سند گزارش محاسبهٔ جامع است و جایگزین فیش صادرشده از سوی کارفرما نیست.
     </div>
-    <footer>این گزارش به‌صورت خودکار از نتایج محاسبه‌شده در پهناور کار تهیه شده است.</footer>
+    <div class="document-attribution">این گزارش به‌صورت خودکار از نتایج محاسبه‌شده در پهناور کار تهیه شده است.</div>
     <section class="about-section">
         <h2>درباره پهناور کار</h2>
         <p class="about-intro">
@@ -383,6 +425,14 @@ export function buildGroupCalculationPdfHtml(
         </div>
     </section>
     </main>
+    <footer class="page-footer">
+        <span class="page-footer-brand">
+            <img class="page-footer-logo" src="${escapeHtml(assets.logo)}" alt="">
+            <span>پهناور کار</span>
+        </span>
+        <span class="page-footer-rights">حقوق مادی و معنوی قالب و محتوای اختصاصی این گزارش متعلق به پهناور کار است؛ بازنشر بدون اجازه مجاز نیست.</span>
+        <span class="page-footer-promo">محاسبات حقوق و مزایا با پهناور کار</span>
+    </footer>
 </body>
 </html>`;
 }

@@ -15,6 +15,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { useCurrencyFormatter } from '@/hooks/use-currency-formatter';
 import { getDailyWorkRatio, scaleWageCalculationResult } from '@/utils/daily-work-ratio';
 import {
     calculateSpousalAllowanceFromPeriodData,
@@ -25,6 +26,7 @@ import {
 
 export default function SpousalAllowanceScreen() {
     const theme = useTheme();
+    const { formatCurrency } = useCurrencyFormatter();
     const insets = useSafeAreaInsets();
     const currentJalaliDate = useMemo(() => {
         const today = new Date();
@@ -104,9 +106,6 @@ export default function SpousalAllowanceScreen() {
 
     const toPersianDigits = (value: string) =>
         value.replace(/\d/g, (digit) => persianDigits[Number(digit)]);
-
-    const formatCurrency = (value: number) =>
-        `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 
     const formatDisplayedDate = (value: string) => {
         const parsed = parseDateInput(value);
@@ -232,11 +231,11 @@ export default function SpousalAllowanceScreen() {
 
     const formattedResult = useMemo(() => {
         if (!result) {
-            return '۰ ریال';
+            return formatCurrency(0);
         }
 
         return toPersianDigits(formatCurrency(result.totalAmount));
-    }, [result]);
+    }, [formatCurrency, result]);
 
     return (
         <ThemedView style={styles.container}>
@@ -266,7 +265,12 @@ export default function SpousalAllowanceScreen() {
                                 </View>
                             </View>
 
-                            <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                            <View
+                                style={[
+                                    styles.formulaBox,
+                                    { display: 'none', backgroundColor: theme.surfaceVariant, borderColor: theme.border },
+                                ]}
+                            >
                                 <ThemedText type="small" style={[styles.formulaLabel, { color: theme.textSecondary }]}>
                                     فرمول محاسبه
                                 </ThemedText>
@@ -443,7 +447,7 @@ export default function SpousalAllowanceScreen() {
             <Snackbar
                 visible={snackbarVisible}
                 onDismiss={() => setSnackbarVisible(false)}
-                duration={3000}
+                duration={5000}
                 style={{ backgroundColor: theme.error, borderRadius: Radius.md }}
                 action={{
                     label: 'بستن',
@@ -469,10 +473,10 @@ const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
         justifyContent: 'center',
-        paddingHorizontal: Spacing.four,
+        paddingHorizontal: 0,
     },
     card: {
-        borderRadius: 20,
+        borderRadius: Radius.md,
         borderWidth: StyleSheet.hairlineWidth,
         overflow: 'hidden',
     },
@@ -564,7 +568,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
     },
     breakdownCard: {
-        borderRadius: 12,
+        borderRadius: Radius.md,
         borderWidth: 1,
         marginTop: Spacing.two,
         overflow: 'hidden',
@@ -620,7 +624,7 @@ const styles = StyleSheet.create({
         gap: Spacing.two,
     },
     breakdownItemCard: {
-        borderRadius: 12,
+        borderRadius: Radius.md,
         borderWidth: 1,
         padding: Spacing.two,
         gap: Spacing.one,

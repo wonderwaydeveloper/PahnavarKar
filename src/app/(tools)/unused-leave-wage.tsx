@@ -18,6 +18,7 @@ import { WorkshopTypeSelector } from '@/components/workshop-type-selector';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { useCurrencyFormatter } from '@/hooks/use-currency-formatter';
 import { getDailyWorkRatio, scaleWageCalculationResult } from '@/utils/daily-work-ratio';
 import {
     calculateEntitledSeniorityFromPeriodData,
@@ -36,6 +37,7 @@ const CHILDREN_OPTIONS = Array.from({ length: 13 }, (_, index) => index);
 
 export default function UnusedLeaveWageScreen() {
     const theme = useTheme();
+    const { formatCurrency } = useCurrencyFormatter();
     const insets = useSafeAreaInsets();
     const currentJalaliDate = useMemo(() => {
         const today = new Date();
@@ -127,7 +129,6 @@ export default function UnusedLeaveWageScreen() {
     const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
     const toPersianDigits = (value: string | number) => String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
     const formatNumber = (value: number) => toPersianDigits(Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2));
-    const formatCurrency = (value: number) => `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
     const formatDate = (value: string) => {
         const parsed = parseDateInput(value);
         return parsed ? `${toPersianDigits(String(parsed.year))}/${toPersianDigits(String(parsed.month).padStart(2, '0'))}/${toPersianDigits(String(parsed.day).padStart(2, '0'))}` : '';
@@ -490,7 +491,7 @@ export default function UnusedLeaveWageScreen() {
                 </SafeAreaView>
             </ScrollView>
             <PersianDatePickerModal visible={pickerTarget !== null} value={pickerTarget === 'employment' ? employmentDate : pickerTarget === 'start' ? startDate : endDate} title={pickerTarget === 'employment' ? 'انتخاب تاریخ استخدام' : pickerTarget === 'start' ? 'انتخاب تاریخ شروع' : 'انتخاب تاریخ پایان'} onClose={() => setPickerTarget(null)} onSelect={handleDateSelect} availableYears={availableYears} />
-            <Snackbar visible={snackbarVisible} onDismiss={() => setSnackbarVisible(false)} duration={3000} style={{ backgroundColor: theme.error, borderRadius: Radius.md }} action={{ label: 'بستن', onPress: () => setSnackbarVisible(false), labelStyle: { color: theme.surface } }}><ThemedText type="small" style={{ color: theme.surface }}>{snackbarMessage}</ThemedText></Snackbar>
+            <Snackbar visible={snackbarVisible} onDismiss={() => setSnackbarVisible(false)} duration={5000} style={{ backgroundColor: theme.error, borderRadius: Radius.md }} action={{ label: 'بستن', onPress: () => setSnackbarVisible(false), labelStyle: { color: theme.surface } }}><ThemedText type="small" style={{ color: theme.surface }}>{snackbarMessage}</ThemedText></Snackbar>
         </ThemedView>
     );
 }
@@ -498,8 +499,8 @@ export default function UnusedLeaveWageScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     scrollContent: { flexGrow: 1 },
-    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: Spacing.four },
-    card: { borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: 0 },
+    card: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerRow: { alignItems: 'flex-start' },
     headerText: { flex: 1, gap: Spacing.one },
@@ -537,7 +538,7 @@ const styles = StyleSheet.create({
     actionsGroup: { flexDirection: 'row', gap: Spacing.two },
     actionButton: { flex: 1, borderRadius: 12 },
     actionLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
-    resultCard: { borderRadius: 12, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' },
+    resultCard: { borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' },
     resultContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two },
     summaryBox: { width: '100%', alignItems: 'center', gap: Spacing.one, padding: Spacing.two, borderRadius: 12, borderWidth: 1 },
     summaryLabel: { fontSize: 11 },
@@ -547,7 +548,7 @@ const styles = StyleSheet.create({
     toggleButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth },
     toggleButtonLabel: { fontSize: 11 },
     breakdownGrid: { gap: Spacing.two },
-    breakdownItemCard: { borderRadius: 12, borderWidth: 1, padding: Spacing.two, gap: Spacing.one },
+    breakdownItemCard: { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.two, gap: Spacing.one },
     breakdownItemHeaderRow: { paddingTop: 2, paddingBottom: 2, marginBottom: 2, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0, 0, 0, 0.12)' },
     breakdownItemTitle: { fontSize: 12, fontFamily: 'AppFont-Bold' },
     breakdownDetailGrid: { gap: Spacing.one },

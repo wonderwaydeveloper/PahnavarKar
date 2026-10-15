@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface CalculationDescriptionBoxProps {
@@ -31,7 +31,7 @@ interface CalculationResultHeadingProps {
     topRadius?: number;
 }
 
-export function CalculationResultHeading({ topRadius = 12 }: CalculationResultHeadingProps) {
+export function CalculationResultHeading({ topRadius = Radius.md }: CalculationResultHeadingProps) {
     const theme = useTheme();
 
     return (
@@ -57,15 +57,15 @@ export function CalculationResultHeading({ topRadius = 12 }: CalculationResultHe
 
 const styles = StyleSheet.create({
     descriptionBox: {
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        borderTopLeftRadius: Radius.md,
+        borderTopRightRadius: Radius.md,
         borderBottomLeftRadius: 0,
         borderBottomRightRadius: 0,
         borderWidth: StyleSheet.hairlineWidth,
         elevation: 2,
         marginTop: -Spacing.four,
         marginHorizontal: -Spacing.three,
-        paddingHorizontal: Spacing.two,
+        paddingHorizontal: Spacing.three,
         paddingVertical: Spacing.two,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },

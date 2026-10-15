@@ -515,7 +515,7 @@ export default function UnusedLeaveEntitlementScreen() {
             <Snackbar
                 visible={snackbarVisible}
                 onDismiss={() => setSnackbarVisible(false)}
-                duration={3000}
+                duration={5000}
                 style={{ backgroundColor: theme.error, borderRadius: Radius.md }}
                 action={{
                     label: 'بستن',
@@ -541,10 +541,10 @@ const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
         justifyContent: 'center',
-        paddingHorizontal: Spacing.four,
+        paddingHorizontal: 0,
     },
     card: {
-        borderRadius: 20,
+        borderRadius: Radius.md,
         borderWidth: StyleSheet.hairlineWidth,
         overflow: 'hidden',
     },
@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
     },
     resultCard: {
-        borderRadius: 12,
+        borderRadius: Radius.md,
         borderWidth: 1,
         marginTop: Spacing.two,
         overflow: 'hidden',
@@ -695,7 +695,7 @@ const styles = StyleSheet.create({
         fontSize: 18,
     },
     breakdownCard: {
-        borderRadius: 12,
+        borderRadius: Radius.md,
         borderWidth: 1,
         marginTop: Spacing.two,
         overflow: 'hidden',
@@ -733,7 +733,7 @@ const styles = StyleSheet.create({
         gap: Spacing.two,
     },
     breakdownItemCard: {
-        borderRadius: 12,
+        borderRadius: Radius.md,
         borderWidth: 1,
         padding: Spacing.two,
         gap: Spacing.one,

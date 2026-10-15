@@ -6,6 +6,7 @@ import { Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontAwareButton as Button, FontAwareMenuItem } from '@/components/font-aware-paper';
+import { HiddenCalculationGuide } from '@/components/hidden-calculation-guide';
 import { DateInputField } from '@/components/date-input-field';
 import { NumericInputField } from '@/components/numeric-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -17,6 +18,7 @@ import { WorkshopTypeSelector } from '@/components/workshop-type-selector';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { useCurrencyFormatter } from '@/hooks/use-currency-formatter';
 import {
     calculateMissionAllowanceFromPeriodData,
     getMissionAllowancePeriodRanges,
@@ -63,6 +65,7 @@ function formatParsedDate(value: { year: number; month: number; day: number }) {
 
 export default function MissionAllowanceScreen() {
     const theme = useTheme();
+    const { formatCurrency } = useCurrencyFormatter();
     const insets = useSafeAreaInsets();
     const currentJalaliDate = useMemo(() => {
         const today = new Date();
@@ -310,7 +313,6 @@ export default function MissionAllowanceScreen() {
         setShowDetailedBreakdown(false);
     };
 
-    const formatCurrency = (amount: number) => `${new Intl.NumberFormat('fa-IR').format(Math.round(amount))} ریال`;
     const selectedDate = pickerTarget === 'employment'
         ? employmentDate
         : pickerTarget === 'missionStart'
@@ -341,6 +343,9 @@ export default function MissionAllowanceScreen() {
                                 </View>
                             </View>
 
+                            <HiddenCalculationGuide>
+                                حداقل مبلغ فوق‌العادهٔ مأموریت = روزهای مأموریت × (حداقل مزد روزانهٔ مصوب + پایه سنوات استحقاقی روزانهٔ همان بازه). روزهای بازه‌ای که شامل سالگرد استخدام است، پیش و پس از سالگرد جداگانه تخصیص می‌یابد.
+                            </HiddenCalculationGuide>
                             <View style={styles.dateFieldsRow}>
                                 <DateInputField
                                     label="از تاریخ"
@@ -584,7 +589,7 @@ export default function MissionAllowanceScreen() {
             <Snackbar
                 visible={snackbarVisible}
                 onDismiss={() => setSnackbarVisible(false)}
-                duration={3000}
+                duration={5000}
                 style={{ backgroundColor: theme.error, borderRadius: Radius.md }}
                 action={{ label: 'بستن', onPress: () => setSnackbarVisible(false), labelStyle: { color: theme.surface } }}
             >
@@ -597,8 +602,8 @@ export default function MissionAllowanceScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     scrollContent: { flexGrow: 1 },
-    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: Spacing.four },
-    card: { borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: 0 },
+    card: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerRow: { alignItems: 'flex-start' },
     headerText: { gap: Spacing.one },
@@ -623,7 +628,7 @@ const styles = StyleSheet.create({
     actionsGroup: { flexDirection: 'row', gap: Spacing.two },
     actionButton: { flex: 1, borderRadius: 10 },
     actionLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
-    breakdownCard: { borderRadius: 12, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' },
+    breakdownCard: { borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' },
     breakdownContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two },
     summaryBoxContent: { width: '100%', borderRadius: 12, borderWidth: 1, padding: Spacing.two, gap: Spacing.one, alignItems: 'center' },
     summaryLabel: { fontSize: 12, lineHeight: 18, fontFamily: 'AppFont-Medium' },
@@ -636,7 +641,7 @@ const styles = StyleSheet.create({
     toggleButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
     toggleButtonLabel: { fontSize: 11 },
     breakdownGrid: { gap: Spacing.two },
-    breakdownItemCard: { borderRadius: 12, borderWidth: 1, padding: Spacing.two, gap: Spacing.one },
+    breakdownItemCard: { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.two, gap: Spacing.one },
     breakdownItemHeaderRow: { paddingTop: 2, paddingBottom: 2, marginBottom: 2, borderBottomWidth: StyleSheet.hairlineWidth },
     breakdownItemTitle: { fontSize: 12, fontFamily: 'AppFont-Bold' },
     breakdownDetailGrid: { gap: Spacing.one },

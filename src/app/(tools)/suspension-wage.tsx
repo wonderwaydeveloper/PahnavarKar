@@ -17,6 +17,7 @@ import { WorkshopTypeSelector } from '@/components/workshop-type-selector';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { useCurrencyFormatter } from '@/hooks/use-currency-formatter';
 import { getDailyWorkRatio, scaleWageCalculationResult } from '@/utils/daily-work-ratio';
 import {
   calculateSuspensionWageFromPeriodData,
@@ -31,6 +32,7 @@ type PickerTarget = 'start' | 'end' | 'employment';
 
 export default function SuspensionWageScreen() {
   const theme = useTheme();
+  const { formatCurrency } = useCurrencyFormatter();
   const insets = useSafeAreaInsets();
   const currentJalaliDate = useMemo(() => {
     const today = new Date();
@@ -144,8 +146,6 @@ export default function SuspensionWageScreen() {
   const persianDigits = "۰۱۲۳۴۵۶۷۸۹";
   const toPersianDigits = (value: string | number) =>
     String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
-  const formatCurrency = (value: number) =>
-    `${new Intl.NumberFormat("fa-IR").format(Math.round(value))} ریال`;
   const formatNumber = (value: number) =>
     toPersianDigits(Number.isInteger(value) ? String(value) : value.toFixed(2));
   const formatDate = (value: string) => {
@@ -1012,7 +1012,7 @@ export default function SuspensionWageScreen() {
       <Snackbar
         visible={snackbarVisible}
         onDismiss={() => setSnackbarVisible(false)}
-        duration={3000}
+        duration={5000}
         style={{ backgroundColor: theme.error, borderRadius: Radius.md }}
       >
         {snackbarMessage}
@@ -1028,10 +1028,10 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     justifyContent: "center",
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: 0,
   },
   card: {
-    borderRadius: 20,
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
   },
@@ -1127,7 +1127,7 @@ const styles = StyleSheet.create({
   actionButton: { flex: 1, borderRadius: 12 },
   actionLabel: { fontFamily: "AppFont-Bold", fontSize: 12 },
   resultCard: {
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: 1,
     marginTop: Spacing.two,
     overflow: "hidden",
@@ -1168,7 +1168,7 @@ const styles = StyleSheet.create({
   toggleButtonLabel: { fontSize: 11 },
   breakdownGrid: { gap: Spacing.two },
   breakdownItemCard: {
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: 1,
     padding: Spacing.two,
     gap: Spacing.one,

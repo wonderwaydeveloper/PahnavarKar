@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppTextInput } from '@/components/app-text';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface LegalScreenProps {
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     },
     listCard: {
         overflow: 'hidden',
-        borderRadius: 16,
+        borderRadius: Radius.md,
         borderWidth: StyleSheet.hairlineWidth,
     },
     listRow: {
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: Spacing.two,
         padding: Spacing.four,
-        borderRadius: 16,
+        borderRadius: Radius.md,
     },
     retryButton: {
         minHeight: 42,
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
         gap: Spacing.two,
         paddingHorizontal: Spacing.three,
         paddingVertical: Spacing.three,
-        borderRadius: 14,
+        borderRadius: Radius.md,
         borderWidth: StyleSheet.hairlineWidth,
     },
     searchInput: {
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     },
     bodyCard: {
         padding: Spacing.three,
-        borderRadius: 16,
+        borderRadius: Radius.md,
         borderWidth: StyleSheet.hairlineWidth,
         gap: Spacing.two,
     },

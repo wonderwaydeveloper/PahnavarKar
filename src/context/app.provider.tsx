@@ -7,6 +7,7 @@ import { getAppPaperTheme, loadAppFonts } from '@/services/font-service';
 import {
     AppContext,
     type AppContextType,
+    type CurrencyPreference,
     type FontPreference,
     type ThemePreference,
     type ThemeType,
@@ -18,6 +19,7 @@ interface AppProviderProps {
 
 const THEME_PREFERENCE_STORAGE_KEY = '@pahnavarkar/theme-preference';
 const FONT_PREFERENCE_STORAGE_KEY = '@pahnavarkar/font-preference';
+const CURRENCY_PREFERENCE_STORAGE_KEY = '@pahnavarkar/currency-preference';
 
 function isThemePreference(value: string | null): value is ThemePreference {
     return value === 'light' || value === 'dark' || value === 'system';
@@ -27,11 +29,17 @@ function isFontPreference(value: string | null): value is FontPreference {
     return value === 'iransans' || value === 'vazir' || value === 'shabnam' || value === 'system';
 }
 
+function isCurrencyPreference(value: string | null): value is CurrencyPreference {
+    return value === 'rial' || value === 'toman';
+}
+
 export function AppProvider({ children }: AppProviderProps) {
     const colorScheme = useColorScheme();
     const [themePreference, setThemePreference] = useState<ThemePreference>('system');
     const [fontPreference, setFontPreference] = useState<FontPreference>('iransans');
     const [fontError, setFontError] = useState<string | null>(null);
+    const [currencyPreference, setCurrencyPreference] = useState<CurrencyPreference>('rial');
+    const [currencyError, setCurrencyError] = useState<string | null>(null);
     const [themeReady, setThemeReady] = useState(false);
     const [isRTL] = useState(() => I18nManager.isRTL);
 
@@ -42,9 +50,10 @@ export function AppProvider({ children }: AppProviderProps) {
             let storedFontPreference: FontPreference = 'iransans';
 
             try {
-                const [storedTheme, storedFont] = await Promise.all([
+                const [storedTheme, storedFont, storedCurrency] = await Promise.all([
                     AsyncStorage.getItem(THEME_PREFERENCE_STORAGE_KEY),
                     AsyncStorage.getItem(FONT_PREFERENCE_STORAGE_KEY),
+                    AsyncStorage.getItem(CURRENCY_PREFERENCE_STORAGE_KEY),
                 ]);
                 if (isMounted && isThemePreference(storedTheme)) {
                     setThemePreference(storedTheme);
@@ -52,10 +61,14 @@ export function AppProvider({ children }: AppProviderProps) {
                 if (isMounted && isFontPreference(storedFont)) {
                     storedFontPreference = storedFont;
                 }
+                if (isMounted && isCurrencyPreference(storedCurrency)) {
+                    setCurrencyPreference(storedCurrency);
+                }
             } catch (error) {
                 console.error('Unable to load saved app preferences', error);
                 if (isMounted) {
                     setFontError('ذخیرهٔ تنظیمات برنامه خوانده نشد؛ فونت پیش‌فرض بارگذاری می‌شود.');
+                    setCurrencyError('تنظیم واحد پول خوانده نشد؛ ریال به‌عنوان پیش‌فرض استفاده می‌شود.');
                 }
             }
 
@@ -116,24 +129,35 @@ export function AppProvider({ children }: AppProviderProps) {
         setFontError(null);
     }, []);
 
+    const handleSetCurrencyPreference = useCallback(async (nextCurrency: CurrencyPreference) => {
+        await AsyncStorage.setItem(CURRENCY_PREFERENCE_STORAGE_KEY, nextCurrency);
+        setCurrencyPreference(nextCurrency);
+        setCurrencyError(null);
+    }, []);
+
     const colors = useMemo(() => Colors[resolvedTheme], [resolvedTheme]);
     const paperTheme = useMemo(
         () => getAppPaperTheme(resolvedTheme, fontPreference),
         [resolvedTheme, fontPreference]
     );
     const clearFontError = useCallback(() => setFontError(null), []);
+    const clearCurrencyError = useCallback(() => setCurrencyError(null), []);
 
     const value: AppContextType = {
         theme: resolvedTheme,
         themePreference,
         fontPreference,
         fontError,
+        currencyPreference,
+        currencyError,
         themeReady,
         colors,
         isRTL,
         setTheme: handleSetTheme,
         setFontPreference: handleSetFontPreference,
+        setCurrencyPreference: handleSetCurrencyPreference,
         clearFontError,
+        clearCurrencyError,
     };
 
     return (

@@ -9,14 +9,16 @@ import { NumericInputField } from '@/components/numeric-input-field';
 import { ThemedText } from '@/components/themed-text';
 import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useCurrencyFormatter } from '@/hooks/use-currency-formatter';
 import { calculateArticle87WorkPermitFee } from '@/utils/salary-calculation';
 
 const FIXED_RATE_PER_SQUARE_METER = 55000;
 
 export default function Article87Screen() {
     const theme = useTheme();
+    const { formatCurrency } = useCurrencyFormatter();
     const insets = useSafeAreaInsets();
     const [area, setArea] = useState('1');
     const [result, setResult] = useState<number | null>(null);
@@ -26,7 +28,6 @@ export default function Article87Screen() {
 
     const normalizeDigits = (value: string) => value.replace(/[۰-۹]/g, (digit) => latinDigits[persianDigits.indexOf(digit)]);
     const toPersianDigits = (value: string | number) => String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
-    const formatCurrency = (value: number) => `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 
     const changeArea = (delta: number) => {
         setArea((currentValue) => {
@@ -73,7 +74,12 @@ export default function Article87Screen() {
                                 </CalculationDescriptionBox>
                             </View>
 
-                            <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                            <View
+                                style={[
+                                    styles.formulaBox,
+                                    { display: 'none', backgroundColor: theme.surfaceVariant, borderColor: theme.border },
+                                ]}
+                            >
                                 <ThemedText type="smallBold" style={[styles.formulaLabel, { color: theme.textSecondary }]}>
                                     فرمول محاسبه
                                 </ThemedText>
@@ -167,8 +173,8 @@ export default function Article87Screen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     scrollContent: { flexGrow: 1 },
-    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: Spacing.four },
-    card: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: 0 },
+    card: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerText: { gap: Spacing.one },
     pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'AppFont-Bold' },
@@ -186,7 +192,7 @@ const styles = StyleSheet.create({
     actionsGroup: { flexDirection: 'row', gap: Spacing.two },
     actionButton: { flex: 1, borderRadius: 10 },
     actionLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
-    resultCard: { borderRadius: 12, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' },
+    resultCard: { borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' },
     resultContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two },
     summaryBox: {
         width: '100%',

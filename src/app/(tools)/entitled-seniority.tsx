@@ -17,6 +17,7 @@ import { WorkshopTypeSelector } from '@/components/workshop-type-selector';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { useCurrencyFormatter } from '@/hooks/use-currency-formatter';
 import { getDailyWorkRatio, scaleWageCalculationResult } from '@/utils/daily-work-ratio';
 import {
     calculateEntitledSeniorityFromPeriodData,
@@ -28,6 +29,7 @@ import {
 
 export default function EntitledSeniorityScreen() {
     const theme = useTheme();
+    const { formatCurrency } = useCurrencyFormatter();
     const insets = useSafeAreaInsets();
     const currentDate = useMemo(() => {
         const today = new Date();
@@ -110,7 +112,6 @@ export default function EntitledSeniorityScreen() {
 
     const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
     const toPersianDigits = (value: string | number) => String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
-    const formatCurrency = (value: number) => `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
     const formatDate = (value: string) => {
         const parsed = parseDateInput(value);
         return parsed ? `${toPersianDigits(parsed.year)}/${toPersianDigits(String(parsed.month).padStart(2, '0'))}/${toPersianDigits(String(parsed.day).padStart(2, '0'))}` : '';
@@ -316,7 +317,7 @@ export default function EntitledSeniorityScreen() {
                 </SafeAreaView>
             </ScrollView>
             <PersianDatePickerModal visible={pickerTarget !== null} value={pickerTarget === 'employment' ? employmentDate : endDate} title={pickerTarget === 'employment' ? 'انتخاب تاریخ استخدام' : 'انتخاب تاریخ پایان'} onClose={() => setPickerTarget(null)} onSelect={selectDate} availableYears={availableYears} />
-            <Snackbar visible={snackbarVisible} onDismiss={() => setSnackbarVisible(false)} duration={3000} style={{ backgroundColor: theme.error, borderRadius: Radius.md }} action={{ label: 'بستن', onPress: () => setSnackbarVisible(false), labelStyle: { color: theme.surface } }}><ThemedText type="small" style={{ color: theme.surface }}>{snackbarMessage}</ThemedText></Snackbar>
+            <Snackbar visible={snackbarVisible} onDismiss={() => setSnackbarVisible(false)} duration={5000} style={{ backgroundColor: theme.error, borderRadius: Radius.md }} action={{ label: 'بستن', onPress: () => setSnackbarVisible(false), labelStyle: { color: theme.surface } }}><ThemedText type="small" style={{ color: theme.surface }}>{snackbarMessage}</ThemedText></Snackbar>
         </ThemedView>
     );
 }
@@ -324,8 +325,8 @@ export default function EntitledSeniorityScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     scrollContent: { flexGrow: 1 },
-    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: Spacing.four },
-    card: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: 0 },
+    card: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerText: { gap: Spacing.one },
     pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'AppFont-Bold' },
@@ -348,7 +349,7 @@ const styles = StyleSheet.create({
     actionLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
     optionTitle: { fontSize: 13, lineHeight: 19, fontFamily: 'AppFont-Bold' },
     optionDescription: { fontSize: 11, lineHeight: 20, fontFamily: 'AppFont-Regular' },
-    resultCard: { borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
+    resultCard: { borderRadius: Radius.md, borderWidth: 1, overflow: 'hidden' },
     resultContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two },
     summaryBox: { width: '100%', alignItems: 'center', gap: Spacing.one, padding: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth },
     summaryLabel: { fontSize: 11, lineHeight: 16, fontFamily: 'AppFont-Medium', textAlign: 'center' },

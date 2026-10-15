@@ -10,6 +10,7 @@ import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { PersianTimePickerModal } from '@/components/persian-time-picker-modal';
 import { ThemedText } from '@/components/themed-text';
+import { HiddenCalculationGuide } from '@/components/hidden-calculation-guide';
 import { CalculationDescriptionBox, CalculationResultHeading } from '@/components/calculation-card-sections';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
@@ -270,6 +271,9 @@ export default function InsuranceDaysEntitlementScreen() {
                                 </View>
                             </View>
 
+                            <HiddenCalculationGuide>
+                                اگر ساعات کار روزانه حداقل ۷٫۳۳ ساعت باشد، روزهای بیمه برابر روزهای پوشش است؛ در غیر این صورت: روزهای پوشش × (ساعات کار روزانه ÷ ۷٫۳۳). نتیجهٔ دوره‌ها با هم جمع می‌شود.
+                            </HiddenCalculationGuide>
                             <View style={styles.metricsRow}>
                                 <DateInputField
                                     label="از تاریخ"
@@ -438,7 +442,7 @@ export default function InsuranceDaysEntitlementScreen() {
             <Snackbar
                 visible={snackbarVisible}
                 onDismiss={() => setSnackbarVisible(false)}
-                duration={3000}
+                duration={5000}
                 style={{ backgroundColor: theme.error, borderRadius: Radius.md }}
                 action={{
                     label: 'بستن',
@@ -464,10 +468,10 @@ const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
         justifyContent: 'center',
-        paddingHorizontal: Spacing.four,
+        paddingHorizontal: 0,
     },
     card: {
-        borderRadius: 20,
+        borderRadius: Radius.md,
         borderWidth: StyleSheet.hairlineWidth,
         overflow: 'hidden',
     },
@@ -548,7 +552,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
     },
     breakdownCard: {
-        borderRadius: 12,
+        borderRadius: Radius.md,
         borderWidth: 1,
         marginTop: Spacing.two,
         overflow: 'hidden',
@@ -603,7 +607,7 @@ const styles = StyleSheet.create({
         gap: Spacing.two,
     },
     breakdownItemCard: {
-        borderRadius: 12,
+        borderRadius: Radius.md,
         borderWidth: 1,
         padding: Spacing.two,
         gap: Spacing.one,

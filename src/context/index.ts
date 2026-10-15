@@ -1,6 +1,7 @@
 export {
     AppContext,
     type AppContextType,
+    type CurrencyPreference,
     type FontPreference,
     type ThemePreference,
     type ThemeType,

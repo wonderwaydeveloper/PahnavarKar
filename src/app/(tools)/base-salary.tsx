@@ -7,6 +7,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { FontAwareButton as Button } from '@/components/font-aware-paper';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
+import { HiddenCalculationGuide } from '@/components/hidden-calculation-guide';
+import { CalculationDescriptionBox } from '@/components/calculation-card-sections';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
 import { ThemedText } from '@/components/themed-text';
@@ -14,6 +16,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { useCurrencyFormatter } from '@/hooks/use-currency-formatter';
 import {
     calculateSalaryFromPeriodData,
     parseDateInput,
@@ -23,6 +26,7 @@ import {
 
 export default function BaseSalaryScreen() {
     const theme = useTheme();
+    const { formatCurrency } = useCurrencyFormatter();
     const insets = useSafeAreaInsets();
     const currentJalaliDate = useMemo(() => {
         const today = new Date();
@@ -97,9 +101,6 @@ export default function BaseSalaryScreen() {
 
     const toPersianDigits = (value: string) =>
         value.replace(/\d/g, (digit) => persianDigits[Number(digit)]);
-
-    const formatCurrency = (value: number) =>
-        `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 
     const formatDisplayedDate = (value: string) => {
         const parsed = parseDateInput(value);
@@ -205,11 +206,11 @@ export default function BaseSalaryScreen() {
 
     const formattedResult = useMemo(() => {
         if (!result) {
-            return '۰ ریال';
+            return formatCurrency(0);
         }
 
         return toPersianDigits(formatCurrency(result.totalAmount));
-    }, [result]);
+    }, [formatCurrency, result]);
 
     return (
         <ThemedView style={styles.container}>
@@ -231,13 +232,16 @@ export default function BaseSalaryScreen() {
                                     <ThemedText type="bodyBold" style={[styles.pageTitle, { color: theme.text }]}>
                                         محاسبه حقوق پایه
                                     </ThemedText>
-                                    <View style={[styles.descriptionBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                    <CalculationDescriptionBox>
                                         <ThemedText type="small" style={[styles.pageDescription, { color: theme.textSecondary }]}>
                                             بازهٔ زمانی موردنظر را وارد نمایید تا براساس مصوبات شورای عالی کار، حقوق پایه محاسبه شود.
                                         </ThemedText>
-                                    </View>
+                                    </CalculationDescriptionBox>
                                 </View>
                             </View>
+                            <HiddenCalculationGuide>
+                                مجموع دوره‌ها از محاسبهٔ زیر به دست می‌آید: حداقل مزد روزانهٔ مصوب × روزهای بازه در همان دوره × (دقایق کار روزانه ÷ ۴۴۰).
+                            </HiddenCalculationGuide>
                             <View style={styles.metricsRow}>
                                 <DateInputField
                                     label="از تاریخ"
@@ -388,7 +392,7 @@ export default function BaseSalaryScreen() {
             <Snackbar
                 visible={snackbarVisible}
                 onDismiss={() => setSnackbarVisible(false)}
-                duration={3000}
+                duration={5000}
                 style={{ backgroundColor: theme.error, borderRadius: Radius.md }}
                 action={{
                     label: 'بستن',
@@ -414,10 +418,10 @@ const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
         justifyContent: 'center',
-        paddingHorizontal: Spacing.four,
+        paddingHorizontal: 0,
     },
     card: {
-        borderRadius: 20,
+        borderRadius: Radius.md,
         borderWidth: 1,
         overflow: 'hidden',
     },
@@ -480,7 +484,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
     },
     breakdownCard: {
-        borderRadius: 12,
+        borderRadius: Radius.md,
         borderWidth: 1,
         marginTop: Spacing.two,
         overflow: 'hidden',
@@ -498,22 +502,6 @@ const styles = StyleSheet.create({
         elevation: 2,
         marginTop: -Spacing.three,
         marginHorizontal: -Spacing.two,
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.two,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.12,
-        shadowRadius: 3,
-    },
-    descriptionBox: {
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        borderBottomLeftRadius: 0,
-        borderBottomRightRadius: 0,
-        borderWidth: StyleSheet.hairlineWidth,
-        elevation: 2,
-        marginTop: -Spacing.four,
-        marginHorizontal: -Spacing.three,
         paddingHorizontal: Spacing.two,
         paddingVertical: Spacing.two,
         shadowColor: '#000',
@@ -549,7 +537,7 @@ const styles = StyleSheet.create({
         gap: Spacing.two,
     },
     breakdownItemCard: {
-        borderRadius: 12,
+        borderRadius: Radius.md,
         borderWidth: 1,
         padding: Spacing.two,
         gap: Spacing.one,

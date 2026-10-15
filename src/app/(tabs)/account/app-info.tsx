@@ -4,7 +4,7 @@ import appConfig from '@/../app.json';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function AppInfoScreen() {
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     container: { flex: 1 },
     scrollContent: { flexGrow: 1, padding: Spacing.four, gap: Spacing.three },
     headerCard: {
-        borderRadius: 20,
+        borderRadius: Radius.md,
         borderWidth: 1,
         padding: Spacing.three,
         gap: Spacing.two,
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     infoCard: {
-        borderRadius: 20,
+        borderRadius: Radius.md,
         borderWidth: 1,
         paddingHorizontal: Spacing.three,
         paddingVertical: Spacing.one,

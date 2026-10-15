@@ -206,7 +206,7 @@ export default function ProfileScreen() {
             <Snackbar
                 visible={snackbarVisible}
                 onDismiss={() => setSnackbarVisible(false)}
-                duration={3000}
+                duration={5000}
                 style={{ backgroundColor: theme.info, borderRadius: Radius.md }}
                 action={{
                     label: 'بستن',
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
         gap: Spacing.three,
     },
     profileCard: {
-        borderRadius: 20,
+        borderRadius: Radius.md,
         borderWidth: 1,
         overflow: 'hidden',
     },
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
         fontSize: 11,
     },
     appInfoCard: {
-        borderRadius: 20,
+        borderRadius: Radius.md,
         borderWidth: 1,
         padding: Spacing.three,
         gap: Spacing.two,
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
         gap: Spacing.one,
     },
     actionsCard: {
-        borderRadius: 20,
+        borderRadius: Radius.md,
         borderWidth: 1,
         overflow: 'hidden',
     },

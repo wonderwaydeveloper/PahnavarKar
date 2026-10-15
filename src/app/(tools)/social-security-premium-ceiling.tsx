@@ -14,6 +14,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { useCurrencyFormatter } from '@/hooks/use-currency-formatter';
 import {
     calculateSocialSecurityPremiumCeilingFromPeriodData,
     parseDateInput,
@@ -25,6 +26,7 @@ type PickerTarget = 'start' | 'end';
 
 export default function SocialSecurityPremiumCeilingScreen() {
     const theme = useTheme();
+    const { formatCurrency } = useCurrencyFormatter();
     const insets = useSafeAreaInsets();
     const currentJalaliDate = useMemo(() => {
         const today = new Date();
@@ -99,7 +101,6 @@ export default function SocialSecurityPremiumCeilingScreen() {
     const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
 
     const toPersianDigits = (value: string | number) => String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
-    const formatCurrency = (value: number) => `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 
     const formatDate = (value: string) => {
         const parsed = parseDateInput(value);
@@ -210,7 +211,12 @@ export default function SocialSecurityPremiumCeilingScreen() {
                                 </CalculationDescriptionBox>
                             </View>
 
-                            <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                            <View
+                                style={[
+                                    styles.formulaBox,
+                                    { display: 'none', backgroundColor: theme.surfaceVariant, borderColor: theme.border },
+                                ]}
+                            >
                                 <ThemedText type="smallBold" style={[styles.formulaLabel, { color: theme.textSecondary }]}>
                                     فرمول محاسبه
                                 </ThemedText>
@@ -326,7 +332,7 @@ export default function SocialSecurityPremiumCeilingScreen() {
             <Snackbar
                 visible={snackbarVisible}
                 onDismiss={() => setSnackbarVisible(false)}
-                duration={3000}
+                duration={5000}
                 style={{ backgroundColor: theme.error }}
             >
                 <ThemedText type="smallBold" style={{ color: theme.surface }}>
@@ -340,7 +346,7 @@ export default function SocialSecurityPremiumCeilingScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     scrollContent: { flexGrow: 1 },
-    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: Spacing.four },
+    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: 0 },
     card: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerText: { gap: Spacing.one },
@@ -364,7 +370,7 @@ const styles = StyleSheet.create({
     actionsGroup: { flexDirection: 'row', gap: Spacing.two },
     actionButton: { flex: 1, borderRadius: 10 },
     actionLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
-    resultCard: { borderRadius: 12, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' },
+    resultCard: { borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' },
     resultContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two },
     summaryBox: {
         width: '100%',
@@ -395,7 +401,7 @@ const styles = StyleSheet.create({
     toggleButtonLabel: { fontSize: 11 },
     breakdownGrid: { gap: Spacing.one },
     breakdownItemCard: {
-        borderRadius: 10,
+        borderRadius: Radius.md,
         borderWidth: StyleSheet.hairlineWidth,
         overflow: 'hidden',
     },

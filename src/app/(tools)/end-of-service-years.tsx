@@ -17,6 +17,7 @@ import { WorkshopTypeSelector } from '@/components/workshop-type-selector';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { useCurrencyFormatter } from '@/hooks/use-currency-formatter';
 import { getDailyWorkRatio, scaleWageCalculationResult } from '@/utils/daily-work-ratio';
 import {
     calculateEndOfServiceYearsFromPeriodData,
@@ -29,6 +30,7 @@ import {
 
 export default function EndOfServiceYearsScreen() {
     const theme = useTheme();
+    const { formatCurrency } = useCurrencyFormatter();
     const insets = useSafeAreaInsets();
     const currentJalaliDate = useMemo(() => {
         const today = new Date();
@@ -123,9 +125,6 @@ export default function EndOfServiceYearsScreen() {
 
     const toPersianDigits = (value: string) =>
         value.replace(/\d/g, (digit) => persianDigits[Number(digit)]);
-
-    const formatCurrency = (value: number) =>
-        `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 
     const formatNumber = (value: number) =>
         toPersianDigits(Number.isInteger(value) ? String(value) : value.toFixed(2));
@@ -259,11 +258,11 @@ export default function EndOfServiceYearsScreen() {
 
     const formattedResult = useMemo(() => {
         if (!result) {
-            return '۰ ریال';
+            return formatCurrency(0);
         }
 
         return toPersianDigits(formatCurrency(result.totalAmount));
-    }, [result]);
+    }, [formatCurrency, result]);
 
     return (
         <ThemedView style={styles.container}>
@@ -418,7 +417,7 @@ export default function EndOfServiceYearsScreen() {
             <Snackbar
                 visible={snackbarVisible}
                 onDismiss={() => setSnackbarVisible(false)}
-                duration={3000}
+                duration={5000}
                 style={{ backgroundColor: theme.error, borderRadius: Radius.md }}
                 action={{
                     label: 'بستن',
@@ -444,10 +443,10 @@ const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
         justifyContent: 'center',
-        paddingHorizontal: Spacing.four,
+        paddingHorizontal: 0,
     },
     card: {
-        borderRadius: 20,
+        borderRadius: Radius.md,
         borderWidth: 1,
         overflow: 'hidden',
     },
@@ -539,7 +538,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
     },
     breakdownCard: {
-        borderRadius: 12,
+        borderRadius: Radius.md,
         borderWidth: 1,
         marginTop: Spacing.two,
         overflow: 'hidden',
@@ -605,7 +604,7 @@ const styles = StyleSheet.create({
         gap: Spacing.two,
     },
     breakdownItemCard: {
-        borderRadius: 12,
+        borderRadius: Radius.md,
         borderWidth: 1,
         padding: Spacing.two,
         gap: Spacing.one,

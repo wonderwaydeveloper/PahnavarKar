@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Snackbar } from 'react-native-paper';
 
-import type { FontPreference } from '@/context/app.context';
+import type { CurrencyPreference, FontPreference } from '@/context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
@@ -88,9 +88,14 @@ export default function SettingsScreen() {
         setFontPreference,
         fontError: fontLoadError,
         clearFontError,
+        currencyPreference,
+        currencyError,
+        setCurrencyPreference,
+        clearCurrencyError,
     } = useAppContext();
     const [fontActionError, setFontActionError] = useState('');
     const [fontChangePending, setFontChangePending] = useState(false);
+    const [currencyActionError, setCurrencyActionError] = useState('');
 
     useEffect(() => {
         let isMounted = true;
@@ -132,6 +137,24 @@ export default function SettingsScreen() {
         clearFontError();
     };
 
+    const handleCurrencyChange = async (value: CurrencyPreference) => {
+        if (value === currencyPreference) return;
+
+        setCurrencyActionError('');
+        try {
+            await setCurrencyPreference(value);
+        } catch (error) {
+            console.error('Unable to save currency preference', error);
+            const reason = error instanceof Error && error.message ? ` (${error.message})` : '';
+            setCurrencyActionError(`ذخیرهٔ واحد پول انجام نشد${reason}`);
+        }
+    };
+
+    const dismissCurrencyError = () => {
+        setCurrencyActionError('');
+        clearCurrencyError();
+    };
+
     return (
         <ThemedView style={styles.container}>
             <ScrollView
@@ -163,6 +186,33 @@ export default function SettingsScreen() {
                             onPress={() => setTheme('system')}
                         />
                     </View>
+                </View>
+
+                <View style={styles.section}>
+                    <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
+                        واحد نمایش مبالغ مزدی
+                    </ThemedText>
+                    <View
+                        accessibilityRole="radiogroup"
+                        style={[styles.optionsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                    >
+                        <SettingRow
+                            icon="cash"
+                            title="ریال"
+                            selected={currencyPreference === 'rial'}
+                            onPress={() => void handleCurrencyChange('rial')}
+                        />
+                        <SettingRow
+                            icon="cash-multiple"
+                            title="تومان (هر ۱۰ ریال برابر ۱ تومان)"
+                            selected={currencyPreference === 'toman'}
+                            showDivider={false}
+                            onPress={() => void handleCurrencyChange('toman')}
+                        />
+                    </View>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.currencyHint}>
+                        این گزینه فقط واحد نمایش را تغییر می‌دهد؛ محاسبات و داده‌های پایه برحسب ریال باقی می‌مانند.
+                    </ThemedText>
                 </View>
 
                 <View style={styles.section}>
@@ -211,11 +261,11 @@ export default function SettingsScreen() {
             </ScrollView>
 
             <Snackbar
-                visible={fontActionError.length > 0 || !!fontLoadError}
-                onDismiss={dismissFontError}
+                visible={fontActionError.length > 0 || !!fontLoadError || currencyActionError.length > 0 || !!currencyError}
+                onDismiss={currencyActionError || currencyError ? dismissCurrencyError : dismissFontError}
                 duration={5000}
             >
-                {fontActionError || fontLoadError}
+                {currencyActionError || currencyError || fontActionError || fontLoadError}
             </Snackbar>
         </ThemedView>
     );
@@ -234,9 +284,10 @@ const styles = StyleSheet.create({
     },
     section: { gap: Spacing.two },
     sectionTitle: { paddingHorizontal: Spacing.one },
+    currencyHint: { paddingHorizontal: Spacing.one },
     optionsCard: {
         overflow: 'hidden',
-        borderRadius: 20,
+        borderRadius: Radius.md,
         borderWidth: 1,
     },
     optionRow: {

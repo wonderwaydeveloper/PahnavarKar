@@ -6,6 +6,7 @@ import { Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontAwareButton as Button, FontAwareMenuItem } from '@/components/font-aware-paper';
+import { HiddenCalculationGuide } from '@/components/hidden-calculation-guide';
 import { DailyWorkTimeField, getDailyWorkMinutes } from '@/components/daily-work-time-field';
 import { DateInputField } from '@/components/date-input-field';
 import { PersianDatePickerModal } from '@/components/persian-date-picker-modal';
@@ -17,6 +18,7 @@ import { WorkshopTypeSelector } from '@/components/workshop-type-selector';
 import { Radius, Spacing } from '@/constants/theme';
 import { fetchJobGroups, fetchPeriodsByYearId, fetchSeniorityBaseByGroup, fetchYears, seedFromJsonAsset } from '@/database';
 import { useTheme } from '@/hooks/use-theme';
+import { useCurrencyFormatter } from '@/hooks/use-currency-formatter';
 import { getDailyWorkRatio, scaleWageCalculationResult } from '@/utils/daily-work-ratio';
 import {
     calculateMonthlyShiftWorkFromPeriodData,
@@ -35,6 +37,7 @@ const shiftTypeOptions: { value: MonthlyShiftWorkType; label: string; percentage
 
 export default function MonthlyShiftWorkScreen() {
     const theme = useTheme();
+    const { formatCurrency } = useCurrencyFormatter();
     const insets = useSafeAreaInsets();
     const currentJalaliDate = useMemo(() => {
         const today = new Date();
@@ -132,9 +135,6 @@ export default function MonthlyShiftWorkScreen() {
 
     const toPersianDigits = (value: string | number) =>
         String(value).replace(/\d/g, (digit) => persianDigits[Number(digit)]);
-
-    const formatCurrency = (value: number) =>
-        `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 
     const formatDisplayedDate = (value: string) => {
         const parsed = parseDateInput(value);
@@ -273,11 +273,11 @@ export default function MonthlyShiftWorkScreen() {
 
     const formattedResult = useMemo(() => {
         if (!result) {
-            return '۰ ریال';
+            return formatCurrency(0);
         }
 
         return toPersianDigits(formatCurrency(result.totalAmount));
-    }, [result]);
+    }, [formatCurrency, result]);
 
     const selectedShiftLabel =
         shiftTypeOptions.find((option) => option.value === selectedShiftType)?.label ?? 'صبح و عصر';
@@ -311,6 +311,9 @@ export default function MonthlyShiftWorkScreen() {
                                 </View>
                             </View>
 
+                            <HiddenCalculationGuide>
+                                مبلغ هر بازه = ضریب نوبت‌کاری انتخاب‌شده (۱۰٪، ۱۵٪ یا ۲۲٫۵٪) × روزهای پوشش × (حداقل مزد روزانه + پایه سنوات روزانهٔ همان بازه). نسبت ساعات کار روزانه نیز در صورت کارکرد کمتر از تمام‌وقت اعمال می‌شود.
+                            </HiddenCalculationGuide>
                             <View style={styles.metricsRow}>
                                 <DateInputField
                                     label="از تاریخ"
@@ -544,7 +547,7 @@ export default function MonthlyShiftWorkScreen() {
             <Snackbar
                 visible={snackbarVisible}
                 onDismiss={() => setSnackbarVisible(false)}
-                duration={3000}
+                duration={5000}
                 style={{ backgroundColor: theme.error, borderRadius: Radius.md }}
                 action={{
                     label: 'بستن',
@@ -570,10 +573,10 @@ const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
         justifyContent: 'center',
-        paddingHorizontal: Spacing.four,
+        paddingHorizontal: 0,
     },
     card: {
-        borderRadius: 20,
+        borderRadius: Radius.md,
         borderWidth: StyleSheet.hairlineWidth,
         overflow: 'hidden',
     },
@@ -707,7 +710,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
     },
     breakdownCard: {
-        borderRadius: 12,
+        borderRadius: Radius.md,
         borderWidth: 1,
         marginTop: Spacing.two,
         overflow: 'hidden',
@@ -762,7 +765,7 @@ const styles = StyleSheet.create({
         gap: Spacing.two,
     },
     breakdownItemCard: {
-        borderRadius: 12,
+        borderRadius: Radius.md,
         borderWidth: 1,
         padding: Spacing.two,
         gap: Spacing.one,

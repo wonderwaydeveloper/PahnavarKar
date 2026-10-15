@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 const aboutSections = [
@@ -84,12 +84,12 @@ const styles = StyleSheet.create({
     heroCardContent: { alignItems: 'center', gap: Spacing.two, padding: Spacing.three },
     infoCardContent: { gap: Spacing.two, alignItems: 'stretch' },
     heroCard: {
-        borderRadius: 20,
+        borderRadius: Radius.md,
         borderWidth: 1,
         padding: 0,
     },
     infoCard: {
-        borderRadius: 20,
+        borderRadius: Radius.md,
         borderWidth: 1,
     },
     avatar: {

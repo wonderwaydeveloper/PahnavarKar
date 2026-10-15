@@ -16,6 +16,8 @@ import { Radius, Spacing } from '@/constants/theme';
 import { fetchPeriodsByYearId, fetchYears, seedFromJsonAsset } from '@/database';
 import type { PeriodRecord } from '@/database/types';
 import { useTheme } from '@/hooks/use-theme';
+import { useCurrencyFormatter } from '@/hooks/use-currency-formatter';
+import { displayCurrencyToRial, rialToDisplayCurrency } from '@/utils/currency';
 import {
     calculateUnemploymentInsuranceAllowance,
     parseDateInput,
@@ -44,10 +46,6 @@ function changeNumber(value: string, delta: number, maximum?: number) {
     const currentValue = Number(normalizeDigits(value || '0')) || 0;
     const nextValue = Math.max(0, Math.trunc(currentValue) + delta);
     return toPersianDigits(String(maximum === undefined ? nextValue : Math.min(maximum, nextValue)));
-}
-
-function formatCurrency(value: number) {
-    return `${new Intl.NumberFormat('fa-IR').format(Math.round(value))} ریال`;
 }
 
 function formatDate(value: string) {
@@ -93,6 +91,7 @@ function ResultDetail({ label, value, emphasized = false }: { label: string; val
 
 export default function UnemploymentInsuranceAllowanceScreen() {
     const theme = useTheme();
+    const { currencyPreference, formatCurrency } = useCurrencyFormatter();
     const insets = useSafeAreaInsets();
     const currentJalaliDate = useMemo(() => {
         const today = new Date();
@@ -110,6 +109,9 @@ export default function UnemploymentInsuranceAllowanceScreen() {
     const [result, setResult] = useState<UnemploymentInsuranceAllowanceCalculationResult | null>(null);
     const [snackbarMessage, setSnackbarMessage] = useState('');
     const [snackbarVisible, setSnackbarVisible] = useState(false);
+    const displayedTotalWages = totalWages
+        ? toPersianDigits(String(rialToDisplayCurrency(Number(normalizeDigits(totalWages)), currencyPreference)))
+        : '';
 
     const unemployment = parseDateInput(unemploymentDate);
     const dailyMinimumWageValue = findDailyMinimumWage(unemployment, yearPeriods);
@@ -212,9 +214,23 @@ export default function UnemploymentInsuranceAllowanceScreen() {
                                 </CalculationDescriptionBox>
                             </View>
 
-                            <View style={[styles.formulaBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                            <View
+                                style={[
+                                    styles.formulaBox,
+                                    { display: 'none', backgroundColor: theme.surfaceVariant, borderColor: theme.border },
+                                ]}
+                            >
                                 <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>فرمول محاسبه</ThemedText>
-                                <ThemedText type="small" style={[styles.formulaText, { color: theme.text }]}>شرط اولیه: احراز حداقل شش ماه سابقه از تاریخ شروع به کار تا تاریخ شروع بیکاری{'\n'}یا در صورت نداشتن ۶ ماه سابقه، وقوع حوادث قهریه و غیرمترقبه{'\n'}متوسط مزد روزانه = مجموع حقوق ۹۰ روز اخیر ÷ ۹۰{'\n'}مبلغ پایه روزانه = متوسط مزد روزانه × ۵۵٪{'\n'}سهم افراد تحت تکفل = تعداد افراد تحت تکفل × ۱۰٪ × مبلغ حداقل مزد روزانه مصوب شورای عالی کار{'\n'}مبلغ اولیه روزانه = مبلغ پایه روزانه + سهم افراد تحت تکفل{'\n'}مبلغ نهایی روزانه = اعمال کف مبلغ حداقل مزد روزانه مصوب شورای عالی کار و سقف ۸۰٪ متوسط مزد{'\n'}مقرری ماهیانه = مبلغ نهایی روزانه × ۳۰</ThemedText>
+                                <ThemedText type="small" style={[styles.formulaText, { color: theme.text }]}>
+                                    شرط اولیه: احراز حداقل شش ماه سابقه از تاریخ شروع به کار تا تاریخ شروع بیکاری{'\n'}
+                                    یا در صورت نداشتن ۶ ماه سابقه، وقوع حوادث قهریه و غیرمترقبه{'\n'}
+                                    متوسط مزد روزانه = مجموع حقوق ۹۰ روز اخیر ÷ ۹۰{'\n'}
+                                    مبلغ پایه روزانه = متوسط مزد روزانه × ۵۵٪{'\n'}
+                                    سهم افراد تحت تکفل = تعداد افراد تحت تکفل × ۱۰٪ × مبلغ حداقل مزد روزانه مصوب شورای عالی کار{'\n'}
+                                    مبلغ اولیه روزانه = مبلغ پایه روزانه + سهم افراد تحت تکفل{'\n'}
+                                    مبلغ نهایی روزانه = اعمال کف مبلغ حداقل مزد روزانه مصوب شورای عالی کار و سقف ۸۰٪ متوسط مزد{'\n'}
+                                    مقرری ماهیانه = مبلغ نهایی روزانه × ۳۰
+                                </ThemedText>
                             </View>
 
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
@@ -231,8 +247,22 @@ export default function UnemploymentInsuranceAllowanceScreen() {
                             />
 
                             <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}>
-                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>مجموع حقوق ۹۰ روز اخیر (ریال)</ThemedText>
-                                <NumericInputField value={totalWages} onChangeText={setTotalWages} style={[styles.textInput, { color: theme.text, backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]} textAlign="center" accessibilityLabel="مجموع حقوق ۹۰ روز اخیر" />
+                                <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>مجموع حقوق ۹۰ روز اخیر ({currencyPreference === 'toman' ? 'تومان' : 'ریال'})</ThemedText>
+                                <NumericInputField
+                                    value={displayedTotalWages}
+                                    onChangeText={(value) => {
+                                        if (value === '') {
+                                            setTotalWages('');
+                                            return;
+                                        }
+
+                                        const enteredAmount = Number(normalizeDigits(value));
+                                        setTotalWages(toPersianDigits(String(displayCurrencyToRial(enteredAmount, currencyPreference))));
+                                    }}
+                                    style={[styles.textInput, { color: theme.text, backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}
+                                    textAlign="center"
+                                    accessibilityLabel={`مجموع حقوق ۹۰ روز اخیر (${currencyPreference === 'toman' ? 'تومان' : 'ریال'})`}
+                                />
                                 <ThemedText type="small" style={[styles.fieldHint, { color: theme.textMuted }]}>توجه: این مبلغ شامل حقوق و مزایای مشمول بیمه می‌باشد.</ThemedText>
                             </View>
 
@@ -278,7 +308,7 @@ export default function UnemploymentInsuranceAllowanceScreen() {
             </ScrollView>
 
             <PersianDatePickerModal visible={pickerTarget !== null} value={selectedDate} title="انتخاب تاریخ" onClose={() => setPickerTarget(null)} onSelect={handleDateSelect} availableYears={yearPeriods.map((item) => item.year)} />
-            <Snackbar visible={snackbarVisible} onDismiss={() => setSnackbarVisible(false)} duration={3000} style={{ backgroundColor: theme.error, borderRadius: Radius.md }} action={{ label: 'بستن', onPress: () => setSnackbarVisible(false) }}><ThemedText type="small" style={{ color: theme.surface }}>{snackbarMessage}</ThemedText></Snackbar>
+            <Snackbar visible={snackbarVisible} onDismiss={() => setSnackbarVisible(false)} duration={5000} style={{ backgroundColor: theme.error, borderRadius: Radius.md }} action={{ label: 'بستن', onPress: () => setSnackbarVisible(false) }}><ThemedText type="small" style={{ color: theme.surface }}>{snackbarMessage}</ThemedText></Snackbar>
         </ThemedView>
     );
 }
@@ -286,8 +316,8 @@ export default function UnemploymentInsuranceAllowanceScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     scrollContent: { flexGrow: 1 },
-    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: Spacing.four },
-    card: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+    safeArea: { flex: 1, justifyContent: 'center', paddingHorizontal: 0 },
+    card: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     cardContent: { gap: Spacing.three, paddingVertical: Spacing.four, paddingHorizontal: Spacing.three },
     headerText: { gap: Spacing.one },
     pageTitle: { display: 'none', fontSize: 16, lineHeight: 22, fontFamily: 'AppFont-Bold' },
@@ -309,7 +339,7 @@ const styles = StyleSheet.create({
     actionsGroup: { flexDirection: 'row', gap: Spacing.two },
     actionButton: { flex: 1, borderRadius: 10 },
     actionLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
-    resultCard: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+    resultCard: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     resultContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two },
     summaryBox: { width: '100%', alignItems: 'center', gap: Spacing.one, padding: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth },
     summaryLabel: { fontSize: 10, lineHeight: 16, fontFamily: 'AppFont-Medium' },
