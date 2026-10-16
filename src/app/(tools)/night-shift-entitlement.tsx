@@ -40,17 +40,18 @@ export default function NightShiftEntitlementScreen() {
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
     const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
-    const defaultEmploymentDate = `${currentPersianYear - 1}/01/01`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
-    const [employmentDate, setEmploymentDate] = useState(defaultEmploymentDate);
+    const [employmentDate, setEmploymentDate] = useState(defaultStartDate);
     const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | 'employment' | null>(null);
     const [pickerVisible, setPickerVisible] = useState(false);
     const [periodBuckets, setPeriodBuckets] = useState<SalaryPeriodBucket[]>([]);
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [result, setResult] = useState<NightShiftEntitlementCalculationResult | null>(null);
+    const [isWorkerInsuranceExempt, setIsWorkerInsuranceExempt] = useState(false);
+    const [isLegalBasisVisible, setIsLegalBasisVisible] = useState(false);
     const [dailyWorkTime, setDailyWorkTime] = useState('07:20');
     const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
@@ -177,6 +178,8 @@ export default function NightShiftEntitlementScreen() {
             }
         } else if (pickerTarget === 'start') {
             setStartDate(value);
+            setEmploymentDate(value);
+            if ((parseDateInput(value)?.year ?? 0) > 1391) setSettledThrough1391(false);
 
             if (endDate) {
                 const comparison = compareDates(value, endDate);
@@ -253,6 +256,12 @@ export default function NightShiftEntitlementScreen() {
 
         return toPersianDigits(formatCurrency(result.totalAmount));
     }, [formatCurrency, result]);
+    const roundedNightShiftAmount = Math.round(result?.totalAmount ?? 0);
+    const workerInsuranceAmount = isWorkerInsuranceExempt
+        ? 0
+        : Math.round(roundedNightShiftAmount * 0.07);
+    const employerInsuranceAmount = Math.round(roundedNightShiftAmount * 0.23);
+    const finalClaimAmount = roundedNightShiftAmount - workerInsuranceAmount;
 
     return (
         <ThemedView style={styles.container}>
@@ -315,6 +324,57 @@ export default function NightShiftEntitlementScreen() {
                             {workshopType === 'classified' ? <View style={[styles.metricBox, { backgroundColor: theme.surfaceVariant }]}><ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>گروه شغلی</ThemedText><Menu visible={groupMenuVisible} onDismiss={() => setGroupMenuVisible(false)} anchor={<Pressable onPress={() => setGroupMenuVisible(true)} style={[styles.dateInput, { backgroundColor: theme.surface, borderColor: theme.border }]}><ThemedText type="small" style={{ color: theme.text }}>{selectedGroup == null ? 'انتخاب گروه' : `گروه ${toPersianDigits(selectedGroup)}`}</ThemedText><MaterialCommunityIcons name="briefcase-outline" size={18} color={theme.primary} /></Pressable>}>{jobGroups.map((group) => <FontAwareMenuItem key={group.id} title={`گروه ${toPersianDigits(group.group_number)}`} onPress={() => { setSelectedGroup(group.group_number); setGroupMenuVisible(false); }} />)}</Menu></View> : null}
                             <SettlementThrough1391Field checked={settledThrough1391} enabled={canUseSettlementPath} onChange={setSettledThrough1391} />
                             <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
+
+                            <Pressable
+                                accessibilityRole="checkbox"
+                                accessibilityState={{ checked: isWorkerInsuranceExempt }}
+                                onPress={() => setIsWorkerInsuranceExempt((value) => !value)}
+                                style={[
+                                    styles.insuranceExemptionOption,
+                                    { backgroundColor: theme.surfaceVariant, borderColor: theme.border },
+                                ]}
+                            >
+                                <MaterialCommunityIcons
+                                    name={isWorkerInsuranceExempt ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                                    size={22}
+                                    color={isWorkerInsuranceExempt ? theme.primary : theme.textSecondary}
+                                />
+                                <View style={styles.insuranceExemptionText}>
+                                    <ThemedText type="smallBold" style={{ color: theme.text, fontSize: 13, lineHeight: 19 }}>
+                                        مشمول معافیت از پرداخت سهم بیمه ی کارگر هستم
+                                    </ThemedText>
+                                    <ThemedText type="small" style={[styles.insuranceExemptionDescription, { color: theme.textSecondary }]}>
+                                        ویژهٔ اسرا، آزادگان، جانبازان و فرزندان شهدا
+                                    </ThemedText>
+                                </View>
+                            </Pressable>
+
+                            <View style={[styles.insuranceLegalBasis, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                <ThemedText type="small" style={[styles.insuranceLegalSummary, { color: theme.textSecondary }]}>
+                                    معافیت از سهم ۷٪ بیمه ی کارگر برای گروه‌های مشمول قوانین ایثارگران.
+                                </ThemedText>
+                                <Pressable
+                                    accessibilityRole="button"
+                                    accessibilityState={{ expanded: isLegalBasisVisible }}
+                                    onPress={() => setIsLegalBasisVisible((visible) => !visible)}
+                                    style={styles.insuranceLegalToggle}
+                                >
+                                    <ThemedText type="smallBold" style={[styles.insuranceLegalToggleLabel, { color: theme.primary }]}>
+                                        مبنای قانونی معافیت
+                                    </ThemedText>
+                                    <MaterialCommunityIcons
+                                        name={isLegalBasisVisible ? 'chevron-up' : 'chevron-down'}
+                                        size={18}
+                                        color={theme.primary}
+                                    />
+                                </Pressable>
+                                {isLegalBasisVisible ? (
+                                    <ThemedText type="small" style={[styles.insuranceLegalText, { color: theme.text }]}>
+                                        اسرا، آزادگان و جانبازان، براساس تبصرهٔ ۳ مادهٔ ۳۷ قانون جامع خدمات‌رسانی به ایثارگران مصوب ۱۳۹۱، و فرزندان شهید مطابق بند «ز» مادهٔ ۸۸ قانون برنامهٔ پنج‌سالهٔ ششم توسعه، که در بند ۲ قسمت «ت» مادهٔ ۳۱ قانون برنامهٔ پنج‌سالهٔ هفتم توسعه تنفیذ شده است، از پرداخت حق بیمهٔ سهم کارگر معاف هستند.
+                                    </ThemedText>
+                                ) : null}
+                            </View>
+
                             <View style={styles.actionsGroup}>
                                 <Button
                                     mode="contained"
@@ -337,13 +397,39 @@ export default function NightShiftEntitlementScreen() {
                                     <Card.Content style={styles.breakdownContent}>
                                         <CalculationResultHeading />
                                         <View style={styles.summaryBoxHeader}>
-                                            <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                                <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
-                                                    مبلغ کل شب کاری استحقاقی
-                                                </ThemedText>
-                                                <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>
-                                                    {formattedResult}
-                                                </ThemedText>
+                                            <View style={styles.insuranceSummary}>
+                                                <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                    <ThemedText type="small" style={[styles.insuranceSummaryLabel, { color: theme.textSecondary }]}>
+                                                        مبلغ کل شب کاری استحقاقی
+                                                    </ThemedText>
+                                                    <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, { color: theme.text }]}>
+                                                        {formattedResult}
+                                                    </ThemedText>
+                                                </View>
+                                                <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                    <ThemedText type="small" style={[styles.insuranceSummaryLabel, { color: theme.textSecondary }]}>
+                                                        سهم بیمه ی کارگر از شب کاری (۷٪{isWorkerInsuranceExempt ? '، معاف' : ''})
+                                                    </ThemedText>
+                                                    <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, { color: theme.text }]}>
+                                                        {toPersianDigits(formatCurrency(workerInsuranceAmount))}
+                                                    </ThemedText>
+                                                </View>
+                                                <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                    <ThemedText type="small" style={[styles.insuranceSummaryLabel, { color: theme.textSecondary }]}>
+                                                        سهم بیمه ی کارفرما از شب کاری (۲۳٪)
+                                                    </ThemedText>
+                                                    <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, { color: theme.text }]}>
+                                                        {toPersianDigits(formatCurrency(employerInsuranceAmount))}
+                                                    </ThemedText>
+                                                </View>
+                                                <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
+                                                    <ThemedText type="smallBold" style={[styles.insuranceSummaryLabel, styles.insuranceSummaryEmphasisLabel, { color: theme.textSecondary }]}>
+                                                        شب کاری پس از کسر سهم بیمه ی کارگر
+                                                    </ThemedText>
+                                                    <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, styles.insuranceSummaryEmphasisValue, { color: theme.primary }]}>
+                                                        {toPersianDigits(formatCurrency(finalClaimAmount))}
+                                                    </ThemedText>
+                                                </View>
                                             </View>
                                         </View>
 
@@ -418,6 +504,14 @@ export default function NightShiftEntitlementScreen() {
                                                                 </ThemedText>
                                                                 <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>
                                                                     {toPersianDigits(formatCurrency(item.amount))}
+                                                                </ThemedText>
+                                                            </View>
+                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                                                <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                                                                    حق بیمه پرداختی به سازمان تامین اجتماعی
+                                                                </ThemedText>
+                                                                <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>
+                                                                    {toPersianDigits(formatCurrency(Math.round(item.amount * 0.3)))}
                                                                 </ThemedText>
                                                             </View>
                                                         </View>
@@ -576,22 +670,75 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.two,
     },
     summaryBoxHeader: {
-        alignItems: 'center',
+        width: '100%',
         marginBottom: Spacing.one,
     },
-    summaryBoxContent: {
+    insuranceSummary: {
         width: '100%',
+        gap: Spacing.one,
+    },
+    insuranceSummaryRow: {
+        minHeight: 52,
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: Spacing.one,
+        paddingHorizontal: Spacing.three,
+        paddingVertical: Spacing.two,
         borderRadius: 12,
         borderWidth: 1,
-        padding: Spacing.two,
-        gap: Spacing.one,
+    },
+    insuranceSummaryLabel: {
+        textAlign: 'center',
+        fontSize: 12,
+    },
+    insuranceSummaryValue: {
+        textAlign: 'center',
+        fontSize: 12,
+    },
+    insuranceSummaryEmphasisLabel: {
+        fontSize: 13,
+    },
+    insuranceSummaryEmphasisValue: {
+        fontSize: 14,
+    },
+    insuranceExemptionOption: {
+        flexDirection: 'row',
         alignItems: 'center',
+        gap: Spacing.two,
+        padding: Spacing.two,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: 12,
     },
-    summaryLabel: {
-        fontSize: 11,
+    insuranceExemptionText: {
+        flex: 1,
+        gap: Spacing.half,
     },
-    amountValue: {
-        fontSize: 18,
+    insuranceExemptionDescription: {
+        fontSize: 12,
+    },
+    insuranceLegalBasis: {
+        gap: Spacing.one,
+        padding: Spacing.two,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: 12,
+    },
+    insuranceLegalSummary: {
+        fontSize: 12,
+        lineHeight: 18,
+    },
+    insuranceLegalToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: Spacing.one,
+        paddingVertical: Spacing.half,
+    },
+    insuranceLegalToggleLabel: {
+        fontSize: 13,
+    },
+    insuranceLegalText: {
+        fontSize: 12,
+        lineHeight: 20,
     },
     breakdownSectionHeader: {
         flexDirection: 'row',
@@ -642,11 +789,11 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         borderWidth: 1,
         padding: Spacing.one,
-        gap: Spacing.half,
+        gap: Spacing.one,
         alignItems: 'center',
     },
     detailLabel: {
-        fontSize: 10,
+        fontSize: 12,
     },
     detailValue: {
         fontSize: 12,

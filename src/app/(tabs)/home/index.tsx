@@ -187,7 +187,7 @@ const HomeScene = memo(function HomeScene({ tab, actions, theme, bottomInset }: 
     return (
         <ScrollView
             style={styles.sceneScroll}
-            contentContainerStyle={[styles.sceneContent, { paddingBottom: bottomInset + Spacing.four }]}
+            contentContainerStyle={[styles.sceneContent, { paddingBottom: bottomInset + Spacing.four + 56 }]}
             showsVerticalScrollIndicator={false}
         >
             <View style={styles.page}>
@@ -247,6 +247,26 @@ export default function HomeTabScreen() {
                 initialLayout={{ width }}
                 style={styles.tabView}
             />
+            {HOME_ROUTES[tabIndex]?.key !== 'rules' ? (
+                <Pressable
+                    onPress={() => router.push('/group-calculation' as never)}
+                    accessibilityRole="button"
+                    accessibilityLabel="محاسبات جامع"
+                    style={({ pressed }) => [
+                        styles.groupCalculationButton,
+                        {
+                            backgroundColor: theme.primary,
+                            bottom: Spacing.two,
+                            opacity: pressed ? 0.82 : 1,
+                        },
+                    ]}
+                >
+                    <MaterialCommunityIcons name="calculator-variant" size={22} color={theme.surface} />
+                    <ThemedText type="smallBold" style={{ color: theme.surface }}>
+                        محاسبات جامع
+                    </ThemedText>
+                </Pressable>
+            ) : null}
         </ThemedView>
     );
 }
@@ -254,6 +274,22 @@ export default function HomeTabScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     tabView: { flex: 1 },
+    groupCalculationButton: {
+        position: 'absolute',
+        right: Spacing.three,
+        minHeight: 48,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: Spacing.one,
+        paddingHorizontal: Spacing.three,
+        borderRadius: 24,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.24,
+        shadowRadius: 4,
+    },
     tabBar: { borderBottomWidth: StyleSheet.hairlineWidth },
     tabBarContent: { flexDirection: 'row' },
     tabItem: { minWidth: 88, minHeight: 54, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.three, position: 'relative' },

@@ -224,8 +224,8 @@ export default function InsuranceDaysEntitlementScreen() {
             return;
         }
 
-        if (hours > 8) {
-            setSnackbarMessage('ساعات کاری روزانه نمی‌تواند بیشتر از ۸ ساعت (۰۸:۰۰) باشد.');
+        if (hours > 7 + 20 / 60) {
+            setSnackbarMessage('ساعات کاری روزانه نمی‌تواند بیشتر از ۷ ساعت و ۲۰ دقیقه (۰۷:۲۰) باشد.');
             setSnackbarVisible(true);
             return;
         }
@@ -436,7 +436,8 @@ export default function InsuranceDaysEntitlementScreen() {
                     setDailyWorkHours(value);
                     setTimePickerVisible(false);
                 }}
-                maxHours={8}
+                maxHours={7}
+                maxMinutesAtMaxHour={20}
             />
 
             <Snackbar
@@ -632,11 +633,11 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         borderWidth: 1,
         padding: Spacing.one,
-        gap: Spacing.half,
+        gap: Spacing.one,
         alignItems: 'center',
     },
     detailLabel: {
-        fontSize: 10,
+        fontSize: 12,
     },
     detailValue: {
         fontSize: 12,

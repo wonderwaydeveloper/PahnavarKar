@@ -46,11 +46,10 @@ export default function UnusedLeaveWageScreen() {
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
     const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
-    const defaultEmploymentDate = `${currentPersianYear - 1}/01/01`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
-    const [employmentDate, setEmploymentDate] = useState(defaultEmploymentDate);
+    const [employmentDate, setEmploymentDate] = useState(defaultStartDate);
     const [workshopType, setWorkshopType] = useState<EntitledSeniorityWorkshopType>('unclassified');
     const [settledThrough1391, setSettledThrough1391] = useState(false);
     const [jobGroups, setJobGroups] = useState<{ id: number; group_number: number; sort_order: number }[]>([]);
@@ -215,6 +214,8 @@ export default function UnusedLeaveWageScreen() {
             if (compareDates(value, endDate) > 0) setEndDate(value);
         } else if (pickerTarget === 'start') {
             setStartDate(value);
+            setEmploymentDate(value);
+            if ((parseDateInput(value)?.year ?? 0) > 1391) setSettledThrough1391(false);
             if (compareDates(value, endDate) > 0) setEndDate(value);
         } else if (pickerTarget === 'end') {
             if (compareDates(value, startDate) < 0) {
@@ -553,7 +554,7 @@ const styles = StyleSheet.create({
     breakdownItemTitle: { fontSize: 12, fontFamily: 'AppFont-Bold' },
     breakdownDetailGrid: { gap: Spacing.one },
     detailDescription: { fontSize: 12, lineHeight: 18 },
-    detailBox: { alignItems: 'center', gap: Spacing.half, padding: Spacing.one, borderRadius: 8, borderWidth: 1 },
-    detailLabel: { fontSize: 10 },
+    detailBox: { alignItems: 'center', gap: Spacing.one, padding: Spacing.one, borderRadius: 8, borderWidth: 1 },
+    detailLabel: { fontSize: 12 },
     detailValue: { fontSize: 12 },
 });

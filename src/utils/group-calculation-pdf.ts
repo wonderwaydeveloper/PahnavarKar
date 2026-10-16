@@ -7,6 +7,13 @@ export interface GroupCalculationPdfSection {
     title: string;
     summaryLabel: string;
     amount: string;
+    insuranceSummary?: {
+        baseAmount: string;
+        workerAmount: string;
+        employerAmount: string;
+        netAmount: string;
+        workerExempt: boolean;
+    };
     error?: string;
     detailsTitle: string;
     details: GroupCalculationPdfDetail[];
@@ -29,6 +36,13 @@ export interface GroupCalculationPdfAssets {
 export interface GroupCalculationPdfWageTotal {
     amount: string;
     error?: string;
+    contractorTotal30?: string;
+    employerInsurance30?: string;
+    contractorTotal30Error?: string;
+    contractorWorkerCount: string;
+    contractorTotal?: string;
+    employerInsurance31?: string;
+    contractorTotalError?: string;
     excludedBonusItems: string[];
 }
 
@@ -57,12 +71,48 @@ export function buildGroupCalculationPdfHtml(
             <td>${escapeHtml(section.title)}</td>
             <td class="${section.error ? 'error-text' : 'amount'}">${escapeHtml(section.error ?? section.amount)}</td>
         </tr>
+        ${section.insuranceSummary && !section.error ? `
+            <tr class="insurance-summary-row">
+                <th scope="row">مبنای مشمول بیمه</th>
+                <td>${escapeHtml(section.insuranceSummary.baseAmount)}</td>
+            </tr>
+            <tr class="insurance-summary-row">
+                <th scope="row">سهم بیمهٔ کارگر (۷٪${section.insuranceSummary.workerExempt ? '، معاف' : ''})</th>
+                <td>${escapeHtml(section.insuranceSummary.workerAmount)}</td>
+            </tr>
+            <tr class="insurance-summary-row">
+                <th scope="row">سهم بیمهٔ کارفرما (۲۳٪)</th>
+                <td>${escapeHtml(section.insuranceSummary.employerAmount)}</td>
+            </tr>
+            <tr class="insurance-summary-row">
+                <th scope="row">مبلغ پس از کسر سهم بیمهٔ کارگر</th>
+                <td>${escapeHtml(section.insuranceSummary.netAmount)}</td>
+            </tr>
+        ` : ''}
     `).join('');
     const wageTotalRow = wageTotal ? `
         <tr class="wage-total-row">
-            <th>جمع نتایج اقلام مزدی</th>
+            <th>جمع حقوق و مزایای یک کارگر در بازهٔ انتخابی</th>
             <td class="${wageTotal.error ? 'error-text' : 'amount'}">${escapeHtml(wageTotal.error ?? wageTotal.amount)}</td>
         </tr>
+        <tr class="wage-total-row contractor-total-row">
+            <th>هزینهٔ ماهانهٔ ۳۰ روز برای ${escapeHtml(wageTotal.contractorWorkerCount)} کارگر، با سهم بیمهٔ کارفرما</th>
+            <td class="${wageTotal.contractorTotal30Error ? 'error-text' : 'amount'}">${escapeHtml(wageTotal.contractorTotal30Error ?? wageTotal.contractorTotal30 ?? 'محاسبه نشده')}</td>
+        </tr>
+        ${wageTotal.employerInsurance30 ? `
+            <tr class="wage-total-note-row">
+                <td colspan="2">سهم ۲۳٪ بیمهٔ کارفرما در هزینهٔ ماهانهٔ ۳۰ روزه: ${escapeHtml(wageTotal.employerInsurance30)}</td>
+            </tr>
+        ` : ''}
+        <tr class="wage-total-row contractor-total-row">
+            <th>هزینهٔ ماهانهٔ ۳۱ روز برای ${escapeHtml(wageTotal.contractorWorkerCount)} کارگر، با سهم بیمهٔ کارفرما</th>
+            <td class="${wageTotal.contractorTotalError ? 'error-text' : 'amount'}">${escapeHtml(wageTotal.contractorTotalError ?? wageTotal.contractorTotal ?? 'محاسبه نشده')}</td>
+        </tr>
+        ${wageTotal.employerInsurance31 ? `
+            <tr class="wage-total-note-row">
+                <td colspan="2">سهم ۲۳٪ بیمهٔ کارفرما در هزینهٔ ماهانهٔ ۳۱ روزه: ${escapeHtml(wageTotal.employerInsurance31)}</td>
+            </tr>
+        ` : ''}
         ${wageTotal.excludedBonusItems.length > 0 ? `
             <tr class="wage-total-note-row">
                 <td colspan="2">این جمع شامل ${wageTotal.excludedBonusItems.map((title) => `«${escapeHtml(title)}»`).join(' و ')} نمی‌شود.</td>
@@ -260,6 +310,26 @@ export function buildGroupCalculationPdfHtml(
         .summary th { color: #fff; background: #087e8b; }
         .summary tbody tr:nth-child(even) { background: #f5f9fa; }
         .summary td:last-child { width: 42%; }
+        .summary .insurance-summary-row th {
+            color: #5b6d75;
+            background: #f5f9fa;
+            font-size: 10px;
+            font-weight: normal;
+        }
+        .summary .insurance-summary-row td { font-size: 10px; }
+        .summary .wage-total-row th, .summary .wage-total-row td {
+            color: #fff;
+            background: #087e8b;
+        }
+        .summary .wage-total-row th { font-weight: bold; }
+        .summary .wage-total-row td.amount, .summary .wage-total-row td.error-text { color: #fff; font-weight: bold; }
+        .summary .contractor-total-row th, .summary .contractor-total-row td {
+            color: #fff;
+            background: #087e8b;
+            border-top: 2px solid #fff;
+        }
+        .summary .contractor-total-row th { font-weight: bold; }
+        .summary .contractor-total-row td.amount, .summary .contractor-total-row td.error-text { color: #fff; font-size: 12px; font-weight: bold; }
         .summary .wage-total-note-row td { color: #5b6d75; font-size: 9px; }
         .amount { color: #087e8b; font-weight: bold; }
         .error-text { color: #b42318; }
@@ -401,7 +471,7 @@ export function buildGroupCalculationPdfHtml(
     </table>
     ${sectionDetails}
     <div class="note">
-        این سند گزارش محاسبهٔ جامع است و جایگزین فیش صادرشده از سوی کارفرما نیست.
+        این سند گزارش محاسبات جامع است و جایگزین فیش صادرشده از سوی کارفرما نیست.
     </div>
     <div class="document-attribution">این گزارش به‌صورت خودکار از نتایج محاسبه‌شده در پهناور کار تهیه شده است.</div>
     <section class="about-section">

@@ -92,7 +92,6 @@ export interface GroupCalculationInput {
     childrenCount: number;
     dailyWorkMinutes: number;
     dailyWorkHours: number;
-    includeDaysCovered: boolean;
     employmentStartDate: ParsedDateInput;
     workshopType: EntitledSeniorityWorkshopType;
     jobGroupNumber?: number;
@@ -140,7 +139,6 @@ function calculateOne(key: GroupCalculationKey, input: GroupCalculationInput): P
                 input.endDate,
                 input.periodBuckets,
                 input.childrenCount,
-                input.includeDaysCovered,
             );
             return { value: result.totalAmount, unit: 'ریال', breakdown: result.breakdown };
         }
@@ -150,7 +148,6 @@ function calculateOne(key: GroupCalculationKey, input: GroupCalculationInput): P
                 input.endDate,
                 input.periodBuckets,
                 input.maritalStatus,
-                input.includeDaysCovered,
             );
             return { value: result.totalAmount, unit: 'ریال', breakdown: result.breakdown };
         }
@@ -160,7 +157,6 @@ function calculateOne(key: GroupCalculationKey, input: GroupCalculationInput): P
                 input.endDate,
                 input.periodBuckets,
                 input.maritalStatus,
-                input.includeDaysCovered,
             );
             return { value: result.totalAmount, unit: 'ریال', breakdown: result.breakdown };
         }
@@ -169,7 +165,6 @@ function calculateOne(key: GroupCalculationKey, input: GroupCalculationInput): P
                 input.startDate,
                 input.endDate,
                 input.periodBuckets,
-                input.includeDaysCovered,
             );
             return { value: result.totalAmount, unit: 'ریال', breakdown: result.breakdown };
         }
@@ -178,7 +173,6 @@ function calculateOne(key: GroupCalculationKey, input: GroupCalculationInput): P
                 input.startDate,
                 input.endDate,
                 input.periodBuckets,
-                input.includeDaysCovered,
             );
             return { value: result.totalAmount, unit: 'ریال', breakdown: result.breakdown };
         }
@@ -187,7 +181,6 @@ function calculateOne(key: GroupCalculationKey, input: GroupCalculationInput): P
                 input.startDate,
                 input.endDate,
                 input.periodBuckets,
-                input.includeDaysCovered,
             );
             return { value: result.totalAmount, unit: 'ریال', breakdown: result.breakdown };
         }

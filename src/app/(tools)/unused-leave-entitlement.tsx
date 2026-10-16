@@ -755,11 +755,11 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         borderWidth: 1,
         padding: Spacing.one,
-        gap: Spacing.half,
+        gap: Spacing.one,
         alignItems: 'center',
     },
     detailLabel: {
-        fontSize: 10,
+        fontSize: 12,
     },
     detailValue: {
         fontSize: 12,

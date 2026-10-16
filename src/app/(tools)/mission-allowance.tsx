@@ -71,10 +71,9 @@ export default function MissionAllowanceScreen() {
         const today = new Date();
         return toJalaali(today.getFullYear(), today.getMonth() + 1, today.getDate());
     }, []);
-    const defaultEmploymentDate = `${currentJalaliDate.jy - 1}/01/01`;
     const defaultMissionDate = `${currentJalaliDate.jy}/${String(currentJalaliDate.jm).padStart(2, '0')}/${String(currentJalaliDate.jd).padStart(2, '0')}`;
 
-    const [employmentDate, setEmploymentDate] = useState(defaultEmploymentDate);
+    const [employmentDate, setEmploymentDate] = useState(defaultMissionDate);
     const [missionStartDate, setMissionStartDate] = useState(defaultMissionDate);
     const [missionEndDate, setMissionEndDate] = useState(defaultMissionDate);
     const [missionDaysByPeriod, setMissionDaysByPeriod] = useState<Record<string, string>>({});
@@ -210,12 +209,6 @@ export default function MissionAllowanceScreen() {
             setEmploymentDate(value);
             if ((parseDateInput(value)?.year ?? 0) > 1391) setSettledThrough1391(false);
         } else if (pickerTarget === 'missionStart') {
-            if (compareDates(value, employmentDate) < 0) {
-                showError('شروع مأموریت نمی‌تواند پیش از تاریخ استخدام باشد.');
-                setPickerTarget(null);
-                return;
-            }
-
             if (compareDates(value, missionEndDate) > 0) {
                 showError('شروع مأموریت نمی‌تواند بعد از پایان آن باشد.');
                 setPickerTarget(null);
@@ -645,7 +638,7 @@ const styles = StyleSheet.create({
     breakdownItemHeaderRow: { paddingTop: 2, paddingBottom: 2, marginBottom: 2, borderBottomWidth: StyleSheet.hairlineWidth },
     breakdownItemTitle: { fontSize: 12, fontFamily: 'AppFont-Bold' },
     breakdownDetailGrid: { gap: Spacing.one },
-    breakdownDetailBox: { borderRadius: 8, borderWidth: 1, padding: Spacing.one, gap: Spacing.half, alignItems: 'center' },
-    detailLabel: { fontSize: 10 },
+    breakdownDetailBox: { borderRadius: 8, borderWidth: 1, padding: Spacing.one, gap: Spacing.one, alignItems: 'center' },
+    detailLabel: { fontSize: 12 },
     detailValue: { fontSize: 12 },
 });

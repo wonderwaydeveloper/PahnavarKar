@@ -181,6 +181,8 @@ export default function EndOfServiceYearsScreen() {
             }
         } else if (pickerTarget === 'start') {
             setStartDate(value);
+            setEmploymentDate(value);
+            if ((parseDateInput(value)?.year ?? 0) > 1391) setSettledThrough1391(false);
 
             if (endDate) {
                 const comparison = compareDates(value, endDate);
@@ -626,7 +628,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         borderWidth: 1,
         padding: Spacing.one,
-        gap: Spacing.half,
+        gap: Spacing.one,
         alignItems: 'center',
     },
     detailLabel: {

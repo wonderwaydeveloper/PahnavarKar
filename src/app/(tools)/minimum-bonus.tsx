@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Card, Checkbox, Snackbar } from 'react-native-paper';
+import { Card, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontAwareButton as Button } from '@/components/font-aware-paper';
@@ -48,7 +48,6 @@ export default function YearlyBonusScreen() {
     const [result, setResult] = useState<MinimumBonusAndEntitlementCalculationResult | null>(null);
     const [dailyWorkTime, setDailyWorkTime] = useState('07:20');
     const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
-    const [includeDaysCovered, setIncludeDaysCovered] = useState(true);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
 
@@ -203,7 +202,6 @@ export default function YearlyBonusScreen() {
             parsedStart,
             parsedEnd,
             periodBuckets,
-            includeDaysCovered,
         );
 
         if (calculation.breakdown.length === 0) {
@@ -270,27 +268,6 @@ export default function YearlyBonusScreen() {
                                     onPress={() => openPicker('end')}
                                     formatValue={formatDisplayedDate}
                                 />
-                            </View>
-
-                            <View style={[styles.optionBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <View style={styles.optionRow}>
-                                    <View style={styles.checkboxRow}>
-                                        <Checkbox
-                                            status={includeDaysCovered ? 'checked' : 'unchecked'}
-                                            onPress={() => setIncludeDaysCovered((value) => !value)}
-                                            color={theme.primary}
-                                        />
-                                        <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                            محاسبه تعداد روزهای شمول
-                                        </ThemedText>
-                                    </View>
-                                </View>
-
-                                <View style={styles.helpRow}>
-                                    <ThemedText type="small" style={[styles.helpText, { color: theme.textSecondary }]}>
-                                        با فعال بودن این گزینه، روزهای جزئی شمول هم در محاسبه لحاظ می‌شوند اگر غیرفعال باشد، فقط ماه‌های کامل لحاظ می‌شوند.
-                                    </ThemedText>
-                                </View>
                             </View>
 
                             <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
@@ -524,7 +501,7 @@ const styles = StyleSheet.create({
         gap: Spacing.one,
     },
     detailLabel: {
-        fontSize: 10,
+        fontSize: 12,
         lineHeight: 16,
         fontFamily: 'AppFont-Medium',
         textAlign: 'center',
@@ -630,7 +607,7 @@ const styles = StyleSheet.create({
         borderWidth: StyleSheet.hairlineWidth,
         paddingHorizontal: Spacing.two,
         paddingVertical: Spacing.one,
-        gap: Spacing.half,
+        gap: Spacing.one,
         alignItems: 'center',
         justifyContent: 'center',
     },

@@ -4,7 +4,7 @@ import { jalaaliMonthLength, toGregorian, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { EncodingType, File, Paths } from 'expo-file-system';
-import { Card, Checkbox, Menu, Snackbar } from 'react-native-paper';
+import { ActivityIndicator, Card, Checkbox, Menu, Snackbar } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -64,6 +64,7 @@ const SHIFT_TYPE_OPTIONS = [
     { value: 'morning-night-or-evening-night', label: 'صبح و شب یا عصر و شب', percentage: '۲۲.۵٪' },
 ] as const;
 const CHILDREN_OPTIONS = Array.from({ length: 13 }, (_, index) => index);
+const CONTRACTOR_MONTH_DAY_OPTIONS = [30, 31] as const;
 const MARITAL_OPTIONS = [
     { value: 'single', label: 'مجرد' },
     { value: 'married', label: 'متأهل' },
@@ -76,6 +77,18 @@ const GROUP_TOOLS = GROUP_TOOL_CATEGORIES.flatMap((category) =>
     ),
 );
 const WAGE_TOTAL_EXCLUDED_KEYS: GroupCalculationKey[] = ['minimum-bonus', 'maximum-bonus'];
+const INSURANCE_CALCULATION_KEYS: GroupCalculationKey[] = [
+    'base-salary',
+    'housing-allowance',
+    'monthly-allowance',
+    'spousal-allowance',
+    'entitled-seniority',
+    'overtime-entitlement',
+    'night-shift-entitlement',
+    'monthly-shift-work',
+    'official-holiday-work',
+    'friday-work',
+];
 
 function isWageCalculationKey(key: GroupCalculationKey) {
     return GROUP_TOOLS.some((tool) => (
@@ -99,6 +112,101 @@ function getResultAmount(result: GroupCalculationResult) {
 
         return total + item.daysCovered * item.entitlement;
     }, 0);
+}
+
+function isInsuranceCalculationKey(key: GroupCalculationKey) {
+    return INSURANCE_CALCULATION_KEYS.includes(key);
+}
+
+function getInsuranceBaseAmount(result: GroupCalculationResult) {
+    return Math.max(0, result.key === 'entitled-seniority' ? getResultAmount(result) : result.value);
+}
+
+function getEmployerInsuranceTotal(results: readonly GroupCalculationResult[]) {
+    return results.reduce((total, result) => {
+        if (result.error || !isInsuranceCalculationKey(result.key)) return total;
+        return total + Math.round(Math.round(getInsuranceBaseAmount(result)) * 0.23);
+    }, 0);
+}
+
+function getInsurancePeriodDetailRecord(
+    key: GroupCalculationKey,
+    entry: Record<string, unknown>,
+) {
+    if (!isInsuranceCalculationKey(key)) return entry;
+
+    const periodBaseAmount = key === 'entitled-seniority'
+        && typeof entry.daysCovered === 'number'
+        && typeof entry.entitlement === 'number'
+        ? entry.daysCovered * entry.entitlement
+        : entry.amount;
+    if (typeof periodBaseAmount !== 'number' || !Number.isFinite(periodBaseAmount)) return entry;
+
+    const safePeriodBaseAmount = Math.max(0, periodBaseAmount);
+    return {
+        ...entry,
+        insurancePeriodBaseAmount: safePeriodBaseAmount,
+        socialSecurityPremiumAmount: Math.round(safePeriodBaseAmount * 0.3),
+    };
+}
+
+function getWageTotalResults(results: readonly GroupCalculationResult[]) {
+    return results.filter((result) => (
+        result.unit === 'ریال'
+        && isWageCalculationKey(result.key)
+        && !WAGE_TOTAL_EXCLUDED_KEYS.includes(result.key)
+    ));
+}
+
+function calculateContractorMonthlyTotals(
+    wageTotalAmount: number,
+    employerInsuranceTotal: number,
+    wageTotalHasErrors: boolean,
+    periodDayCount: number | null,
+    workerCount: number,
+) {
+    const periodDayCountIsValid = periodDayCount !== null
+        && Number.isSafeInteger(periodDayCount)
+        && periodDayCount > 0;
+    const workerCountIsValid = Number.isSafeInteger(workerCount) && workerCount > 0;
+    const wageTotalError = wageTotalHasErrors
+        ? 'به‌دلیل خطای یکی از محاسبات، جمع کامل نیست.'
+        : !Number.isFinite(wageTotalAmount)
+            ? 'جمع حقوق و مزایا قابل محاسبه نیست.'
+            : !Number.isFinite(employerInsuranceTotal)
+                ? 'سهم بیمهٔ کارفرما قابل محاسبه نیست.'
+            : undefined;
+    const calculateContractorTotal = (monthDays: number) => {
+        const employerInsuranceAmount = periodDayCountIsValid
+            ? (employerInsuranceTotal / periodDayCount) * monthDays * workerCount
+            : 0;
+        const amount = periodDayCountIsValid
+            ? ((wageTotalAmount + employerInsuranceTotal) / periodDayCount) * monthDays * workerCount
+            : 0;
+        const error = wageTotalError
+            ?? (!periodDayCountIsValid
+                ? 'تعداد روزهای بازه برای محاسبه معتبر نیست.'
+                : !workerCountIsValid
+                    ? 'تعداد کارگران باید عدد صحیح بزرگ‌تر از صفر باشد.'
+                    : !Number.isFinite(amount)
+                        ? 'هزینهٔ ماهانه برای تعداد واردشده قابل محاسبه نیست.'
+                        : undefined);
+
+        return { amount, employerInsuranceAmount, error };
+    };
+    const contractorTotal30 = calculateContractorTotal(CONTRACTOR_MONTH_DAY_OPTIONS[0]);
+    const contractorTotal31 = calculateContractorTotal(CONTRACTOR_MONTH_DAY_OPTIONS[1]);
+
+    return {
+        wageTotalError,
+        workerCountIsValid,
+        contractorTotal30: contractorTotal30.amount,
+        employerInsurance30: contractorTotal30.employerInsuranceAmount,
+        contractorTotal30Error: contractorTotal30.error,
+        contractorTotal: contractorTotal31.amount,
+        employerInsurance31: contractorTotal31.employerInsuranceAmount,
+        contractorTotalError: contractorTotal31.error,
+    };
 }
 
 function getResultTitle(
@@ -134,14 +242,65 @@ function getSelectedCalculationTitles(keys: readonly GroupCalculationKey[]) {
         .join('، ');
 }
 
-const DAYS_COVERAGE_KEYS: GroupCalculationKey[] = [
-    'family-allowance',
-    'housing-allowance',
-    'monthly-allowance',
-    'minimum-bonus',
-    'maximum-bonus',
-    'spousal-allowance',
-];
+function PdfActionButton({
+    label,
+    icon,
+    onPress,
+    loading,
+    disabled,
+    variant,
+    primaryColor,
+    surfaceColor,
+    borderColor,
+}: {
+    label: string;
+    icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+    onPress: () => void;
+    loading: boolean;
+    disabled: boolean;
+    variant: 'contained' | 'outlined';
+    primaryColor: string;
+    surfaceColor: string;
+    borderColor: string;
+}) {
+    const isContained = variant === 'contained';
+    const contentColor = isContained ? surfaceColor : primaryColor;
+
+    return (
+        <Pressable
+            onPress={onPress}
+            disabled={disabled}
+            accessibilityRole="button"
+            accessibilityState={{ disabled, busy: loading }}
+            style={({ pressed }) => [
+                styles.pdfActionButton,
+                {
+                    backgroundColor: isContained ? primaryColor : 'transparent',
+                    borderColor: isContained ? primaryColor : borderColor,
+                    opacity: disabled && !loading ? 0.55 : pressed ? 0.8 : 1,
+                },
+            ]}
+        >
+            <View style={styles.pdfActionButtonContent}>
+                {loading ? (
+                    <ActivityIndicator size={16} color={contentColor} />
+                ) : (
+                    <MaterialCommunityIcons name={icon} size={16} color={contentColor} />
+                )}
+                <ThemedText
+                    type="smallBold"
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                    style={[styles.pdfActionButtonLabel, { color: contentColor }]}
+                >
+                    {label}
+                </ThemedText>
+            </View>
+        </Pressable>
+    );
+}
+
 const PAYROLL_DAILY_WORK_KEYS: GroupCalculationKey[] = [
     'base-salary',
     'family-allowance',
@@ -189,6 +348,7 @@ const RESULT_SUMMARY_LABELS: Record<GroupCalculationKey, string> = {
 
 const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
 const latinDigits = '0123456789';
+const DEFAULT_MISSION_DAYS = '۱';
 
 function normalizeDigits(value: string) {
     return value.replace(/[۰-۹]/g, (digit) => latinDigits[persianDigits.indexOf(digit)]);
@@ -530,7 +690,7 @@ function getBreakdownDetailFields(
     entry: Record<string, unknown>,
     workshopType: 'classified' | 'unclassified',
 ): BreakdownField[] {
-    return BREAKDOWN_FIELDS[key].filter((field) => {
+    const fields = BREAKDOWN_FIELDS[key].filter((field) => {
         if (field.key === 'range') return 'startDate' in entry && 'endDate' in entry;
         if (field.format === 'last-period') return typeof entry.year === 'number' && typeof entry.periodIndex === 'number';
         if (!(field.key in entry)) return false;
@@ -562,6 +722,23 @@ function getBreakdownDetailFields(
         }
         return field;
     });
+
+    if (isInsuranceCalculationKey(key) && typeof entry.socialSecurityPremiumAmount === 'number') {
+        if (key === 'entitled-seniority' && typeof entry.insurancePeriodBaseAmount === 'number') {
+            fields.push({
+                key: 'insurancePeriodBaseAmount',
+                label: 'مبنای مشمول بیمه این دوره',
+                format: 'money',
+            });
+        }
+        fields.push({
+            key: 'socialSecurityPremiumAmount',
+            label: 'حق بیمه پرداختی به سازمان تامین اجتماعی',
+            format: 'money',
+        });
+    }
+
+    return fields;
 }
 
 function formatBreakdownTitle(
@@ -721,12 +898,12 @@ export default function GroupCalculationScreen() {
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
-    const [employmentDate, setEmploymentDate] = useState(`${currentYear - 1}/01/01`);
+    const [employmentDate, setEmploymentDate] = useState(defaultStartDate);
     const [missionStartDate, setMissionStartDate] = useState(defaultStartDate);
     const [missionEndDate, setMissionEndDate] = useState(defaultEndDate);
     const [pickerTarget, setPickerTarget] = useState<DatePickerTarget | null>(null);
     const [selectedKeys, setSelectedKeys] = useState<GroupCalculationKey[]>([]);
-    const [includeDaysCovered, setIncludeDaysCovered] = useState(true);
+    const [contractorWorkerCount, setContractorWorkerCount] = useState('۱');
     const [maritalStatus, setMaritalStatus] = useState<'single' | 'married'>('single');
     const [childrenCount, setChildrenCount] = useState(0);
     const [childrenMenuVisible, setChildrenMenuVisible] = useState(false);
@@ -743,11 +920,13 @@ export default function GroupCalculationScreen() {
     const [initialSavedLeaveDays, setInitialSavedLeaveDays] = useState('۰');
     const [shiftType, setShiftType] = useState<'morning-evening' | 'morning-evening-night' | 'morning-night-or-evening-night'>('morning-evening');
     const [dailyWorkTime, setDailyWorkTime] = useState('07:20');
-    const [insuranceDailyWorkTime, setInsuranceDailyWorkTime] = useState('07:20');
+    const [isWorkerInsuranceExempt, setIsWorkerInsuranceExempt] = useState(false);
+    const [isInsuranceLegalBasisVisible, setIsInsuranceLegalBasisVisible] = useState(false);
     const [periodBuckets, setPeriodBuckets] = useState<SalaryPeriodBucket[]>([]);
     const [holidayDates, setHolidayDates] = useState<string[]>([]);
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [results, setResults] = useState<GroupCalculationResult[] | null>(null);
+    const [calculatedPeriodDayCount, setCalculatedPeriodDayCount] = useState<number | null>(null);
     const [expandedResults, setExpandedResults] = useState<Record<string, boolean>>({});
     const [loading, setLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState('');
@@ -830,14 +1009,14 @@ export default function GroupCalculationScreen() {
         || (key === 'night-shift-entitlement' && selectedKeys.includes('monthly-shift-work'))
         || (key === 'monthly-shift-work' && selectedKeys.includes('night-shift-entitlement'))
     ));
-    const hasMaritalAllowance = selectedKeys.includes('housing-allowance')
-        || selectedKeys.includes('monthly-allowance')
-        || selectedKeys.includes('unused-leave-wage');
     const hasChildrenCount = hasFamilyAllowance || selectedKeys.includes('unused-leave-wage');
     const childrenOptions = CHILDREN_OPTIONS;
-    const hasDaysCoverageOption = selectedKeys.some((key) => DAYS_COVERAGE_KEYS.includes(key));
+    const contractorWorkerCountValue = Number(normalizeDigits(contractorWorkerCount)) || 0;
+    const contractorWorkerCountIsSafe = Number.isSafeInteger(contractorWorkerCountValue);
     const hasInsuranceDays = selectedKeys.includes('insurance-days-entitlement');
+    const hasInsuranceCalculation = selectedKeys.some(isInsuranceCalculationKey);
     const hasPayrollDailyWorkTime = selectedKeys.some((key) => PAYROLL_DAILY_WORK_KEYS.includes(key));
+    const hasDailyWorkTime = hasPayrollDailyWorkTime || hasInsuranceDays;
     const hasEmploymentBasedCalculation = selectedKeys.some((key) => [
         'entitled-seniority',
         'overtime-entitlement',
@@ -878,6 +1057,26 @@ export default function GroupCalculationScreen() {
     const parsedRangeEnd = parseDateInput(endDate);
     const parsedMissionStart = parseDateInput(missionStartDate);
     const parsedMissionEnd = parseDateInput(missionEndDate);
+    const hasMaritalStatusDifference = parsedRangeStart && parsedRangeEnd
+        ? getMissionAllowancePeriodRanges(parsedRangeStart, parsedRangeEnd, periodBuckets).some((range) => {
+            const period = periodBuckets
+                .find((bucket) => bucket.year === range.year)
+                ?.periods.find((item) => item.period_index === range.periodIndex);
+            if (!period) return false;
+
+            const housingAllowanceDiffers = selectedKeys.includes('housing-allowance')
+                && period.monthly_housing_single != null
+                && period.monthly_housing_married != null
+                && period.monthly_housing_single !== period.monthly_housing_married;
+            const monthlyAllowanceDiffers = selectedKeys.includes('monthly-allowance')
+                && period.monthly_single_allowance != null
+                && period.monthly_married_allowance != null
+                && period.monthly_single_allowance !== period.monthly_married_allowance;
+
+            return housingAllowanceDiffers || monthlyAllowanceDiffers;
+        })
+        : false;
+    const hasMaritalAllowance = selectedKeys.includes('unused-leave-wage') || hasMaritalStatusDifference;
     const fridayPeriods = hasFridayWork && parsedRangeStart && parsedRangeEnd
         ? calculateAvailableFridaysByPeriod(parsedRangeStart, parsedRangeEnd, periodBuckets)
         : [];
@@ -885,7 +1084,7 @@ export default function GroupCalculationScreen() {
         ? getMissionAllowancePeriodRanges(parsedMissionStart, parsedMissionEnd, periodBuckets)
         : [];
     const missionDaysTotal = missionPeriods.reduce((total, period) => (
-        total + (Number(normalizeDigits(missionDays[`${period.year}:${period.periodIndex}`] ?? '۰')) || 0)
+        total + (Number(normalizeDigits(missionDays[`${period.year}:${period.periodIndex}`] ?? DEFAULT_MISSION_DAYS)) || 0)
     ), 0);
     const leaveMonthsWorked = parsedRangeStart && parsedRangeEnd
         ? calculateUnusedLeaveMonths(parsedRangeStart, parsedRangeEnd)
@@ -967,6 +1166,8 @@ export default function GroupCalculationScreen() {
             if (Number(normalizeDigits(value.split('/')[0] ?? '0')) > 1391) setSettledThrough1391(false);
         } else if (pickerTarget === 'start') {
             setStartDate(value);
+            setEmploymentDate(value);
+            if (Number(normalizeDigits(value.split('/')[0] ?? '0')) > 1391) setSettledThrough1391(false);
             if (compareDates(value, endDate) > 0) setEndDate(value);
         } else if (pickerTarget === 'end') {
             if (compareDates(value, startDate) < 0) {
@@ -1010,7 +1211,7 @@ export default function GroupCalculationScreen() {
         const missionEnd = parseDateInput(missionEndDate);
         const normalizedChildrenCount = childrenCount;
         const normalizedOvertimeHours = parseTimeToDecimalHours(dailyOvertimeHours);
-        const insuranceDailyHours = parseTimeToDecimalHours(insuranceDailyWorkTime);
+        const dailyWorkHours = parseTimeToDecimalHours(dailyWorkTime);
 
         if (selectedKeys.includes('night-shift-entitlement') && selectedKeys.includes('monthly-shift-work')) {
             setErrorMessage('');
@@ -1020,7 +1221,13 @@ export default function GroupCalculationScreen() {
         }
 
         if (selectedKeys.length === 0) {
-            setErrorMessage('برای انجام محاسبهٔ جامع، دست‌کم یک آیتم محاسباتی را انتخاب کنید.');
+            setErrorMessage('برای انجام محاسبات جامع، دست‌کم یک آیتم محاسباتی را انتخاب کنید.');
+            setResults(null);
+            return;
+        }
+        const workerCount = Number(normalizeDigits(contractorWorkerCount));
+        if (!Number.isSafeInteger(workerCount) || workerCount <= 0) {
+            setErrorMessage('تعداد کارگران باید یک عدد صحیح بزرگ‌تر از صفر باشد.');
             setResults(null);
             return;
         }
@@ -1075,11 +1282,11 @@ export default function GroupCalculationScreen() {
             return;
         }
         if (hasInsuranceDays && (
-            insuranceDailyHours === null
-            || insuranceDailyHours < 1 / 60
-            || insuranceDailyHours > 8
+            dailyWorkHours === null
+            || dailyWorkHours < 1 / 60
+            || dailyWorkHours > 7 + 20 / 60
         )) {
-            setErrorMessage('ساعات کاری روزانه بیمه باید بین ۰۰:۰۱ تا ۰۸:۰۰ باشد.');
+            setErrorMessage('ساعات کاری روزانه باید بین ۰۰:۰۱ تا ۰۷:۲۰ باشد.');
             setResults(null);
             return;
         }
@@ -1111,7 +1318,7 @@ export default function GroupCalculationScreen() {
         }
         const missionDaysByPeriod = Object.fromEntries(missionPeriods.map((period) => {
             const key = `${period.year}:${period.periodIndex}`;
-            return [key, Number(normalizeDigits(missionDays[key] ?? '۰'))];
+            return [key, Number(normalizeDigits(missionDays[key] ?? DEFAULT_MISSION_DAYS))];
         }));
         const missionPeriodDays = missionPeriods.reduce((total, period) => total + period.availableDays, 0);
         if (hasMissionAllowance && (
@@ -1131,7 +1338,7 @@ export default function GroupCalculationScreen() {
             return;
         }
 
-        setResults(calculateGroupItems(getOrderedGroupCalculationKeys(selectedKeys), {
+        const calculationResults = calculateGroupItems(getOrderedGroupCalculationKeys(selectedKeys), {
             startDate: start,
             endDate: end,
             missionStartDate: missionStart ?? start,
@@ -1141,8 +1348,7 @@ export default function GroupCalculationScreen() {
             maritalStatus,
             childrenCount: normalizedChildrenCount || 0,
             dailyWorkMinutes: getDailyWorkMinutes(dailyWorkTime),
-            dailyWorkHours: insuranceDailyHours ?? 0,
-            includeDaysCovered,
+            dailyWorkHours: dailyWorkHours ?? 0,
             employmentStartDate: employment ?? start,
             workshopType,
             jobGroupNumber: selectedGroup ?? undefined,
@@ -1153,7 +1359,9 @@ export default function GroupCalculationScreen() {
             missionDaysByPeriod,
             usedLeaveDaysBySegment: normalizedUsedLeaveDays,
             initialSavedLeaveDays: normalizedInitialSavedLeaveDays || 0,
-        }));
+        });
+        setResults(calculationResults);
+        setCalculatedPeriodDayCount(getInclusiveDayCount(start, end));
         setErrorMessage('');
     };
 
@@ -1161,21 +1369,45 @@ export default function GroupCalculationScreen() {
         if (!results) return;
         if (action !== 'preview') setPdfPreviewVisible(false);
 
-        const wageTotalResults = results.filter((result) => (
-            result.unit === 'ریال'
-            && isWageCalculationKey(result.key)
-            && !WAGE_TOTAL_EXCLUDED_KEYS.includes(result.key)
-        ));
+        const wageTotalResults = getWageTotalResults(results);
         const excludedBonusItems = getExcludedBonusItemTitles(results);
+        const contractorWorkerCountValue = Number(normalizeDigits(contractorWorkerCount));
+        const wageTotalHasErrors = wageTotalResults.some((result) => result.error);
+        const wageTotalAmount = wageTotalResults.reduce((total, result) => total + getResultAmount(result), 0);
+        const employerInsuranceTotal = getEmployerInsuranceTotal(wageTotalResults);
+        const contractorTotals = calculateContractorMonthlyTotals(
+            wageTotalAmount,
+            employerInsuranceTotal,
+            wageTotalHasErrors,
+            calculatedPeriodDayCount,
+            contractorWorkerCountValue,
+        );
+        const contractorWorkerCountLabel = contractorWorkerCount.trim().length > 0
+            ? contractorWorkerCount
+            : 'وارد نشده';
         const wageTotal: GroupCalculationPdfWageTotal | undefined = wageTotalResults.length > 0
-            ? wageTotalResults.some((result) => result.error)
+            ? contractorTotals.wageTotalError
                 ? {
                     amount: '',
-                    error: 'به‌دلیل خطای یکی از محاسبات، جمع کامل نیست.',
+                    error: contractorTotals.wageTotalError,
+                    contractorTotal30Error: contractorTotals.contractorTotal30Error,
+                    contractorTotalError: contractorTotals.contractorTotalError,
+                    contractorWorkerCount: contractorWorkerCountLabel,
                     excludedBonusItems,
                 }
                 : {
-                    amount: formatCurrency(wageTotalResults.reduce((total, result) => total + getResultAmount(result), 0)),
+                    amount: formatCurrency(wageTotalAmount),
+                    contractorTotal30: contractorTotals.contractorTotal30Error
+                        ? undefined
+                        : formatCurrency(contractorTotals.contractorTotal30),
+                    employerInsurance30: formatCurrency(contractorTotals.employerInsurance30),
+                    contractorTotal30Error: contractorTotals.contractorTotal30Error,
+                    contractorWorkerCount: contractorWorkerCountLabel,
+                    contractorTotal: contractorTotals.contractorTotalError
+                        ? undefined
+                        : formatCurrency(contractorTotals.contractorTotal),
+                    employerInsurance31: formatCurrency(contractorTotals.employerInsurance31),
+                    contractorTotalError: contractorTotals.contractorTotalError,
                     excludedBonusItems,
                 }
             : undefined;
@@ -1206,6 +1438,12 @@ export default function GroupCalculationScreen() {
             const formattedValue = result.unit === 'ریال'
                 ? formatCurrencyAmount(resultAmount, currencyPreference)
                 : toPersianDigits(Number.isInteger(resultAmount) ? String(resultAmount) : resultAmount.toFixed(2));
+            const roundedInsuranceBaseAmount = Math.round(getInsuranceBaseAmount(result));
+            const workerInsuranceAmount = isWorkerInsuranceExempt
+                ? 0
+                : Math.round(roundedInsuranceBaseAmount * 0.07);
+            const employerInsuranceAmount = Math.round(roundedInsuranceBaseAmount * 0.23);
+            const finalClaimAmount = roundedInsuranceBaseAmount - workerInsuranceAmount;
             const summaryLabel = result.key === 'monthly-shift-work'
                 ? `${RESULT_SUMMARY_LABELS[result.key]} (${SHIFT_TYPE_OPTIONS.find((option) => option.value === shiftType)?.label ?? 'صبح و عصر'})`
                 : result.key === 'entitled-seniority' && workshopType === 'classified'
@@ -1250,7 +1488,9 @@ export default function GroupCalculationScreen() {
 
             if (includePdfDetails && !result.error) {
                 detailBreakdown.forEach((entry, index) => {
-                    const detailRecord = isRecord(entry) ? entry : null;
+                    const detailRecord = isRecord(entry)
+                        ? getInsurancePeriodDetailRecord(result.key, entry)
+                        : null;
                     const title = detailRecord
                         ? formatBreakdownTitle(result.key, detailRecord, index, startDate, endDate)
                         : `${getResultTitle(result, workshopType)} ${toPersianDigits(index + 1)}`;
@@ -1274,6 +1514,15 @@ export default function GroupCalculationScreen() {
                 title: getResultTitle(result, workshopType),
                 summaryLabel,
                 amount: result.unit === 'ریال' ? formattedValue : `${formattedValue} ${result.unit}`,
+                insuranceSummary: isInsuranceCalculationKey(result.key) && !result.error
+                    ? {
+                        baseAmount: formatCurrency(roundedInsuranceBaseAmount),
+                        workerAmount: formatCurrency(workerInsuranceAmount),
+                        employerAmount: formatCurrency(employerInsuranceAmount),
+                        netAmount: formatCurrency(finalClaimAmount),
+                        workerExempt: isWorkerInsuranceExempt,
+                    }
+                    : undefined,
                 error: result.error,
                 detailsTitle,
                 details,
@@ -1300,7 +1549,26 @@ export default function GroupCalculationScreen() {
         ];
         const metadata: GroupCalculationPdfMetadata[] = [
             ...preparedAtMetadata,
+            {
+                section: 'آنالیز حقوق و مزایای ماهیانه برای پیمانکاران',
+                label: 'تعداد کارگران',
+                value: contractorWorkerCountLabel,
+            },
         ];
+        if (results.some((result) => !result.error && isInsuranceCalculationKey(result.key))) {
+            metadata.push({
+                section: 'محاسبات بیمه',
+                label: 'معافیت از سهم بیمهٔ کارگر',
+                value: isWorkerInsuranceExempt ? 'فعال' : 'غیرفعال',
+            });
+            if (isWorkerInsuranceExempt) {
+                metadata.push({
+                    section: 'محاسبات بیمه',
+                    label: 'مبنای قانونی معافیت',
+                    value: 'اسرا، آزادگان و جانبازان براساس تبصرهٔ ۳ مادهٔ ۳۷ قانون جامع خدمات‌رسانی به ایثارگران مصوب ۱۳۹۱، و فرزندان شهید مطابق بند «ز» مادهٔ ۸۸ قانون برنامهٔ ششم توسعه که در بند ۲ قسمت «ت» مادهٔ ۳۱ قانون برنامهٔ هفتم توسعه تنفیذ شده است، از پرداخت حق بیمهٔ سهم کارگر معاف هستند.',
+                });
+            }
+        }
         const employeeMetadata = [
             { label: 'نام', value: employeeName },
             { label: 'کد ملی', value: employeeNationalCode },
@@ -1363,14 +1631,6 @@ export default function GroupCalculationScreen() {
             });
         }
 
-        if (hasDaysCoverageOption) {
-            metadata.push({
-                section: 'محاسبهٔ روزهای شمول',
-                label: 'محاسبه تعداد روزهای شمول',
-                value: includeDaysCovered ? 'فعال' : 'غیرفعال',
-            });
-        }
-
         if (hasLeaveCalculation) {
             metadata.push({
                 section: 'مرخصی ذخیره‌شده و مزد مرخصی',
@@ -1430,27 +1690,23 @@ export default function GroupCalculationScreen() {
                 metadata.push({
                     section: 'فوق‌العاده مأموریت',
                     label: `تعداد روزهای مأموریت سال ${toPersianDigits(period.year)} دوره ${toPersianDigits(period.periodIndex)}`,
-                    value: missionDays[key] ?? '۰',
+                    value: missionDays[key] ?? DEFAULT_MISSION_DAYS,
                 });
             }
         }
 
-        if (hasPayrollDailyWorkTime) {
-            const dailyWorkLabel = getDailyWorkMinutes(dailyWorkTime) === FULL_TIME_DAILY_MINUTES
-                ? 'ساعات کارکرد روزانه بر اساس ماده ۵۱ قانون کار'
-                : 'ساعات کارکرد روزانه بر اساس ماده ۳۹ قانون کار';
+        if (hasDailyWorkTime) {
+            const dailyWorkLabel = hasPayrollDailyWorkTime
+                ? getDailyWorkMinutes(dailyWorkTime) === FULL_TIME_DAILY_MINUTES
+                    ? 'ساعات کارکرد روزانه بر اساس ماده ۵۱ قانون کار'
+                    : 'ساعات کارکرد روزانه بر اساس ماده ۳۹ قانون کار'
+                : 'ساعات کاری روزانه';
             metadata.push({
-                section: 'ساعات کار روزانهٔ محاسبات مزدی',
-                label: dailyWorkLabel,
+                section: 'ساعات کار روزانه',
+                label: hasPayrollDailyWorkTime && hasInsuranceDays
+                    ? 'ساعات کارکرد روزانه (محاسبات مزدی و روزهای بیمه)'
+                    : dailyWorkLabel,
                 value: toPersianDigits(dailyWorkTime),
-            });
-        }
-
-        if (hasInsuranceDays) {
-            metadata.push({
-                section: 'روزهای بیمهٔ استحقاقی',
-                label: 'ساعات کاری روزانه',
-                value: toPersianDigits(insuranceDailyWorkTime),
             });
         }
 
@@ -1460,50 +1716,56 @@ export default function GroupCalculationScreen() {
             const pdfAssets = await getGroupCalculationPdfAssets(fontPreference);
             const html = buildGroupCalculationPdfHtml(pdfSections, metadata, includePdfDetails, pdfAssets, wageTotal);
             if (action === 'preview') {
-                setPdfPreviewHtml(html);
-                setPdfPreviewVisible(true);
+                if (Platform.OS === 'web') {
+                    await Print.printAsync({ html });
+                } else {
+                    setPdfPreviewHtml(html);
+                    setPdfPreviewVisible(true);
+                }
                 return;
             }
-            const canShare = Platform.OS !== 'web' && await Sharing.isAvailableAsync();
+            if (Platform.OS === 'web') {
+                await Print.printAsync({ html });
+                return;
+            }
+            const canShare = await Sharing.isAvailableAsync();
             const file = await Print.printToFileAsync({
                 html,
                 base64: Platform.OS === 'android' && action === 'share' && canShare,
             });
 
-            if (Platform.OS !== 'web') {
-                if (action === 'save') {
-                    const savedFile = await saveFileToDefaultLocation(file.uri, {
-                        fileName: `pahnavar-kar-payslip-${new Date().toISOString().replace(/[:.]/g, '-')}.pdf`,
-                        mimeType: 'application/pdf',
-                    });
-                    if (savedFile.location === 'downloads') {
-                        setPdfSnackbarMessage('فیش PDF در پوشهٔ Downloads/PahnavarKar ذخیره شد.');
-                    } else {
-                        setPdfSnackbarMessage('فیش PDF در پوشهٔ پهناورکار در برنامهٔ Files ذخیره شد.');
-                    }
-                    setPdfSnackbarIsError(false);
-                    setPdfSnackbarVisible(true);
-                } else if (canShare) {
-                    let shareUri = file.uri;
-                    if (Platform.OS === 'android') {
-                        if (!file.base64) {
-                            throw new Error('The generated PDF did not include its file data.');
-                        }
-
-                        const shareFile = new File(Paths.document, 'pahnavar-kar-calculation.pdf');
-                        shareFile.create({ overwrite: true });
-                        shareFile.write(file.base64, { encoding: EncodingType.Base64 });
-                        shareUri = shareFile.uri;
-                    }
-
-                    await Sharing.shareAsync(shareUri, {
-                        mimeType: 'application/pdf',
-                        UTI: '.pdf',
-                        dialogTitle: 'اشتراک فیش محاسبات',
-                    });
+            if (action === 'save') {
+                const savedFile = await saveFileToDefaultLocation(file.uri, {
+                    fileName: `pahnavar-kar-payslip-${new Date().toISOString().replace(/[:.]/g, '-')}.pdf`,
+                    mimeType: 'application/pdf',
+                });
+                if (savedFile.location === 'downloads') {
+                    setPdfSnackbarMessage('فیش PDF در پوشهٔ Downloads/PahnavarKar ذخیره شد.');
                 } else {
-                    await Print.printAsync({ html });
+                    setPdfSnackbarMessage('فیش PDF در پوشهٔ پهناورکار در برنامهٔ Files ذخیره شد.');
                 }
+                setPdfSnackbarIsError(false);
+                setPdfSnackbarVisible(true);
+            } else if (canShare) {
+                let shareUri = file.uri;
+                if (Platform.OS === 'android') {
+                    if (!file.base64) {
+                        throw new Error('The generated PDF did not include its file data.');
+                    }
+
+                    const shareFile = new File(Paths.document, 'pahnavar-kar-calculation.pdf');
+                    shareFile.create({ overwrite: true });
+                    shareFile.write(file.base64, { encoding: EncodingType.Base64 });
+                    shareUri = shareFile.uri;
+                }
+
+                await Sharing.shareAsync(shareUri, {
+                    mimeType: 'application/pdf',
+                    UTI: '.pdf',
+                    dialogTitle: 'اشتراک فیش محاسبات',
+                });
+            } else {
+                await Print.printAsync({ html });
             }
         } catch (error) {
             if (action === 'save' && error instanceof NativeFileStorageUnavailableError) {
@@ -1746,20 +2008,6 @@ export default function GroupCalculationScreen() {
                             <View style={[styles.specificCalculationSection, { backgroundColor: theme.surfaceVariant, borderColor: theme.borderStrong }]}>
                                 <View style={styles.inputSectionHeader}>
                                     <ThemedText type="smallBold" style={{ color: theme.text }}>سابقه و پایه سنوات</ThemedText>
-                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
-                                        برای {getSelectedCalculationTitles([
-                                            'entitled-seniority',
-                                            'overtime-entitlement',
-                                            'night-shift-entitlement',
-                                            'monthly-shift-work',
-                                            'end-of-service-years',
-                                            'bonus-entitlement',
-                                            'official-holiday-work',
-                                            'friday-work',
-                                            'mission-allowance',
-                                            'unused-leave-wage',
-                                        ])}.
-                                    </ThemedText>
                                 </View>
                                 <DateInputField
                                     label="تاریخ استخدام"
@@ -1882,34 +2130,6 @@ export default function GroupCalculationScreen() {
                                         />
                                     ))}
                                 </Menu>
-                            </View>
-                        ) : null}
-
-                        {hasDaysCoverageOption ? (
-                            <View style={[styles.specificCalculationSection, { backgroundColor: theme.surfaceVariant, borderColor: theme.borderStrong }]}>
-                                <View style={styles.inputSectionHeader}>
-                                    <ThemedText type="smallBold" style={{ color: theme.text }}>
-                                        محاسبهٔ روزهای شمول
-                                    </ThemedText>
-                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
-                                        برای {getSelectedCalculationTitles(DAYS_COVERAGE_KEYS)}.
-                                    </ThemedText>
-                                </View>
-                                <View style={[styles.daysCoverageBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <View style={styles.daysCoverageCheckRow}>
-                                    <Checkbox
-                                        status={includeDaysCovered ? 'checked' : 'unchecked'}
-                                        onPress={() => setIncludeDaysCovered((value) => !value)}
-                                        color={theme.primary}
-                                    />
-                                    <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 10, lineHeight: 16 }}>
-                                        محاسبه تعداد روزهای شمول
-                                    </ThemedText>
-                                </View>
-                                <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11, lineHeight: 20, fontFamily: 'AppFont-Regular' }}>
-                                    با فعال بودن این گزینه، روزهای جزئی شمول هم در محاسبه لحاظ می‌شوند. اگر غیرفعال باشد، فقط ماه‌های کامل حساب می‌شوند.
-                                </ThemedText>
-                                </View>
                             </View>
                         ) : null}
 
@@ -2162,7 +2382,7 @@ export default function GroupCalculationScreen() {
                                 </ThemedText>
                                 {missionPeriods.map((period) => {
                                     const key = `${period.year}:${period.periodIndex}`;
-                                    const displayedValue = missionDays[key] ?? '۰';
+                                    const displayedValue = missionDays[key] ?? DEFAULT_MISSION_DAYS;
                                     const normalizedValue = Number(normalizeDigits(displayedValue)) || 0;
                                     return (
                                         <View key={key} style={[styles.periodInputCard, { backgroundColor: theme.surface, borderColor: theme.borderStrong }]}>
@@ -2187,9 +2407,9 @@ export default function GroupCalculationScreen() {
                                                 <NumericInputField
                                                     value={displayedValue}
                                                     onChangeText={(value) => setMissionDays((current) => ({ ...current, [key]: value }))}
-                                                    onBlur={() => setMissionDays((current) => ({ ...current, [key]: clampDayCount(current[key] ?? '۰', period.availableDays) }))}
+                                                    onBlur={() => setMissionDays((current) => ({ ...current, [key]: clampDayCount(current[key] ?? DEFAULT_MISSION_DAYS, period.availableDays) }))}
                                                     mode="integer"
-                                                    placeholder="۰"
+                                                    placeholder={DEFAULT_MISSION_DAYS}
                                                     placeholderTextColor={theme.textMuted}
                                                     style={[styles.stepperInput, { color: theme.text }]}
                                                     textAlign="center"
@@ -2217,37 +2437,123 @@ export default function GroupCalculationScreen() {
                             </View>
                         ) : null}
 
-                        {hasPayrollDailyWorkTime ? (
+                        {hasDailyWorkTime ? (
                             <View style={[styles.specificCalculationSection, { backgroundColor: theme.surfaceVariant, borderColor: theme.borderStrong }]}>
-                                <View style={styles.inputSectionHeader}>
-                                    <ThemedText type="smallBold" style={{ color: theme.text }}>ساعات کار روزانهٔ محاسبات مزدی</ThemedText>
-                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
-                                        برای {getSelectedCalculationTitles(PAYROLL_DAILY_WORK_KEYS)}.
-                                    </ThemedText>
-                                </View>
+                                <ThemedText type="smallBold" style={{ color: theme.text }}>ساعات کار روزانه</ThemedText>
                                 <DailyWorkTimeField
                                     value={dailyWorkTime}
                                     onChange={setDailyWorkTime}
+                                    maxHours={7}
+                                    maxMinutesAtMaxHour={20}
+                                    label={hasPayrollDailyWorkTime ? undefined : 'ساعات کاری روزانه'}
+                                    showFullTimeHint={hasPayrollDailyWorkTime}
                                 />
                             </View>
                         ) : null}
-                        {hasInsuranceDays ? (
-                            <View style={[styles.specificCalculationSection, { backgroundColor: theme.surfaceVariant, borderColor: theme.borderStrong }]}>
-                                <View style={styles.inputSectionHeader}>
-                                    <ThemedText type="smallBold" style={{ color: theme.text }}>روزهای بیمهٔ استحقاقی</ThemedText>
-                                    <ThemedText type="small" style={[styles.fieldHint, { color: theme.textSecondary }]}>
-                                        ساعات کاری روزانه فقط در محاسبهٔ تعداد روزهای بیمه استفاده می‌شود.
-                                    </ThemedText>
-                                </View>
-                                <DailyWorkTimeField
-                                    value={insuranceDailyWorkTime}
-                                    onChange={setInsuranceDailyWorkTime}
-                                    maxHours={8}
-                                    maxMinutesAtMaxHour={0}
-                                    label="ساعات کاری روزانه"
-                                    pickerTitle="انتخاب ساعات کاری روزانه"
-                                    showFullTimeHint={false}
+
+                        <View style={[styles.contractorAnalysisSection, { backgroundColor: theme.surfaceVariant, borderColor: theme.borderStrong }]}>
+                            <View style={styles.inputSectionHeader}>
+                                <ThemedText type="smallBold" style={{ color: theme.text }}>
+                                    آنالیز حقوق و مزایای ماهیانه برای پیمانکاران
+                                </ThemedText>
+                            </View>
+                            <ThemedText type="small" style={[styles.fieldGroupLabel, { color: theme.textSecondary }]}>
+                                تعداد کارگران
+                            </ThemedText>
+                            <View style={[styles.dayCountStepper, { backgroundColor: theme.surface, borderColor: theme.border, direction: 'ltr' }]}>
+                                <Pressable
+                                    onPress={() => setContractorWorkerCount(toPersianDigits(Math.max(1, contractorWorkerCountValue - 1)))}
+                                    disabled={!contractorWorkerCountIsSafe || contractorWorkerCountValue <= 1}
+                                    style={({ pressed }) => [
+                                        styles.stepperButton,
+                                        { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant },
+                                        (!contractorWorkerCountIsSafe || contractorWorkerCountValue <= 1) && styles.stepperButtonDisabled,
+                                    ]}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="کاهش تعداد کارگران"
+                                >
+                                    <MaterialCommunityIcons name="minus" size={20} color={theme.primary} />
+                                </Pressable>
+                                <NumericInputField
+                                    value={contractorWorkerCount}
+                                    onChangeText={setContractorWorkerCount}
+                                    mode="integer"
+                                    placeholder="۱"
+                                    placeholderTextColor={theme.textMuted}
+                                    style={[styles.stepperInput, { color: theme.text }]}
+                                    textAlign="center"
+                                    accessibilityLabel="تعداد کارگران پیمانکار"
                                 />
+                                <Pressable
+                                    onPress={() => setContractorWorkerCount(toPersianDigits(contractorWorkerCountIsSafe ? contractorWorkerCountValue + 1 : 1))}
+                                    disabled={contractorWorkerCountIsSafe && contractorWorkerCountValue >= Number.MAX_SAFE_INTEGER}
+                                    style={({ pressed }) => [
+                                        styles.stepperButton,
+                                        { backgroundColor: pressed ? theme.primaryContainer : theme.surfaceVariant },
+                                        contractorWorkerCountIsSafe && contractorWorkerCountValue >= Number.MAX_SAFE_INTEGER && styles.stepperButtonDisabled,
+                                    ]}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="افزایش تعداد کارگران"
+                                >
+                                    <MaterialCommunityIcons name="plus" size={20} color={theme.primary} />
+                                </Pressable>
+                            </View>
+                        </View>
+
+                        {hasInsuranceCalculation ? (
+                            <View style={styles.insuranceOptions}>
+                                <Pressable
+                                    accessibilityRole="checkbox"
+                                    accessibilityState={{ checked: isWorkerInsuranceExempt }}
+                                    onPress={() => setIsWorkerInsuranceExempt((value) => !value)}
+                                    style={[
+                                        styles.insuranceExemptionOption,
+                                        {
+                                            backgroundColor: theme.surfaceVariant,
+                                            borderColor: theme.border,
+                                        },
+                                    ]}
+                                >
+                                    <MaterialCommunityIcons
+                                        name={isWorkerInsuranceExempt ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                                        size={22}
+                                        color={isWorkerInsuranceExempt ? theme.primary : theme.textSecondary}
+                                    />
+                                    <View style={styles.insuranceExemptionText}>
+                                        <ThemedText type="smallBold" style={{ color: theme.text, fontSize: 13, lineHeight: 19 }}>
+                                            مشمول معافیت از پرداخت سهم بیمه ی کارگر هستم
+                                        </ThemedText>
+                                        <ThemedText type="small" style={[styles.insuranceExemptionDescription, { color: theme.textSecondary }]}>
+                                            ویژهٔ اسرا، آزادگان، جانبازان و فرزندان شهدا؛ فقط سهم ۷٪ کارگر معاف می‌شود.
+                                        </ThemedText>
+                                    </View>
+                                </Pressable>
+
+                                <View style={[styles.insuranceLegalBasis, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                    <ThemedText type="small" style={[styles.insuranceLegalSummary, { color: theme.textSecondary }]}>
+                                        معافیت از سهم ۷٪ بیمه ی کارگر برای گروه‌های مشمول قوانین ایثارگران.
+                                    </ThemedText>
+                                    <Pressable
+                                        accessibilityRole="button"
+                                        accessibilityState={{ expanded: isInsuranceLegalBasisVisible }}
+                                        onPress={() => setIsInsuranceLegalBasisVisible((visible) => !visible)}
+                                        style={styles.insuranceLegalToggle}
+                                    >
+                                        <ThemedText type="smallBold" style={[styles.insuranceLegalToggleLabel, { color: theme.primary }]}>
+                                            مبنای قانونی معافیت
+                                        </ThemedText>
+                                        <MaterialCommunityIcons
+                                            name={isInsuranceLegalBasisVisible ? 'chevron-up' : 'chevron-down'}
+                                            size={18}
+                                            color={theme.primary}
+                                        />
+                                    </Pressable>
+                                    {isInsuranceLegalBasisVisible ? (
+                                        <ThemedText type="small" style={[styles.insuranceLegalText, { color: theme.text }]}>
+                                            اسرا، آزادگان و جانبازان، براساس تبصرهٔ ۳ مادهٔ ۳۷ قانون جامع خدمات‌رسانی به ایثارگران مصوب ۱۳۹۱، و فرزندان شهید مطابق بند «ز» مادهٔ ۸۸ قانون برنامهٔ پنج‌سالهٔ ششم توسعه، که در بند ۲ قسمت «ت» مادهٔ ۳۱ قانون برنامهٔ پنج‌سالهٔ هفتم توسعه تنفیذ شده است، از پرداخت حق بیمهٔ سهم کارگر معاف هستند.
+                                        </ThemedText>
+                                    ) : null}
+                                </View>
                             </View>
                         ) : null}
 
@@ -2273,27 +2579,70 @@ export default function GroupCalculationScreen() {
                         <ThemedText type="smallBold" style={styles.resultsTitle}>نتایج</ThemedText>
                         <View style={[styles.pdfExportSection, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
                             {(() => {
-                                const wageTotalResults = results.filter((result) => (
-                                    result.unit === 'ریال'
-                                    && isWageCalculationKey(result.key)
-                                    && !WAGE_TOTAL_EXCLUDED_KEYS.includes(result.key)
-                                ));
+                                const wageTotalResults = getWageTotalResults(results);
                                 if (wageTotalResults.length === 0) return null;
 
-                                const totalHasErrors = wageTotalResults.some((result) => result.error);
+                                const wageTotalHasErrors = wageTotalResults.some((result) => result.error);
                                 const wageTotalAmount = wageTotalResults.reduce((total, result) => total + getResultAmount(result), 0);
+                                const employerInsuranceTotal = getEmployerInsuranceTotal(wageTotalResults);
+                                const workerCount = Number(normalizeDigits(contractorWorkerCount));
+                                const contractorTotals = calculateContractorMonthlyTotals(
+                                    wageTotalAmount,
+                                    employerInsuranceTotal,
+                                    wageTotalHasErrors,
+                                    calculatedPeriodDayCount,
+                                    workerCount,
+                                );
                                 const excludedBonusItems = getExcludedBonusItemTitles(results);
                                 return (
                                     <View style={styles.summaryBoxHeader}>
                                         <View style={[styles.summaryBoxContent, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
-                                            <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
-                                                جمع نتایج اقلام مزدی
-                                            </ThemedText>
-                                            <ThemedText type="smallBold" style={[styles.amountValue, { color: totalHasErrors ? theme.error : theme.primary }]}>
-                                                {totalHasErrors
-                                                    ? 'به‌دلیل خطای یکی از محاسبات، جمع کامل نیست.'
-                                                    : formatCurrency(wageTotalAmount)}
-                                            </ThemedText>
+                                            <View style={[styles.contractorTotalBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
+                                                    جمع حقوق و مزایای یک کارگر در بازهٔ انتخابی
+                                                </ThemedText>
+                                                <ThemedText type="smallBold" style={[styles.amountValue, { color: contractorTotals.wageTotalError ? theme.error : theme.primary }]}>
+                                                    {contractorTotals.wageTotalError
+                                                        ? contractorTotals.wageTotalError
+                                                        : formatCurrency(wageTotalAmount)}
+                                                </ThemedText>
+                                            </View>
+                                            <View style={[styles.contractorTotalBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
+                                                    هزینهٔ ماهانهٔ ۳۰ روز برای {contractorTotals.workerCountIsValid ? toPersianDigits(workerCount) : 'تعداد نامعتبر'} کارگر
+                                                </ThemedText>
+                                                <ThemedText
+                                                    type="smallBold"
+                                                    style={[
+                                                        styles.amountValue,
+                                                        { color: contractorTotals.contractorTotal30Error ? theme.error : theme.primary },
+                                                    ]}
+                                                >
+                                                    {contractorTotals.contractorTotal30Error
+                                                        ?? formatCurrency(contractorTotals.contractorTotal30)}
+                                                </ThemedText>
+                                                <ThemedText type="small" style={[styles.contractorInsuranceNote, { color: theme.textSecondary }]}>
+                                                    شامل سهم ۲۳٪ بیمهٔ کارفرما: {formatCurrency(contractorTotals.employerInsurance30)}
+                                                </ThemedText>
+                                            </View>
+                                            <View style={[styles.contractorTotalBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
+                                                    هزینهٔ ماهانهٔ ۳۱ روز برای {contractorTotals.workerCountIsValid ? toPersianDigits(workerCount) : 'تعداد نامعتبر'} کارگر
+                                                </ThemedText>
+                                                <ThemedText
+                                                    type="smallBold"
+                                                    style={[
+                                                        styles.amountValue,
+                                                        { color: contractorTotals.contractorTotalError ? theme.error : theme.primary },
+                                                    ]}
+                                                >
+                                                    {contractorTotals.contractorTotalError
+                                                        ?? formatCurrency(contractorTotals.contractorTotal)}
+                                                </ThemedText>
+                                                <ThemedText type="small" style={[styles.contractorInsuranceNote, { color: theme.textSecondary }]}>
+                                                    شامل سهم ۲۳٪ بیمهٔ کارفرما: {formatCurrency(contractorTotals.employerInsurance31)}
+                                                </ThemedText>
+                                            </View>
                                             {excludedBonusItems.length > 0 ? (
                                                 <ThemedText type="small" style={[styles.wageTotalNote, { color: theme.textSecondary }]}>
                                                     این جمع شامل {excludedBonusItems.map((title) => `«${title}»`).join(' و ')} نمی‌شود.
@@ -2332,56 +2681,45 @@ export default function GroupCalculationScreen() {
                                 </Pressable>
                             </View>
                             <View style={styles.pdfActions}>
-                                {Platform.OS !== 'web' ? (
-                                    <View style={styles.pdfActionItem}>
-                                        <Button
-                                            mode="outlined"
-                                            icon="eye-outline"
-                                            onPress={() => void handleExportPdf('preview')}
-                                            loading={pdfAction === 'preview'}
-                                            disabled={pdfAction !== null}
-                                            textColor={theme.primary}
-                                            style={[styles.pdfActionButton, { borderColor: theme.borderStrong }]}
-                                            contentStyle={styles.pdfActionButtonContent}
-                                            labelStyle={styles.pdfActionButtonLabel}
-                                        >
-                                            پیش‌نمایش فیش PDF
-                                        </Button>
-                                    </View>
-                                ) : null}
                                 <View style={styles.pdfActionItem}>
-                                    <Button
-                                        mode="contained"
-                                        icon={Platform.OS === 'web' ? 'printer' : 'share-variant'}
-                                        onPress={() => void handleExportPdf()}
+                                    <PdfActionButton
+                                        label="پیش‌نمایش"
+                                        icon="eye-outline"
+                                        onPress={() => void handleExportPdf('preview')}
+                                        loading={pdfAction === 'preview'}
+                                        disabled={pdfAction !== null}
+                                        variant="outlined"
+                                        primaryColor={theme.primary}
+                                        surfaceColor={theme.surface}
+                                        borderColor={theme.borderStrong}
+                                    />
+                                </View>
+                                <View style={styles.pdfActionItem}>
+                                    <PdfActionButton
+                                        label="اشتراک‌گذاری"
+                                        icon="share-variant"
+                                        onPress={() => void handleExportPdf('share')}
                                         loading={pdfAction === 'share'}
                                         disabled={pdfAction !== null}
-                                        buttonColor={theme.primary}
-                                        textColor={theme.surface}
-                                        style={styles.pdfActionButton}
-                                        contentStyle={styles.pdfActionButtonContent}
-                                        labelStyle={styles.pdfActionButtonLabel}
-                                    >
-                                        {Platform.OS === 'web' ? 'چاپ یا ذخیره به‌صورت PDF' : 'اشتراک‌گذاری فیش PDF'}
-                                    </Button>
+                                        variant="contained"
+                                        primaryColor={theme.primary}
+                                        surfaceColor={theme.surface}
+                                        borderColor={theme.borderStrong}
+                                    />
                                 </View>
-                                {Platform.OS !== 'web' ? (
-                                    <View style={styles.pdfActionItem}>
-                                        <Button
-                                            mode="outlined"
-                                            icon="download"
-                                            onPress={() => void handleExportPdf('save')}
-                                            loading={pdfAction === 'save'}
-                                            disabled={pdfAction !== null}
-                                            textColor={theme.primary}
-                                            style={[styles.pdfActionButton, { borderColor: theme.borderStrong }]}
-                                            contentStyle={styles.pdfActionButtonContent}
-                                            labelStyle={styles.pdfActionButtonLabel}
-                                        >
-                                            {Platform.OS === 'ios' ? 'ذخیره در Files' : 'ذخیره در Downloads'}
-                                        </Button>
-                                    </View>
-                                ) : null}
+                                <View style={styles.pdfActionItem}>
+                                    <PdfActionButton
+                                        label="ذخیره"
+                                        icon="download"
+                                        onPress={() => void handleExportPdf('save')}
+                                        loading={pdfAction === 'save'}
+                                        disabled={pdfAction !== null}
+                                        variant="outlined"
+                                        primaryColor={theme.primary}
+                                        surfaceColor={theme.surface}
+                                        borderColor={theme.borderStrong}
+                                    />
+                                </View>
                             </View>
                         </View>
                         {results.map((result) => {
@@ -2412,6 +2750,15 @@ export default function GroupCalculationScreen() {
                                 : toPersianDigits(Number.isInteger(result.value) ? String(result.value) : result.value.toFixed(2));
                             const amountText = result.error ?? (result.unit === 'ریال' ? formattedValue : `${formattedValue} ${result.unit}`);
                             const totalPeriodEntitlement = result.key === 'entitled-seniority' ? getResultAmount(result) : 0;
+                            const hasInsuranceSummary = isInsuranceCalculationKey(result.key) && !result.error;
+                            const roundedInsuranceBaseAmount = hasInsuranceSummary
+                                ? Math.round(getInsuranceBaseAmount(result))
+                                : 0;
+                            const workerInsuranceAmount = isWorkerInsuranceExempt
+                                ? 0
+                                : Math.round(roundedInsuranceBaseAmount * 0.07);
+                            const employerInsuranceAmount = Math.round(roundedInsuranceBaseAmount * 0.23);
+                            const finalClaimAmount = roundedInsuranceBaseAmount - workerInsuranceAmount;
                             const summaryLabelText = result.key === 'monthly-shift-work'
                                 ? `${RESULT_SUMMARY_LABELS[result.key]} (${SHIFT_TYPE_OPTIONS.find((option) => option.value === shiftType)?.label ?? 'صبح و عصر'})`
                                 : result.key === 'entitled-seniority' && workshopType === 'classified'
@@ -2445,31 +2792,85 @@ export default function GroupCalculationScreen() {
                                             شرح مبالغ، روزها و ضرایب مؤثر در نتیجه در جزئیات دوره‌های همین کارت آمده است.
                                         </HiddenCalculationGuide>
 
-                                        {result.key === 'entitled-seniority' && !result.error ? (
-                                            <View style={styles.summaryBoxHeader}>
-                                                <View style={[styles.summaryBoxContent, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
-                                                    <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
-                                                        {workshopType === 'classified'
-                                                            ? 'پایه سنوات استحقاقی کل دوره گروه شغلی'
-                                                            : 'پایه سنوات استحقاقی کل دوره'}
+                                        {hasInsuranceSummary ? (
+                                            <View style={[styles.insuranceSummary, { borderColor: theme.border }]}>
+                                                <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.surface }]}>
+                                                    <ThemedText type="smallBold" style={[styles.insuranceSummaryLabel, { color: theme.textSecondary }]}>
+                                                        {result.key === 'entitled-seniority'
+                                                            ? workshopType === 'classified'
+                                                                ? 'پایه سنوات استحقاقی کل دوره گروه شغلی'
+                                                                : 'پایه سنوات استحقاقی کل دوره'
+                                                            : summaryLabelText}
                                                     </ThemedText>
-                                                    <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>
-                                                        {formatCurrency(totalPeriodEntitlement)}
+                                                    <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, { color: theme.text }]}>
+                                                        {result.key === 'entitled-seniority'
+                                                            ? formatCurrency(totalPeriodEntitlement)
+                                                            : amountText}
+                                                    </ThemedText>
+                                                </View>
+                                                {result.key === 'entitled-seniority' ? (
+                                                    <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.surface }]}>
+                                                        <ThemedText type="small" style={[styles.insuranceSummaryLabel, { color: theme.textSecondary }]}>
+                                                            {summaryLabelText}
+                                                        </ThemedText>
+                                                        <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, { color: theme.text }]}>
+                                                            {amountText}
+                                                        </ThemedText>
+                                                    </View>
+                                                ) : null}
+                                                <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.surface }]}>
+                                                    <ThemedText type="small" style={[styles.insuranceSummaryLabel, { color: theme.textSecondary }]}>
+                                                        سهم بیمهٔ کارگر (۷٪{isWorkerInsuranceExempt ? '، معاف' : ''})
+                                                    </ThemedText>
+                                                    <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, { color: theme.text }]}>
+                                                        {formatCurrency(workerInsuranceAmount)}
+                                                    </ThemedText>
+                                                </View>
+                                                <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.surface }]}>
+                                                    <ThemedText type="small" style={[styles.insuranceSummaryLabel, { color: theme.textSecondary }]}>
+                                                        سهم بیمهٔ کارفرما (۲۳٪)
+                                                    </ThemedText>
+                                                    <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, { color: theme.text }]}>
+                                                        {formatCurrency(employerInsuranceAmount)}
+                                                    </ThemedText>
+                                                </View>
+                                                <View style={[styles.insuranceSummaryRow, styles.insuranceSummaryFinalRow, { backgroundColor: theme.primaryContainer }]}>
+                                                    <ThemedText type="smallBold" style={[styles.insuranceSummaryLabel, { color: theme.textSecondary }]}>
+                                                        مبلغ پس از کسر سهم بیمهٔ کارگر
+                                                    </ThemedText>
+                                                    <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, { color: theme.primary }]}>
+                                                        {formatCurrency(finalClaimAmount)}
                                                     </ThemedText>
                                                 </View>
                                             </View>
-                                        ) : null}
-
-                                        <View style={styles.summaryBoxHeader}>
-                                            <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                                <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
-                                                    {summaryLabelText}
-                                                </ThemedText>
-                                                <ThemedText type="largeTitle" style={[styles.amountValue, { color: result.error ? theme.error : theme.primary }]}>
-                                                    {amountText}
-                                                </ThemedText>
-                                            </View>
-                                        </View>
+                                        ) : (
+                                            <>
+                                                {result.key === 'entitled-seniority' ? (
+                                                    <View style={styles.summaryBoxHeader}>
+                                                        <View style={[styles.summaryBoxContent, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
+                                                            <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
+                                                                {workshopType === 'classified'
+                                                                    ? 'پایه سنوات استحقاقی کل دوره گروه شغلی'
+                                                                    : 'پایه سنوات استحقاقی کل دوره'}
+                                                            </ThemedText>
+                                                            <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>
+                                                                {formatCurrency(totalPeriodEntitlement)}
+                                                            </ThemedText>
+                                                        </View>
+                                                    </View>
+                                                ) : null}
+                                                <View style={styles.summaryBoxHeader}>
+                                                    <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                        <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>
+                                                            {summaryLabelText}
+                                                        </ThemedText>
+                                                        <ThemedText type="largeTitle" style={[styles.amountValue, { color: result.error ? theme.error : theme.primary }]}>
+                                                            {amountText}
+                                                        </ThemedText>
+                                                    </View>
+                                                </View>
+                                            </>
+                                        )}
 
                                         <View style={styles.breakdownSectionHeader}>
                                             <ThemedText type="smallBold" style={[styles.breakdownSectionTitle, { color: theme.text }]}>
@@ -2530,7 +2931,9 @@ export default function GroupCalculationScreen() {
                                                             </View>
                                                         ) : null}
                                                         {detailBreakdown.map((entry, index) => {
-                                                            const detailRecord = isRecord(entry) ? entry : null;
+                                                            const detailRecord = isRecord(entry)
+                                                                ? getInsurancePeriodDetailRecord(result.key, entry)
+                                                                : null;
                                                             const title = detailRecord
                                                                 ? formatBreakdownTitle(result.key, detailRecord, index, startDate, endDate)
                                                                 : `${getResultTitle(result, workshopType)} ${toPersianDigits(index + 1)}`;
@@ -2680,6 +3083,7 @@ const styles = StyleSheet.create({
     calculateButton: { borderRadius: 10 },
     calculateButtonLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
     inputSection: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
+    contractorAnalysisSection: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
     employeeInfoSection: { gap: Spacing.two, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.three },
     employeeInfoHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
     employeeInfoIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
@@ -2699,8 +3103,6 @@ const styles = StyleSheet.create({
     fieldGroupLabel: { fontSize: 11, lineHeight: 18 },
     valuePicker: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, paddingVertical: Spacing.two, borderRadius: 8, borderWidth: 1 },
     valuePickerText: { flex: 1, fontSize: 13, fontFamily: 'AppFont-Regular' },
-    daysCoverageBox: { gap: Spacing.one, borderRadius: 12, borderWidth: 1, paddingHorizontal: Spacing.two, paddingVertical: Spacing.two },
-    daysCoverageCheckRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
     periodInputCard: { gap: Spacing.one, borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
     periodInputHeader: { gap: Spacing.half },
     fieldHint: { fontSize: 11, lineHeight: 20, fontFamily: 'AppFont-Regular' },
@@ -2720,14 +3122,23 @@ const styles = StyleSheet.create({
     groupPicker: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.two, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
     results: { gap: Spacing.two },
     pdfExportSection: { gap: Spacing.three, padding: Spacing.three, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth },
+    insuranceOptions: { gap: Spacing.one },
+    insuranceExemptionOption: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.two, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12 },
+    insuranceExemptionText: { flex: 1, gap: Spacing.half },
+    insuranceExemptionDescription: { fontSize: 12 },
+    insuranceLegalBasis: { gap: Spacing.one, padding: Spacing.two, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12 },
+    insuranceLegalSummary: { fontSize: 12, lineHeight: 18 },
+    insuranceLegalToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.one, paddingVertical: Spacing.half },
+    insuranceLegalToggleLabel: { fontSize: 13 },
+    insuranceLegalText: { fontSize: 12, lineHeight: 20 },
     pdfExportHeader: { gap: Spacing.half },
     pdfDetailsOption: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, paddingEnd: Spacing.two },
     pdfDetailsLabel: { flex: 1, gap: Spacing.half, paddingVertical: Spacing.two },
-    pdfActions: { gap: Spacing.two },
-    pdfActionItem: {},
-    pdfActionButton: { borderRadius: 10 },
-    pdfActionButtonContent: { minHeight: 48 },
-    pdfActionButtonLabel: { fontFamily: 'AppFont-Medium', fontSize: 13, lineHeight: 20 },
+    pdfActions: { flexDirection: 'row', gap: Spacing.one },
+    pdfActionItem: { flex: 1, minWidth: 0 },
+    pdfActionButton: { minHeight: 46, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', paddingHorizontal: Spacing.half },
+    pdfActionButtonContent: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.half },
+    pdfActionButtonLabel: { flexShrink: 1, minWidth: 0, fontSize: 10, lineHeight: 16, textAlign: 'center' },
     wageTotalNote: { fontSize: 11, lineHeight: 16, textAlign: 'center' },
     resultCard: { borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth },
     resultContent: { gap: Spacing.two, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
@@ -2740,8 +3151,15 @@ const styles = StyleSheet.create({
     resultToggleLabel: { fontSize: 12 },
     summaryBoxHeader: { alignItems: 'center', marginBottom: Spacing.one },
     summaryBoxContent: { width: '100%', borderRadius: 12, borderWidth: 1, padding: Spacing.two, gap: Spacing.one, alignItems: 'center' },
+    contractorTotalBox: { width: '100%', borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two, gap: Spacing.one, alignItems: 'center' },
+    contractorInsuranceNote: { fontSize: 10, textAlign: 'center' },
     summaryLabel: { fontSize: 11 },
     amountValue: { fontSize: 18 },
+    insuranceSummary: { width: '100%', overflow: 'hidden', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth },
+    insuranceSummaryRow: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
+    insuranceSummaryFinalRow: { borderTopWidth: StyleSheet.hairlineWidth },
+    insuranceSummaryLabel: { flex: 1, fontSize: 11 },
+    insuranceSummaryValue: { fontSize: 12, textAlign: 'left' },
     breakdownSection: { gap: Spacing.two },
     breakdownSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.one, paddingVertical: Spacing.one, gap: Spacing.one },
     breakdownSectionTitle: { fontSize: 13, fontFamily: 'AppFont-Bold' },
@@ -2754,7 +3172,7 @@ const styles = StyleSheet.create({
     breakdownDetailGrid: { gap: Spacing.one },
     breakdownDetailBox: { overflow: 'hidden', borderRadius: 8, borderWidth: 1, padding: 0, gap: Spacing.two, alignItems: 'stretch' },
     detailLabelBand: { minHeight: 30, justifyContent: 'center', paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
-    detailLabel: { fontSize: 11, lineHeight: 16, textAlign: 'center' },
-    detailValue: { paddingHorizontal: Spacing.two, paddingBottom: Spacing.two, fontSize: 13, lineHeight: 19, textAlign: 'center' },
+    detailLabel: { fontSize: 12, lineHeight: 16, textAlign: 'center' },
+    detailValue: { paddingHorizontal: Spacing.two, paddingBottom: Spacing.two, fontSize: 12, lineHeight: 19, textAlign: 'center' },
     detailContext: { textAlign: 'center' },
 });

@@ -415,11 +415,11 @@ const styles = StyleSheet.create({
     detailBox: {
         width: '100%',
         alignItems: 'center',
-        gap: Spacing.half,
+        gap: Spacing.one,
         padding: Spacing.one,
         borderRadius: 8,
         borderWidth: 1,
     },
-    detailLabel: { fontSize: 10 },
+    detailLabel: { fontSize: 12 },
     detailValue: { fontSize: 12 },
 });

@@ -50,6 +50,8 @@ export default function EntitledSeniorityScreen() {
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [result, setResult] = useState<EntitledSeniorityCalculationResult | null>(null);
+    const [isWorkerInsuranceExempt, setIsWorkerInsuranceExempt] = useState(false);
+    const [isLegalBasisVisible, setIsLegalBasisVisible] = useState(false);
     const [dailyWorkTime, setDailyWorkTime] = useState('07:20');
     const [showDetails, setShowDetails] = useState(false);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
@@ -186,6 +188,12 @@ export default function EntitledSeniorityScreen() {
         (total, item) => total + item.daysCovered * item.entitlement,
         0,
     ) ?? 0;
+    const roundedTotalPeriodEntitlement = Math.round(totalPeriodEntitlement);
+    const workerInsuranceAmount = isWorkerInsuranceExempt
+        ? 0
+        : Math.round(roundedTotalPeriodEntitlement * 0.07);
+    const employerInsuranceAmount = Math.round(roundedTotalPeriodEntitlement * 0.23);
+    const finalClaimAmount = roundedTotalPeriodEntitlement - workerInsuranceAmount;
 
     return (
         <ThemedView style={styles.container}>
@@ -224,6 +232,56 @@ export default function EntitledSeniorityScreen() {
                             <SettlementThrough1391Field checked={settledThrough1391} enabled={canUseSettlementPath} onChange={setSettledThrough1391} />
                             <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
 
+                            <Pressable
+                                accessibilityRole="checkbox"
+                                accessibilityState={{ checked: isWorkerInsuranceExempt }}
+                                onPress={() => setIsWorkerInsuranceExempt((value) => !value)}
+                                style={[
+                                    styles.insuranceExemptionOption,
+                                    { backgroundColor: theme.surfaceVariant, borderColor: theme.border },
+                                ]}
+                            >
+                                <MaterialCommunityIcons
+                                    name={isWorkerInsuranceExempt ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                                    size={22}
+                                    color={isWorkerInsuranceExempt ? theme.primary : theme.textSecondary}
+                                />
+                                <View style={styles.insuranceExemptionText}>
+                                    <ThemedText type="smallBold" style={{ color: theme.text, fontSize: 13, lineHeight: 19 }}>
+                                        مشمول معافیت از پرداخت سهم بیمه ی کارگر هستم
+                                    </ThemedText>
+                                    <ThemedText type="small" style={[styles.insuranceExemptionDescription, { color: theme.textSecondary }]}>
+                                        ویژهٔ اسرا، آزادگان، جانبازان و فرزندان شهدا
+                                    </ThemedText>
+                                </View>
+                            </Pressable>
+
+                            <View style={[styles.insuranceLegalBasis, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                <ThemedText type="small" style={[styles.insuranceLegalSummary, { color: theme.textSecondary }]}>
+                                    معافیت از سهم ۷٪ بیمه ی کارگر برای گروه‌های مشمول قوانین ایثارگران.
+                                </ThemedText>
+                                <Pressable
+                                    accessibilityRole="button"
+                                    accessibilityState={{ expanded: isLegalBasisVisible }}
+                                    onPress={() => setIsLegalBasisVisible((visible) => !visible)}
+                                    style={styles.insuranceLegalToggle}
+                                >
+                                    <ThemedText type="smallBold" style={[styles.insuranceLegalToggleLabel, { color: theme.primary }]}>
+                                        مبنای قانونی معافیت
+                                    </ThemedText>
+                                    <MaterialCommunityIcons
+                                        name={isLegalBasisVisible ? 'chevron-up' : 'chevron-down'}
+                                        size={18}
+                                        color={theme.primary}
+                                    />
+                                </Pressable>
+                                {isLegalBasisVisible ? (
+                                    <ThemedText type="small" style={[styles.insuranceLegalText, { color: theme.text }]}>
+                                        اسرا، آزادگان و جانبازان، براساس تبصرهٔ ۳ مادهٔ ۳۷ قانون جامع خدمات‌رسانی به ایثارگران مصوب ۱۳۹۱، و فرزندان شهید مطابق بند «ز» مادهٔ ۸۸ قانون برنامهٔ پنج‌سالهٔ ششم توسعه، که در بند ۲ قسمت «ت» مادهٔ ۳۱ قانون برنامهٔ پنج‌سالهٔ هفتم توسعه تنفیذ شده است، از پرداخت حق بیمهٔ سهم کارگر معاف هستند.
+                                    </ThemedText>
+                                ) : null}
+                            </View>
+
                             <View style={styles.actionsGroup}>
                                 <Button mode="contained" onPress={handleCalculate} icon="cash-plus" buttonColor={theme.primary} textColor={theme.surface} style={styles.actionButton} labelStyle={styles.actionLabel} loading={isLoading} disabled={isLoading}>محاسبه</Button>
                             </View>
@@ -252,12 +310,38 @@ export default function EntitledSeniorityScreen() {
                                             </View>
                                         ))}
                                     </View>
-                                    <View style={[styles.periodTotalBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
-                                        <ThemedText type="small" style={[styles.finalYearValueLabel, { color: theme.textSecondary }]}>
+                                </View>
+                                <View style={styles.insuranceSummary}>
+                                    <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                        <ThemedText type="small" style={[styles.insuranceSummaryLabel, { color: theme.textSecondary }]}>
                                             پایه سنوات استحقاقی کل دوره
                                         </ThemedText>
-                                        <ThemedText type="smallBold" style={[styles.finalYearAmountValue, { color: theme.primary }]}>
-                                            {formatCurrency(totalPeriodEntitlement)}
+                                        <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, { color: theme.text }]}>
+                                            {formatCurrency(roundedTotalPeriodEntitlement)}
+                                        </ThemedText>
+                                    </View>
+                                    <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                        <ThemedText type="small" style={[styles.insuranceSummaryLabel, { color: theme.textSecondary }]}>
+                                            سهم بیمه ی کارگر از پایه سنوات استحقاقی (۷٪{isWorkerInsuranceExempt ? '، معاف' : ''})
+                                        </ThemedText>
+                                        <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, { color: theme.text }]}>
+                                            {formatCurrency(workerInsuranceAmount)}
+                                        </ThemedText>
+                                    </View>
+                                    <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                        <ThemedText type="small" style={[styles.insuranceSummaryLabel, { color: theme.textSecondary }]}>
+                                            سهم بیمه ی کارفرما از پایه سنوات استحقاقی (۲۳٪)
+                                        </ThemedText>
+                                        <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, { color: theme.text }]}>
+                                            {formatCurrency(employerInsuranceAmount)}
+                                        </ThemedText>
+                                    </View>
+                                    <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
+                                        <ThemedText type="smallBold" style={[styles.insuranceSummaryLabel, styles.insuranceSummaryEmphasisLabel, { color: theme.textSecondary }]}>
+                                            پایه سنوات استحقاقی پس از کسر سهم بیمه ی کارگر
+                                        </ThemedText>
+                                        <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, styles.insuranceSummaryEmphasisValue, { color: theme.primary }]}>
+                                            {formatCurrency(finalClaimAmount)}
                                         </ThemedText>
                                     </View>
                                 </View>
@@ -306,6 +390,22 @@ export default function EntitledSeniorityScreen() {
                                                         </ThemedText>
                                                         <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{formatCurrency(item.entitlement)}</ThemedText>
                                                     </View>
+                                                    <View style={[styles.detailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                                        <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                                                            پایه سنوات استحقاقی این بازه
+                                                        </ThemedText>
+                                                        <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>
+                                                            {formatCurrency(item.entitlement * item.daysCovered)}
+                                                        </ThemedText>
+                                                    </View>
+                                                    <View style={[styles.detailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                                        <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                                                            حق بیمه پرداختی به سازمان تامین اجتماعی
+                                                        </ThemedText>
+                                                        <ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>
+                                                            {formatCurrency(Math.round(item.entitlement * item.daysCovered * 0.3))}
+                                                        </ThemedText>
+                                                    </View>
                                                 </View>
                                             </View>
                                         ))}
@@ -344,6 +444,14 @@ const styles = StyleSheet.create({
     optionButton: { flex: 1, minHeight: 44, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.two },
     checkRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.two },
     checkText: { flex: 1, gap: Spacing.one },
+    insuranceExemptionOption: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.two, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12 },
+    insuranceExemptionText: { flex: 1, gap: Spacing.half },
+    insuranceExemptionDescription: { fontSize: 12 },
+    insuranceLegalBasis: { gap: Spacing.one, padding: Spacing.two, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12 },
+    insuranceLegalSummary: { fontSize: 12, lineHeight: 18 },
+    insuranceLegalToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.one, paddingVertical: Spacing.half },
+    insuranceLegalToggleLabel: { fontSize: 13 },
+    insuranceLegalText: { fontSize: 12, lineHeight: 20 },
     actionsGroup: { flexDirection: 'row', gap: Spacing.two },
     actionButton: { flex: 1, borderRadius: 10 },
     actionLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
@@ -354,9 +462,23 @@ const styles = StyleSheet.create({
     summaryBox: { width: '100%', alignItems: 'center', gap: Spacing.one, padding: Spacing.two, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth },
     summaryLabel: { fontSize: 11, lineHeight: 16, fontFamily: 'AppFont-Medium', textAlign: 'center' },
     amountValue: { fontSize: 18, lineHeight: 26, fontFamily: 'AppFont-Bold' },
+    insuranceSummary: { width: '100%', gap: Spacing.one },
+    insuranceSummaryRow: {
+        minHeight: 52,
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: Spacing.one,
+        paddingHorizontal: Spacing.three,
+        paddingVertical: Spacing.two,
+        borderRadius: 12,
+        borderWidth: 1,
+    },
+    insuranceSummaryLabel: { textAlign: 'center', fontSize: 12 },
+    insuranceSummaryValue: { textAlign: 'center', fontSize: 12 },
+    insuranceSummaryEmphasisLabel: { fontSize: 13 },
+    insuranceSummaryEmphasisValue: { fontSize: 14 },
     finalYearAmounts: { width: '100%', gap: Spacing.one },
     finalYearAmount: { width: '100%', alignItems: 'center', gap: Spacing.half, padding: Spacing.two, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
-    periodTotalBox: { width: '100%', alignItems: 'center', gap: Spacing.half, marginTop: Spacing.one, padding: Spacing.two, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
     finalYearDateLabel: { fontSize: 10, lineHeight: 16, fontFamily: 'AppFont-Medium' },
     finalYearDate: { fontSize: 12, lineHeight: 18, fontFamily: 'AppFont-Bold', textAlign: 'center' },
     finalYearValueRow: { width: '100%', flexDirection: 'column', gap: Spacing.one, marginTop: Spacing.one },
@@ -373,8 +495,8 @@ const styles = StyleSheet.create({
     breakdownItemHeaderRow: { paddingTop: 2, paddingBottom: 2, marginBottom: 2, borderBottomWidth: StyleSheet.hairlineWidth },
     breakdownItemTitle: { fontSize: 12, lineHeight: 18, fontFamily: 'AppFont-Bold' },
     detailGrid: { gap: Spacing.one },
-    detailBox: { alignItems: 'center', gap: Spacing.half, padding: Spacing.one, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
-    detailLabel: { fontSize: 10, lineHeight: 16, fontFamily: 'AppFont-Regular' },
+    detailBox: { alignItems: 'center', gap: Spacing.one, padding: Spacing.one, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
+    detailLabel: { fontSize: 12, lineHeight: 16, fontFamily: 'AppFont-Regular' },
     detailValue: { fontSize: 12, lineHeight: 18, fontFamily: 'AppFont-Bold' },
     dateValue: { textAlign: 'center' },
 });

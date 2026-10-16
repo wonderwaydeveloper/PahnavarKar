@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
     summaryLabel: { fontSize: 10, lineHeight: 16, fontFamily: 'AppFont-Medium' },
     amountValue: { fontSize: 22, lineHeight: 30, fontFamily: 'AppFont-Bold' },
     breakdownGrid: { gap: Spacing.one },
-    detailBox: { alignItems: 'center', gap: Spacing.half, padding: Spacing.one, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
-    detailLabel: { fontSize: 10 },
+    detailBox: { alignItems: 'center', gap: Spacing.one, padding: Spacing.one, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth },
+    detailLabel: { fontSize: 12 },
     detailValue: { fontSize: 12 },
 });

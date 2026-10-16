@@ -2,7 +2,7 @@ import { useAppContext } from '@/hooks/use-app-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGlobalSearchParams, usePathname, useRouter } from 'expo-router';
 import { type ReactNode } from 'react';
-import { Pressable, useWindowDimensions, View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { Appbar } from 'react-native-paper';
 
 import { ThemedText } from '@/components/themed-text';
@@ -63,7 +63,7 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
       case 'yearly-info':
         return { title: 'اطلاعات جامع مزدی از سال ۱۳۶۹ تاکنون' };
       case 'group-calculation':
-        return { title: 'محاسبهٔ جامع' };
+        return { title: 'محاسبات جامع' };
       case 'base-salary':
         return { title: 'حقوق پایه' };
       case 'family-allowance':
@@ -137,7 +137,6 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
     ? rawHeaderTitle
     : routeTitle;
   const activeTool = TOOL_DEFINITIONS.find((tool) => tool.key === actualRouteName);
-  const showHomeLogo = actualRouteName === 'home' || actualRouteName === 'index';
   const showBackButton = ['edit-profile', 'settings', 'support', 'about-us', 'app-info', 'yearly-info', 'group-calculation', 'base-salary', 'family-allowance', 'housing-allowance', 'monthly-allowance', 'minimum-bonus', 'maximum-bonus', 'bonus-entitlement', 'spousal-allowance', 'monthly-shift-work', 'overtime-entitlement', 'night-shift-entitlement', 'insurance-days-entitlement', 'unemployment-insurance-entitlement', 'unemployment-insurance-allowance', 'unused-leave-entitlement', 'unused-leave-wage', 'suspension-wage', 'end-of-service-years', 'entitled-seniority', 'mission-allowance', 'friday-work', 'official-holiday-work', 'official-holidays-in-range', 'illegal-foreign-worker-penalty', 'article-87', 'social-security-premium-ceiling', 'ordinary-work-hours', 'hazardous-work-hours', 'young-worker-work-hours', 'category', 'title', 'chapter', 'topic', 'article'].includes(actualRouteName);
   const shouldAlignSecondaryHeaderStart = showBackButton && !centerContent;
 
@@ -232,34 +231,6 @@ export function AppHeader({ route, formatYear, selectedYear, centerContent }: Ap
           </View>
         )}
       </View>
-      {showHomeLogo ? (
-        <Pressable
-          onPress={() => router.push('/group-calculation' as never)}
-          accessibilityRole="button"
-          accessibilityLabel="محاسبهٔ جامع"
-          style={({ pressed }) => ({
-            minHeight: 40,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-            marginHorizontal: 4,
-            paddingHorizontal: 8,
-            borderWidth: 1,
-            borderColor: titleColor,
-            borderRadius: 20,
-            backgroundColor: 'transparent',
-            opacity: pressed ? 0.7 : 1,
-          })}
-        >
-          <MaterialCommunityIcons name="calculator-variant-outline" color={titleColor} size={22} />
-          <ThemedText
-            numberOfLines={1}
-            style={{ color: titleColor, fontFamily: 'AppFont-Medium', fontSize: 12 }}
-          >
-            محاسبهٔ جامع
-          </ThemedText>
-        </Pressable>
-      ) : null}
     </Appbar.Header>
   );
 }

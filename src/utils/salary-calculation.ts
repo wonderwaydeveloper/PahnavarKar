@@ -2714,12 +2714,18 @@ export function calculateInsuranceDaysEntitlementFromPeriodData(
     endDate: ParsedDateInput,
     dailyWorkHours: number,
 ): InsuranceDaysEntitlementCalculationResult {
-    if (compareParsedDates(startDate, endDate) > 0 || !Number.isFinite(dailyWorkHours) || dailyWorkHours <= 0) {
+    const maximumDailyWorkHours = 7 + 20 / 60;
+    if (
+        compareParsedDates(startDate, endDate) > 0
+        || !Number.isFinite(dailyWorkHours)
+        || dailyWorkHours <= 0
+        || dailyWorkHours > maximumDailyWorkHours
+    ) {
         return { totalDays: 0, breakdown: [] };
     }
 
     const breakdown: InsuranceDaysEntitlementBreakdownItem[] = [];
-    const thresholdHours = 7.33;
+    const thresholdHours = maximumDailyWorkHours;
     const monthCursor = { year: startDate.year, month: startDate.month };
     const endCursor = { year: endDate.year, month: endDate.month };
 

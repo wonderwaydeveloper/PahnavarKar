@@ -803,7 +803,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.half,
+    gap: Spacing.one,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.two,
     borderRadius: Radius.md,

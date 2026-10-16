@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { jalaaliMonthLength, toJalaali } from 'jalaali-js';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Card, Checkbox, Menu, Snackbar } from 'react-native-paper';
+import { Card, Menu, Snackbar } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontAwareButton as Button, FontAwareMenuItem } from '@/components/font-aware-paper';
@@ -50,7 +50,6 @@ export default function FamilyAllowanceScreen() {
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
-    const [includeDaysCovered, setIncludeDaysCovered] = useState(true);
     const [result, setResult] = useState<FamilyAllowanceCalculationResult | null>(null);
     const [dailyWorkTime, setDailyWorkTime] = useState('07:20');
     const [snackbarVisible, setSnackbarVisible] = useState(false);
@@ -205,7 +204,6 @@ export default function FamilyAllowanceScreen() {
             parsedEnd,
             periodBuckets,
             childrenCount,
-            includeDaysCovered,
         );
 
         if (calculation.breakdown.length === 0) {
@@ -307,27 +305,6 @@ export default function FamilyAllowanceScreen() {
                                 </Menu>
                             </View>
 
-                            <View style={[styles.optionBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
-                                <View style={styles.optionRow}>
-                                    <View style={styles.checkboxRow}>
-                                        <Checkbox
-                                            status={includeDaysCovered ? 'checked' : 'unchecked'}
-                                            onPress={() => setIncludeDaysCovered((value) => !value)}
-                                            color={theme.primary}
-                                        />
-                                        <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                                            محاسبه تعداد روزهای شمول
-                                        </ThemedText>
-                                    </View>
-                                </View>
-
-                                <View style={styles.helpRow}>
-                                    <ThemedText type="small" style={[styles.helpText, { color: theme.textSecondary }]}>
-                                        با فعال بودن این گزینه، روزهای جزئی شمول هم در محاسبه لحاظ می‌شوند
-                                        اگر غیر فعال باشد، فقط ماه‌های کامل لحاظ می‌شوند.
-                                    </ThemedText>
-                                </View>
-                            </View>
                             <DailyWorkTimeField value={dailyWorkTime} onChange={setDailyWorkTime} />
 
                             <View style={styles.actionsGroup}>
@@ -571,31 +548,6 @@ const styles = StyleSheet.create({
         fontFamily: 'AppFont-Bold',
         fontSize: 12,
     },
-    optionRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    checkboxRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.one,
-    },
-    optionBox: {
-        borderRadius: 12,
-        borderWidth: 1,
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.two,
-        gap: Spacing.one,
-    },
-    helpRow: {
-        marginTop: Spacing.one,
-    },
-    helpText: {
-        lineHeight: 20,
-        fontSize: 11,
-        fontFamily: 'AppFont-Regular',
-    },
     breakdownCard: {
         borderRadius: Radius.md,
         borderWidth: 1,
@@ -669,7 +621,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         borderWidth: 1,
         padding: Spacing.one,
-        gap: Spacing.half,
+        gap: Spacing.one,
         alignItems: 'center',
     },
     pageTitle: {
@@ -697,7 +649,7 @@ const styles = StyleSheet.create({
         fontSize: 18,
     },
     detailLabel: {
-        fontSize: 10,
+        fontSize: 12,
     },
     detailValue: {
         fontSize: 12,

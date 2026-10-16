@@ -39,11 +39,10 @@ export default function FridayWorkScreen() {
     const currentPersianYear = currentJalaliDate.jy;
     const defaultStartDate = `${currentPersianYear}/01/01`;
     const defaultEndDate = `${currentPersianYear}/12/${jalaaliMonthLength(currentPersianYear, 12)}`;
-    const defaultEmploymentDate = `${currentPersianYear - 1}/01/01`;
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
-    const [employmentDate, setEmploymentDate] = useState(defaultEmploymentDate);
+    const [employmentDate, setEmploymentDate] = useState(defaultStartDate);
     const [workshopType, setWorkshopType] = useState<EntitledSeniorityWorkshopType>('unclassified');
     const [settledThrough1391, setSettledThrough1391] = useState(false);
     const [jobGroups, setJobGroups] = useState<{ id: number; group_number: number; sort_order: number }[]>([]);
@@ -56,6 +55,8 @@ export default function FridayWorkScreen() {
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [result, setResult] = useState<FridayWorkCalculationResult | null>(null);
+    const [isWorkerInsuranceExempt, setIsWorkerInsuranceExempt] = useState(false);
+    const [isLegalBasisVisible, setIsLegalBasisVisible] = useState(false);
     const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -175,6 +176,10 @@ export default function FridayWorkScreen() {
             }
         } else if (pickerTarget === 'start') {
             setStartDate(value);
+            setEmploymentDate(value);
+            if ((parseDateInput(value)?.year ?? 0) > 1391) {
+                setSettledThrough1391(false);
+            }
             if (compareDates(value, endDate) > 0) {
                 setEndDate(value);
             }
@@ -313,6 +318,12 @@ export default function FridayWorkScreen() {
     const formattedResult = useMemo(() => (
         result ? toPersianDigits(formatCurrency(result.totalAmount)) : formatCurrency(0)
     ), [formatCurrency, result]);
+    const roundedFridayWorkAmount = Math.round(result?.totalAmount ?? 0);
+    const workerInsuranceAmount = isWorkerInsuranceExempt
+        ? 0
+        : Math.round(roundedFridayWorkAmount * 0.07);
+    const employerInsuranceAmount = Math.round(roundedFridayWorkAmount * 0.23);
+    const finalClaimAmount = roundedFridayWorkAmount - workerInsuranceAmount;
     const totalFridaysInRange = availableFridaysByPeriod.reduce((sum, period) => sum + period.availableFridays, 0);
 
     return (
@@ -436,6 +447,56 @@ export default function FridayWorkScreen() {
                                 })}
                             </View>
 
+                            <Pressable
+                                accessibilityRole="checkbox"
+                                accessibilityState={{ checked: isWorkerInsuranceExempt }}
+                                onPress={() => setIsWorkerInsuranceExempt((value) => !value)}
+                                style={[
+                                    styles.insuranceExemptionOption,
+                                    { backgroundColor: theme.surfaceVariant, borderColor: theme.border },
+                                ]}
+                            >
+                                <MaterialCommunityIcons
+                                    name={isWorkerInsuranceExempt ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                                    size={22}
+                                    color={isWorkerInsuranceExempt ? theme.primary : theme.textSecondary}
+                                />
+                                <View style={styles.insuranceExemptionText}>
+                                    <ThemedText type="smallBold" style={{ color: theme.text, fontSize: 13, lineHeight: 19 }}>
+                                        مشمول معافیت از پرداخت سهم بیمه ی کارگر هستم
+                                    </ThemedText>
+                                    <ThemedText type="small" style={[styles.insuranceExemptionDescription, { color: theme.textSecondary }]}>
+                                        ویژهٔ اسرا، آزادگان، جانبازان و فرزندان شهدا
+                                    </ThemedText>
+                                </View>
+                            </Pressable>
+
+                            <View style={[styles.insuranceLegalBasis, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
+                                <ThemedText type="small" style={[styles.insuranceLegalSummary, { color: theme.textSecondary }]}>
+                                    معافیت از سهم ۷٪ بیمه ی کارگر برای گروه‌های مشمول قوانین ایثارگران.
+                                </ThemedText>
+                                <Pressable
+                                    accessibilityRole="button"
+                                    accessibilityState={{ expanded: isLegalBasisVisible }}
+                                    onPress={() => setIsLegalBasisVisible((visible) => !visible)}
+                                    style={styles.insuranceLegalToggle}
+                                >
+                                    <ThemedText type="smallBold" style={[styles.insuranceLegalToggleLabel, { color: theme.primary }]}>
+                                        مبنای قانونی معافیت
+                                    </ThemedText>
+                                    <MaterialCommunityIcons
+                                        name={isLegalBasisVisible ? 'chevron-up' : 'chevron-down'}
+                                        size={18}
+                                        color={theme.primary}
+                                    />
+                                </Pressable>
+                                {isLegalBasisVisible ? (
+                                    <ThemedText type="small" style={[styles.insuranceLegalText, { color: theme.text }]}>
+                                        اسرا، آزادگان و جانبازان، براساس تبصرهٔ ۳ مادهٔ ۳۷ قانون جامع خدمات‌رسانی به ایثارگران مصوب ۱۳۹۱، و فرزندان شهید مطابق بند «ز» مادهٔ ۸۸ قانون برنامهٔ پنج‌سالهٔ ششم توسعه، که در بند ۲ قسمت «ت» مادهٔ ۳۱ قانون برنامهٔ پنج‌سالهٔ هفتم توسعه تنفیذ شده است، از پرداخت حق بیمهٔ سهم کارگر معاف هستند.
+                                    </ThemedText>
+                                ) : null}
+                            </View>
+
                             <View style={styles.actionsGroup}>
                                 <Button mode="contained" onPress={handleCalculate} icon="calendar-star" style={styles.actionButton} labelStyle={styles.actionLabel} buttonColor={theme.primary} textColor={theme.surface} loading={isLoadingData} disabled={isLoadingData}>محاسبه</Button>
                             </View>
@@ -444,9 +505,23 @@ export default function FridayWorkScreen() {
                                 <Card style={[styles.breakdownCard, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}>
                                     <Card.Content style={styles.breakdownContent}>
                                         <CalculationResultHeading />
-                                        <View style={[styles.summaryBoxContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                                            <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>مبلغ کل جمعه کاری</ThemedText>
-                                            <ThemedText type="largeTitle" style={[styles.amountValue, { color: theme.primary }]}>{formattedResult}</ThemedText>
+                                        <View style={styles.insuranceSummary}>
+                                            <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                <ThemedText type="small" style={[styles.insuranceSummaryLabel, { color: theme.textSecondary }]}>مبلغ کل جمعه کاری</ThemedText>
+                                                <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, { color: theme.text }]}>{formattedResult}</ThemedText>
+                                            </View>
+                                            <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                <ThemedText type="small" style={[styles.insuranceSummaryLabel, { color: theme.textSecondary }]}>سهم بیمه ی کارگر از جمعه کاری (۷٪{isWorkerInsuranceExempt ? '، معاف' : ''})</ThemedText>
+                                                <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, { color: theme.text }]}>{toPersianDigits(formatCurrency(workerInsuranceAmount))}</ThemedText>
+                                            </View>
+                                            <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                                <ThemedText type="small" style={[styles.insuranceSummaryLabel, { color: theme.textSecondary }]}>سهم بیمه ی کارفرما از جمعه کاری (۲۳٪)</ThemedText>
+                                                <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, { color: theme.text }]}>{toPersianDigits(formatCurrency(employerInsuranceAmount))}</ThemedText>
+                                            </View>
+                                            <View style={[styles.insuranceSummaryRow, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}>
+                                                <ThemedText type="smallBold" style={[styles.insuranceSummaryLabel, styles.insuranceSummaryEmphasisLabel, { color: theme.textSecondary }]}>جمعه کاری پس از کسر سهم بیمه ی کارگر</ThemedText>
+                                                <ThemedText type="smallBold" style={[styles.insuranceSummaryValue, styles.insuranceSummaryEmphasisValue, { color: theme.primary }]}>{toPersianDigits(formatCurrency(finalClaimAmount))}</ThemedText>
+                                            </View>
                                         </View>
                                         <View style={[styles.totalFridaysBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                                             <ThemedText type="small" style={[styles.summaryLabel, { color: theme.textSecondary }]}>مجموع جمعه‌های موجود در بازه انتخاب‌شده</ThemedText>
@@ -475,6 +550,7 @@ export default function FridayWorkScreen() {
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>{workshopType === 'classified' ? 'پایه سنوات استحقاقی روزانه گروه شغلی' : 'پایه سنوات استحقاقی روزانه'}</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.text }]}>{toPersianDigits(formatCurrency(item.dailySeniority))}</ThemedText></View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.primaryContainer, borderColor: theme.primary }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>مبلغ یک روز جمعه کاری</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{item.fridayWorkRate != null ? toPersianDigits(formatCurrency(item.fridayWorkRate)) : '-'}</ThemedText></View>
                                                             <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>مبلغ این دوره</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{toPersianDigits(formatCurrency(item.amount))}</ThemedText></View>
+                                                            <View style={[styles.breakdownDetailBox, { backgroundColor: theme.surfaceVariant, borderColor: theme.border }]}><ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>حق بیمه پرداختی به سازمان تامین اجتماعی</ThemedText><ThemedText type="smallBold" style={[styles.detailValue, { color: theme.primary }]}>{toPersianDigits(formatCurrency(Math.round(item.amount * 0.3)))}</ThemedText></View>
                                                         </View>
                                                     </View>
                                                 ))}
@@ -535,9 +611,21 @@ const styles = StyleSheet.create({
     actionLabel: { fontFamily: 'AppFont-Bold', fontSize: 12 },
     breakdownCard: { borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.two, overflow: 'hidden' },
     breakdownContent: { gap: Spacing.two, paddingVertical: Spacing.three, paddingHorizontal: Spacing.two },
-    summaryBoxContent: { width: '100%', borderRadius: 12, borderWidth: 1, padding: Spacing.two, gap: Spacing.one, alignItems: 'center' },
+    insuranceSummary: { width: '100%', gap: Spacing.one },
+    insuranceSummaryRow: { minHeight: 52, flexDirection: 'column', alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 12, borderWidth: 1 },
+    insuranceSummaryLabel: { textAlign: 'center', fontSize: 12 },
+    insuranceSummaryValue: { textAlign: 'center', fontSize: 12 },
+    insuranceSummaryEmphasisLabel: { fontSize: 13 },
+    insuranceSummaryEmphasisValue: { fontSize: 14 },
+    insuranceExemptionOption: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.two, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12 },
+    insuranceExemptionText: { flex: 1, gap: Spacing.half },
+    insuranceExemptionDescription: { fontSize: 12 },
+    insuranceLegalBasis: { gap: Spacing.one, padding: Spacing.two, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12 },
+    insuranceLegalSummary: { fontSize: 12, lineHeight: 18 },
+    insuranceLegalToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.one, paddingVertical: Spacing.half },
+    insuranceLegalToggleLabel: { fontSize: 13 },
+    insuranceLegalText: { fontSize: 12, lineHeight: 20 },
     summaryLabel: { fontSize: 11 },
-    amountValue: { fontSize: 18 },
     totalFridaysBox: { width: '100%', borderRadius: 12, borderWidth: 1, padding: Spacing.two, gap: Spacing.one, alignItems: 'center' },
     totalFridaysValue: { fontSize: 16 },
     breakdownSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.one, paddingVertical: Spacing.one, gap: Spacing.one },
@@ -549,7 +637,7 @@ const styles = StyleSheet.create({
     breakdownItemHeaderRow: { paddingTop: 2, paddingBottom: 2, marginBottom: 2, borderBottomWidth: StyleSheet.hairlineWidth },
     breakdownItemTitle: { fontSize: 12, fontFamily: 'AppFont-Bold' },
     breakdownDetailGrid: { gap: Spacing.one },
-    breakdownDetailBox: { borderRadius: 8, borderWidth: 1, padding: Spacing.one, gap: Spacing.half, alignItems: 'center' },
-    detailLabel: { fontSize: 10 },
+    breakdownDetailBox: { borderRadius: 8, borderWidth: 1, padding: Spacing.one, gap: Spacing.one, alignItems: 'center' },
+    detailLabel: { fontSize: 12 },
     detailValue: { fontSize: 12 },
 });
